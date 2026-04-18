@@ -288,7 +288,11 @@ var AT={token:'',base:'',dailyTable:'每日班表',hrsTable:'人員工時',staff
 function pad(n){return n<10?'0'+n:''+n;}
 function mkey(y,m){return y+'-'+pad(m+1);}
 function t2n(t){var p=t.split(':');return +p[0]+ +p[1]/60;}
-function calcH(s,e){if(!s||!e)return 0;var h=t2n(e)-t2n(s);if(h<=0)return 0;var os=Math.max(t2n(s),12),oe=Math.min(t2n(e),13);if(oe>os)h-=(oe-os);return Math.max(0,h);}
+function calcH(s, e) {
+  if (!s || !e) return 0;
+  var h = t2n(e) - t2n(s);
+  return h > 0 ? h : 0; // 直接計算時差，不再扣除午休
+}
 function genTimes(){var t=[];for(var h=7;h<=20;h++){t.push(pad(h)+':00');if(h<20)t.push(pad(h)+':30');}return t;}
 var TIMES=genTimes();
 function getPdata(pid,y,m){var k=mkey(y,m);if(!state.schedule[k])state.schedule[k]={};if(!state.schedule[k][pid])state.schedule[k][pid]={};return state.schedule[k][pid];}
