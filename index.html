@@ -503,38 +503,85 @@ async function removeStaff(id){
   }catch(e){status.innerHTML='<span style="color:#A32D2D;">刪除失敗：'+e.message+'</span>';}
 }
 
-async function submitToAirtable(){
-  var pid=currentUser.pid,y=staffY,m=staffM;
-  var p=state.staff.find(function(x){return x.id===pid;});if(!p)return;
-  var btn=document.getElementById('submitBtn');
-  btn.disabled=true;btn.textContent='同步中…';
-  showSubmitStatus('loading','正在 upsert 到 Airtable（已有資料將更新）…');
-  var dim=new Date(y,m+1,0).getDate(),pd=getPdata(pid,y,m),monthLabel=y+'年'+(m+1)+'月';
-  try{
-    var count=0;
-    for(var d=1;d<=dim;d++){
-      var day=pd[d];
-      var dh=0;
-      if(day&&day.am&&day.ams&&day.ame)dh+=calcH(day.ams,day.ame);
-      if(day&&day.pm&&day.pms&&day.pme)dh+=calcH(day.pms,day.pme);
-      if(dh<=0)continue;
-      var uniqueKey=p.name+'_'+monthLabel+'_'+pad(d);
-      var fields={'姓名':p.name,'月份':monthLabel,'日期':y+'-'+pad(m+1)+'-'+pad(d),'上午開始':day.am?day.ams:'','上午結束':day.am?day.ame:'','下午開始':day.pm?day.pms:'','下午結束':day.pm?day.pme:'','當日工時':parseFloat(dh.toFixed(2))};
-      await upsertDailyRecord(fields,uniqueKey);
+async function submitToAirtable() {
+  var pid = currentUser.pid, y = staffY, m = staffM;
+  var p = state.staff.find(function(x) { return x.id === pid; });
+  if (!p) return;
+
+  var btn = document.getElementById('submitBtn');
+  btn.disabled = true;
+  btn.textContent = '同步中…';
+  showSubmitStatus('loading', '正在清理舊資料並同步到 Airtable…');
+
+  var monthLabel = y + '年' + (m + 1) + '月';
+  var dim = new Date(y, m + 1, 0).getDate();
+  var pd = getPdata(pid, y, m);
+
+  try {
+    // 1. 先找出該人員在該月份的所有「每日班表」舊資料
+    var formula = 'AND({姓名}="' + p.name + '",{月份}="' + monthLabel + '")';
+    var existingRecords = await atGetAll(AT.dailyTable, formula);
+
+    // 2. 執行刪除舊資料
+    if (existingRecords.length > 0) {
+      for (var rec of existingRecords) {
+        await fetch('https://api.airtable.com/v0/' + AT.base + '/' + encodeURIComponent(AT.dailyTable) + '/' + rec.id, {
+          method: 'DELETE',
+          headers: { Authorization: 'Bearer ' + AT.token }
+        });
+      }
+    }
+
+    // 3. 重新寫入目前網頁上的排班資料
+    var count = 0;
+    for (var d = 1; d <= dim; d++) {
+      var day = pd[d];
+      var dh = 0;
+      if (day && day.am && day.ams && day.ame) dh += calcH(day.ams, day.ame);
+      if (day && day.pm && day.pms && day.pme) dh += calcH(day.pms, day.pme);
+      
+      if (dh <= 0) continue; // 沒時數就不寫入（這就是為什麼先前的刪除很重要）
+
+      var uniqueKey = p.name + '_' + monthLabel + '_' + pad(d);
+      var fields = {
+        '姓名': p.name,
+        '月份': monthLabel,
+        '日期': y + '-' + pad(m + 1) + '-' + pad(d),
+        '上午開始': day.am ? day.ams : '',
+        '上午結束': day.am ? day.ame : '',
+        '下午開始': day.pm ? day.pms : '',
+        '下午結束': day.pm ? day.pme : '',
+        '當日工時': parseFloat(dh.toFixed(2))
+      };
+      
+      // 直接 POST 新增
+      fields['唯一鍵'] = uniqueKey;
+      await atFetch('POST', AT.dailyTable, { records: [{ fields: fields }] });
       count++;
     }
-    var totalHrs=monthHrs(pid,y,m);
-    var hrsKey=p.name+'_'+monthLabel;
-    var hrsFields={'姓名':p.name,'月份':monthLabel,'總工時':parseFloat(totalHrs.toFixed(2)),'是否達標':totalHrs>=TARGET};
-    await upsertHrsRecord(hrsFields,hrsKey);
-    state.submitted[pid+'-'+mkey(y,m)]=true;
+
+    // 4. 更新「人員工時」總表（總表只有一筆，繼續使用 upsert 即可）
+    var totalHrs = monthHrs(pid, y, m);
+    var hrsKey = p.name + '_' + monthLabel;
+    var hrsFields = {
+      '姓名': p.name,
+      '月份': monthLabel,
+      '總工時': parseFloat(totalHrs.toFixed(1)),
+      '是否達標': totalHrs >= TARGET
+    };
+    await upsertHrsRecord(hrsFields, hrsKey);
+
+    state.submitted[pid + '-' + mkey(y, m)] = true;
     saveLocal();
-    showSubmitStatus('ok','✓ 已同步 '+count+' 天記錄，總工時 '+totalHrs.toFixed(1)+'h');
-    btn.textContent='重新送出';btn.disabled=false;
+    showSubmitStatus('ok', '✓ 已清除舊紀錄並重新同步 ' + count + ' 天排班，總計 ' + totalHrs.toFixed(1) + 'h');
+    btn.textContent = '重新送出';
+    btn.disabled = false;
     renderStaff(); 
-  }catch(err){
-    showSubmitStatus('err','同步失敗：'+err.message);
-    btn.disabled=false;btn.textContent='重試送出';
+
+  } catch (err) {
+    showSubmitStatus('err', '同步失敗：' + err.message);
+    btn.disabled = false;
+    btn.textContent = '重試送出';
   }
 }
 
