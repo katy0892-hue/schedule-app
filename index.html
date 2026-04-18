@@ -288,11 +288,14 @@ var AT={token:'',base:'',dailyTable:'每日班表',hrsTable:'人員工時',staff
 function pad(n){return n<10?'0'+n:''+n;}
 function mkey(y,m){return y+'-'+pad(m+1);}
 function t2n(t){var p=t.split(':');return +p[0]+ +p[1]/60;}
-function calcH(s, e) {
-  if (!s || !e) return 0;
-  var h = t2n(e) - t2n(s);
-  return h > 0 ? h : 0; // 直接計算時差，不再扣除午休
+
+// --- 修正後的工時計算（包含12-13點） ---
+function calcH(s,e){
+  if(!s||!e)return 0;
+  var h=t2n(e)-t2n(s);
+  return h>0?h:0;
 }
+
 function genTimes(){var t=[];for(var h=7;h<=20;h++){t.push(pad(h)+':00');if(h<20)t.push(pad(h)+':30');}return t;}
 var TIMES=genTimes();
 function getPdata(pid,y,m){var k=mkey(y,m);if(!state.schedule[k])state.schedule[k]={};if(!state.schedule[k][pid])state.schedule[k][pid]={};return state.schedule[k][pid];}
@@ -305,6 +308,7 @@ function isSubmitted(pid,y,m){return !!(state.submitted[pid+'-'+mkey(y,m)]);}
 function saveLocal(){try{localStorage.setItem('at_config',JSON.stringify(AT));localStorage.setItem('at_state',JSON.stringify({pref:state.pref,submitted:state.submitted,weekTpl:state.weekTpl,schedule:state.schedule}));}catch(e){}}
 function loadLocal(){try{var c=localStorage.getItem('at_config');if(c)AT=Object.assign(AT,JSON.parse(c));var s=localStorage.getItem('at_state');if(s){var d=JSON.parse(s);state.pref=d.pref||{};state.submitted=d.submitted||{};state.weekTpl=d.weekTpl||state.weekTpl;state.schedule=d.schedule||{};}}catch(e){}}
 
+// --- Airtable API 核心 ---
 async function atFetch(method,table,body,params){
   var url='https://api.airtable.com/v0/'+AT.base+'/'+encodeURIComponent(table);
   if(params)url+='?'+params;
@@ -326,6 +330,45 @@ async function atGetAll(table,formula){
   return records;
 }
 
+// --- 新增：從 Airtable 抓取班表數據 ---
+async function syncScheduleFromAT(y, m) {
+  var monthLabel = y + '年' + (m + 1) + '月';
+  var formula = '{月份}="' + monthLabel + '"';
+  try {
+    var records = await atGetAll(AT.dailyTable, formula);
+    var k = mkey(y, m);
+    state.schedule[k] = {}; // 清空本地該月暫存，以 Airtable 為準
+    
+    records.forEach(function(rec) {
+      var f = rec.fields;
+      var name = f['姓名'];
+      var staff = state.staff.find(function(s){ return s.name === name; });
+      if (!staff) return;
+      
+      var pid = staff.id;
+      if (!state.schedule[k][pid]) state.schedule[k][pid] = {};
+      
+      // 解析日期（格式 YYYY-MM-DD）
+      var dStr = f['日期'];
+      var d = parseInt(dStr.split('-')[2]);
+      
+      state.schedule[k][pid][d] = {
+        am: !!f['上午開始'],
+        ams: f['上午開始'] || '09:00',
+        ame: f['上午結束'] || '12:00',
+        pm: !!f['下午開始'],
+        pms: f['下午開始'] || '13:00',
+        pme: f['下午結束'] || '16:00'
+      };
+      // 只要抓得到紀錄，就標記為已送出
+      state.submitted[pid + '-' + k] = true;
+    });
+    saveLocal();
+  } catch (e) {
+    console.error("同步班表失敗:", e);
+  }
+}
+
 async function loadStaffFromAirtable(){
   var records=await atGetAll(AT.staffTable);
   state.staff=records.map(function(r,i){return{id:r.id,atId:r.id,name:r.fields['姓名']||'',idx:i};});
@@ -340,10 +383,7 @@ async function deleteStaffFromAirtable(atId){
   await fetch('https://api.airtable.com/v0/'+AT.base+'/'+encodeURIComponent(AT.staffTable)+'/'+atId,{method:'DELETE',headers:{Authorization:'Bearer '+AT.token}});
 }
 
-function makeFormula(key){
-  // Use FIND() to match 唯一鍵 — handles Chinese, underscores, slashes safely
-  return 'FIND("'+key+'",{唯一鍵})=1';
-}
+function makeFormula(key){ return 'FIND("'+key+'",{唯一鍵})=1'; }
 async function upsertDailyRecord(fields,uniqueKey){
   var existing=await atGetAll(AT.dailyTable,makeFormula(uniqueKey));
   if(existing.length>0){
@@ -392,6 +432,7 @@ async function init(){
   if(!AT.token||!AT.base){showScreen('scr-setup');return;}
   try{
     await loadStaffFromAirtable();
+    await syncScheduleFromAT(vy, vm); // 初始化時抓一次當月班表
     showScreen('scr-login');
   }catch(e){
     showScreen('scr-setup');
@@ -399,17 +440,40 @@ async function init(){
   }
 }
 
-function doLogin(){var role=document.getElementById('loginRole').value;if(!role)return;if(role==='admin'){currentUser={role:'admin'};vy=today.getFullYear();vm=today.getMonth();showAdmin();}else{var pid=role,p=state.staff.find(function(x){return x.id===pid;});if(!p)return;currentUser={role:'staff',pid:pid,name:p.name};ovy=today.getFullYear();ovm=today.getMonth();staffY=today.getFullYear();staffM=today.getMonth();showScreen('scr-overview');renderOv();}}
+// --- 登入與導航 ---
+async function doLogin(){
+  var role=document.getElementById('loginRole').value;
+  if(!role)return;
+  if(role==='admin'){
+    currentUser={role:'admin'};
+    vy=today.getFullYear(); vm=today.getMonth();
+    await syncScheduleFromAT(vy, vm);
+    showAdmin();
+  } else {
+    var pid=role,p=state.staff.find(function(x){return x.id===pid;});
+    if(!p)return;
+    currentUser={role:'staff',pid:pid,name:p.name};
+    ovy=today.getFullYear(); ovm=today.getMonth();
+    staffY=today.getFullYear(); staffM=today.getMonth();
+    await syncScheduleFromAT(ovy, ovm); // 登入時抓取 Airtable 班表
+    showScreen('scr-overview');
+    renderOv();
+  }
+}
+
 function goLogin(){currentUser=null;document.getElementById('loginRole').value='';showScreen('scr-login');}
 function showScreen(id){document.querySelectorAll('.screen').forEach(function(s){s.classList.remove('active');});document.getElementById(id).classList.add('active');}
 function showAdmin(){showScreen('scr-admin');renderAdmin();}
 function goToOv(){showScreen('scr-overview');renderOv();}
-function prevM_ov(){ovm--;if(ovm<0){ovm=11;ovy--;}renderOv();}
-function nextM_ov(){ovm++;if(ovm>11){ovm=0;ovy++;}renderOv();}
-function prevM_staff(){staffM--;if(staffM<0){staffM=11;staffY--;}renderStaff();}
-function nextM_staff(){staffM++;if(staffM>11){staffM=0;staffY++;}renderStaff();}
-function prevM(){vm--;if(vm<0){vm=11;vy--;}renderAdmin();}
-function nextM(){vm++;if(vm>11){vm=0;vy++;}renderAdmin();}
+
+// --- 切換月份（加入同步邏輯） ---
+async function prevM_ov(){ ovm--; if(ovm<0){ovm=11;ovy--;} await syncScheduleFromAT(ovy, ovm); renderOv(); }
+async function nextM_ov(){ ovm++; if(ovm>11){ovm=0;ovy++;} await syncScheduleFromAT(ovy, ovm); renderOv(); }
+async function prevM_staff(){ staffM--; if(staffM<0){staffM=11;staffY--;} await syncScheduleFromAT(staffY, staffM); renderStaff(); }
+async function nextM_staff(){ staffM++; if(staffM>11){staffM=0;staffY++;} await syncScheduleFromAT(staffY, staffM); renderStaff(); }
+async function prevM(){ vm--; if(vm<0){vm=11;vy--;} await syncScheduleFromAT(vy, vm); renderAdmin(); }
+async function nextM(){ vm++; if(vm>11){vm=0;vy++;} await syncScheduleFromAT(vy, vm); renderAdmin(); }
+
 function refreshStaffOpts(){var og=document.getElementById('staffOpts');og.innerHTML='';state.staff.forEach(function(p){var o=document.createElement('option');o.value=p.id;o.textContent=p.name;og.appendChild(o);});}
 
 async function addStaff(){
@@ -424,6 +488,7 @@ async function addStaff(){
     setTimeout(function(){status.textContent='';},3000);
   }catch(e){status.innerHTML='<span style="color:#A32D2D;">新增失敗：'+e.message+'</span>';}
 }
+
 async function removeStaff(id){
   if(!confirm('確認刪除這位人員？（Airtable 人員名單也會同步刪除）'))return;
   var p=state.staff.find(function(x){return x.id===id;});if(!p)return;
@@ -464,19 +529,18 @@ async function submitToAirtable(){
     await upsertHrsRecord(hrsFields,hrsKey);
     state.submitted[pid+'-'+mkey(y,m)]=true;
     saveLocal();
-    showSubmitStatus('ok','✓ 已同步 '+count+' 天記錄，總工時 '+totalHrs.toFixed(1)+'h（重複送出會自動更新）');
+    showSubmitStatus('ok','✓ 已同步 '+count+' 天記錄，總工時 '+totalHrs.toFixed(1)+'h');
     btn.textContent='重新送出';btn.disabled=false;
-    document.getElementById('submitBannerTitle').textContent='本月排班已送出';
-    document.getElementById('submitBannerSub').textContent='可隨時修改後重新送出以更新 Airtable';
-    document.getElementById('submitBanner').style.background='#f5f5f5';
-    updateStaffStats();
+    renderStaff(); 
   }catch(err){
     showSubmitStatus('err','同步失敗：'+err.message);
     btn.disabled=false;btn.textContent='重試送出';
   }
 }
+
 function showSubmitStatus(type,msg){var cls=type==='ok'?'at-status ok':type==='err'?'at-status err':'at-status loading';document.getElementById('submitStatus').innerHTML='<div class="'+cls+'" style="margin-bottom:.75rem;">'+msg+'</div>';}
 
+// --- 渲染畫面 (其餘邏輯不變) ---
 function renderOv(){
   var y=ovy,m=ovm;document.getElementById('ovMonLbl').textContent=y+'年 '+MONTHS[m];
   var btn=document.getElementById('ovActionBtn');
@@ -503,29 +567,25 @@ function renderStaff(){
   updateStaffStats();
   var submitted=isSubmitted(p.id,y,m);
   var banner=document.getElementById('submitBanner'),btn=document.getElementById('submitBtn');
-  document.getElementById('submitStatus').innerHTML='';
   banner.style.display='flex';
   if(submitted){
-    banner.style.background='#f5f5f5';btn.disabled=false;btn.textContent='重新送出';btn.style.opacity='1';
+    banner.style.background='#f5f5f5'; btn.textContent='重新送出';
     document.getElementById('submitBannerTitle').textContent='本月排班已送出';
     document.getElementById('submitBannerSub').textContent='可隨時修改後重新送出以更新 Airtable';
   }else{
-    banner.style.background='#EAF3DE';btn.disabled=false;btn.textContent='送出本月排班';btn.style.opacity='1';
+    banner.style.background='#EAF3DE'; btn.textContent='送出本月排班';
     document.getElementById('submitBannerTitle').textContent='排班填寫完成了嗎？';
     document.getElementById('submitBannerSub').textContent='送出後資料將同步到 Airtable';
   }
-  var dim=new Date(y,m+1,0).getDate(),hasPref=false;
-  for(var d=1;d<=dim;d++){if(getPref(d,y,m).am||getPref(d,y,m).pm){hasPref=true;break;}}
-  document.getElementById('prefHintBar').innerHTML=hasPref?'<div class="card" style="padding:.6rem 1rem;margin-bottom:0;"><div style="font-size:12px;color:#666;display:flex;align-items:center;gap:5px;flex-wrap:wrap;"><span style="background:#FAEEDA;color:#633806;padding:1px 6px;border-radius:3px;border:1px solid #FAC775;font-size:11px;">金框</span> 為管理者偏好時段，右側顯示缺額</div></div>':'';
-  var pd=getPdata(p.id,y,m),html='';
+  var dim=new Date(y,m+1,0).getDate(),pd=getPdata(p.id,y,m),html='';
   for(var d=1;d<=dim;d++){
     var dow=new Date(y,m,d).getDay(),isWE=dow===0||dow===6,pr=getPref(d,y,m);
     var day=pd[d]||{am:false,ams:'09:00',ame:'12:00',pm:false,pms:'13:00',pme:'16:00'};
-    var dh=0;if(day.am&&day.ams&&day.ame)dh+=calcH(day.ams,day.ame);if(day.pm&&day.pms&&day.pme)dh+=calcH(day.pms,day.pme);
+    var dh=0;if(day.am)dh+=calcH(day.ams,day.ame);if(day.pm)dh+=calcH(day.pms,day.pme);
     var amGap=gapLabel(d,'am',y,m),pmGap=gapLabel(d,'pm',y,m);
     html+='<div class="day-list-row" onclick="openDayModal(\''+p.id+'\','+d+','+y+','+m+')"><div class="day-date'+(isWE?' we':'')+'"><div style="font-size:15px;font-weight:500;">'+(m+1)+'/'+d+'</div><div style="font-size:11px;">'+DW[dow]+'</div></div><div class="day-slots">';
-    if(day.am&&dh>0)html+='<div style="display:flex;align-items:center;gap:5px;"><span class="slot-tag am">上午 '+day.ams+'–'+day.ame+'</span>'+(pr.am?'<span style="font-size:10px;background:#FAEEDA;color:#633806;border:1px solid #FAC775;padding:1px 4px;border-radius:3px;">偏好</span>':'')+'</div>';
-    if(day.pm&&dh>0)html+='<div style="display:flex;align-items:center;gap:5px;"><span class="slot-tag pm">下午 '+day.pms+'–'+day.pme+'</span>'+(pr.pm?'<span style="font-size:10px;background:#FAEEDA;color:#633806;border:1px solid #FAC775;padding:1px 4px;border-radius:3px;">偏好</span>':'')+'</div>';
+    if(day.am&&calcH(day.ams,day.ame)>0)html+='<div style="display:flex;align-items:center;gap:5px;"><span class="slot-tag am">上午 '+day.ams+'–'+day.ame+'</span>'+(pr.am?'<span style="font-size:10px;background:#FAEEDA;color:#633806;border:1px solid #FAC775;padding:1px 4px;border-radius:3px;">偏好</span>':'')+'</div>';
+    if(day.pm&&calcH(day.pms,day.pme)>0)html+='<div style="display:flex;align-items:center;gap:5px;"><span class="slot-tag pm">下午 '+day.pms+'–'+day.pme+'</span>'+(pr.pm?'<span style="font-size:10px;background:#FAEEDA;color:#633806;border:1px solid #FAC775;padding:1px 4px;border-radius:3px;">偏好</span>':'')+'</div>';
     if(!day.am&&!day.pm)html+='<span class="slot-tag empty">未排班</span>';
     if(dh>0)html+='<span style="font-size:11px;color:#888;">共 '+dh.toFixed(1)+'h</span>';
     html+='</div><div class="day-gap">';
@@ -538,14 +598,13 @@ function renderStaff(){
 
 function updateStaffStats(){
   if(!currentUser||currentUser.role!=='staff')return;
-  var hrs=monthHrs(currentUser.pid,staffY,staffM),remain=Math.max(0,TARGET-hrs),pct=Math.min(100,hrs/TARGET*100);
+  var hrs=monthHrs(currentUser.pid,staffY,staffM),remain=Math.max(0,TARGET-hrs);
   var col=hrs>=TARGET?'ok':remain<=2?'warn':'';
   var sub=isSubmitted(currentUser.pid,staffY,staffM);
   document.getElementById('staffStats').innerHTML='<div class="stat"><div class="stat-lbl">已排時數</div><div class="stat-val '+col+'">'+hrs.toFixed(1)+'h</div></div><div class="stat"><div class="stat-lbl">目標</div><div class="stat-val">'+TARGET+'h</div></div><div class="stat"><div class="stat-lbl">尚缺</div><div class="stat-val '+(remain>0?'warn':'ok')+'">'+remain.toFixed(1)+'h</div></div><div class="stat"><div class="stat-lbl">Airtable</div><div style="padding-top:4px;">'+(sub?'<span class="badge badge-green">已送出</span>':'<span class="badge badge-gray">未送出</span>')+'</div></div>';
 }
 
 function mkSel(id,val,onch){var h='<select id="'+id+'" onchange="'+onch+'" style="flex:1;font-size:14px;padding:9px 8px;">';TIMES.forEach(function(t){h+='<option'+(t===val?' selected':'')+'>'+t+'</option>';});return h+'</select>';}
-
 function openDayModal(pid,d,y,m){
   modalPid=pid;modalD=d;modalY=y;modalM=m;
   var dow=new Date(y,m,d).getDay(),pr=getPref(d,y,m),pd=getPdata(pid,y,m),day=pd[d]||{am:false,ams:'09:00',ame:'12:00',pm:false,pms:'13:00',pme:'16:00'};
@@ -555,7 +614,7 @@ function openDayModal(pid,d,y,m){
   html+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="checkbox" class="big-checkbox" id="m_am" '+(day.am?'checked':'')+' onchange="mToggle(\'am\')"><span style="font-size:14px;font-weight:500;">上午班</span></label>'+(pr.am?'<span style="font-size:11px;background:#FAEEDA;color:#633806;border:1px solid #FAC775;padding:1px 6px;border-radius:4px;">偏好</span>':'')+'</div>';
   html+='<div id="m_am_t" style="'+(day.am?'':'opacity:.4;pointer-events:none;')+'"><div class="time-row">'+mkSel('m_ams',day.ams||'09:00','mTime(\'am\',\'s\',this.value)')+'<span style="font-size:14px;color:#aaa;">—</span>'+mkSel('m_ame',day.ame||'12:00','mTime(\'am\',\'e\',this.value)')+'</div></div></div>';
   html+='<div class="slot-section'+(pr.pm?' pref-border':'')+'">';
-  html+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="checkbox" class="big-checkbox" id="m_pm" '+(day.pm?'checked':'')+' onchange="mToggle(\'pm\')"><span style="font-size:14px;font-weight:500;">下午班</span></label>'+(pr.pm?'<span style="font-size:11px;background:#FAEEDA;color:#633806;border:1px solid #FAC775;padding:1px 6px;border-radius:4px;">偏好</span>':'')+'</div>';
+  html+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="checkbox" class="big-checkbox" id="m_pm" '+(day.pm?'checked':'')+' onchange="mToggle(\'pm\')"><span style="font-size:14px;font-weight:500;">下午班</span></label>'+(pr.pm?'<span style="font-size:11px;background:#FAEEDA;color:#633806;border:1px solid #FAC775;padding:1px 4px;border-radius:3px;">偏好</span>':'')+'</div>';
   html+='<div id="m_pm_t" style="'+(day.pm?'':'opacity:.4;pointer-events:none;')+'"><div class="time-row">'+mkSel('m_pms',day.pms||'13:00','mTime(\'pm\',\'s\',this.value)')+'<span style="font-size:14px;color:#aaa;">—</span>'+mkSel('m_pme',day.pme||'16:00','mTime(\'pm\',\'e\',this.value)')+'</div></div></div>';
   document.getElementById('modalBody').innerHTML=html;
   document.getElementById('dayOverlay').classList.add('show');
@@ -566,12 +625,50 @@ function ensureDay(){var k=mkey(modalY,modalM);if(!state.schedule[k])state.sched
 function mToggle(slot){ensureDay();var k=mkey(modalY,modalM),checked=document.getElementById('m_'+slot).checked;state.schedule[k][modalPid][modalD][slot]=checked;var t=document.getElementById('m_'+slot+'_t');if(t)t.style.cssText=checked?'':'opacity:.4;pointer-events:none;';refreshModalGap();}
 function mTime(slot,se,val){ensureDay();var k=mkey(modalY,modalM),f=slot==='am'?(se==='s'?'ams':'ame'):(se==='s'?'pms':'pme');state.schedule[k][modalPid][modalD][f]=val;var day=state.schedule[k][modalPid][modalD],fs=slot==='am'?'ams':'pms',fe=slot==='am'?'ame':'pme';if(t2n(day[fs])>=t2n(day[fe])){var idx=TIMES.indexOf(val);if(se==='s')day[fe]=TIMES[Math.min(idx+2,TIMES.length-1)];else day[fs]=TIMES[Math.max(idx-2,0)];}refreshModalGap();}
 function refreshModalGap(){var amGap=gapLabel(modalD,'am',modalY,modalM),pmGap=gapLabel(modalD,'pm',modalY,modalM);var html='';if(amGap)html+='<div class="modal-gap-pill gap-pill '+amGap.cls+'">上午 '+amGap.text+'</div>';if(pmGap)html+='<div class="modal-gap-pill gap-pill '+pmGap.cls+'">下午 '+pmGap.text+'</div>';var gr=document.getElementById('modalGapRow');gr.innerHTML=html;gr.style.display=html?'flex':'none';}
-function renderStaffRow(d){var y=staffY,m=staffM,p=state.staff.find(function(x){return x.id===currentUser.pid;});if(!p)return;var pr=getPref(d,y,m),pd=getPdata(p.id,y,m),day=pd[d]||{};var dh=0;if(day.am&&day.ams&&day.ame)dh+=calcH(day.ams,day.ame);if(day.pm&&day.pms&&day.pme)dh+=calcH(day.pms,day.pme);var amGap=gapLabel(d,'am',y,m),pmGap=gapLabel(d,'pm',y,m);var rows=document.querySelectorAll('#staffDayList .day-list-row'),dim=new Date(y,m+1,0).getDate();for(var i=0;i<dim;i++){if(i+1===d&&rows[i]){var slots=rows[i].querySelector('.day-slots'),gap=rows[i].querySelector('.day-gap');if(slots){var sh='';if(day.am&&dh>0)sh+='<div style="display:flex;align-items:center;gap:5px;"><span class="slot-tag am">上午 '+day.ams+'–'+day.ame+'</span>'+(pr.am?'<span style="font-size:10px;background:#FAEEDA;color:#633806;border:1px solid #FAC775;padding:1px 4px;border-radius:3px;">偏好</span>':'')+'</div>';if(day.pm&&dh>0)sh+='<div style="display:flex;align-items:center;gap:5px;"><span class="slot-tag pm">下午 '+day.pms+'–'+day.pme+'</span>'+(pr.pm?'<span style="font-size:10px;background:#FAEEDA;color:#633806;border:1px solid #FAC775;padding:1px 4px;border-radius:3px;">偏好</span>':'')+'</div>';if(!day.am&&!day.pm)sh+='<span class="slot-tag empty">未排班</span>';if(dh>0)sh+='<span style="font-size:11px;color:#888;">共 '+dh.toFixed(1)+'h</span>';slots.innerHTML=sh;}if(gap){var gh='';if(amGap)gh+='<span class="gap-pill '+amGap.cls+'">上 '+amGap.text+'</span>';if(pmGap)gh+='<span class="gap-pill '+pmGap.cls+'">下 '+pmGap.text+'</span>';gap.innerHTML=gh;}}}}
+function renderStaffRow(d){
+  var y=staffY,m=staffM,p=state.staff.find(function(x){return x.id===currentUser.pid;});if(!p)return;
+  var pr=getPref(d,y,m),pd=getPdata(p.id,y,m),day=pd[d]||{};
+  var dh=0;if(day.am)dh+=calcH(day.ams,day.ame);if(day.pm)dh+=calcH(day.pms,day.pme);
+  var amGap=gapLabel(d,'am',y,m),pmGap=gapLabel(d,'pm',y,m);
+  var rows=document.querySelectorAll('#staffDayList .day-list-row'),dim=new Date(y,m+1,0).getDate();
+  for(var i=0;i<dim;i++){
+    if(i+1===d&&rows[i]){
+      var slots=rows[i].querySelector('.day-slots'),gap=rows[i].querySelector('.day-gap');
+      if(slots){
+        var sh='';
+        if(day.am&&calcH(day.ams,day.ame)>0)sh+='<div style="display:flex;align-items:center;gap:5px;"><span class="slot-tag am">上午 '+day.ams+'–'+day.ame+'</span>'+(pr.am?'<span style="font-size:10px;background:#FAEEDA;color:#633806;border:1px solid #FAC775;padding:1px 4px;border-radius:3px;">偏好</span>':'')+'</div>';
+        if(day.pm&&calcH(day.pms,day.pme)>0)sh+='<div style="display:flex;align-items:center;gap:5px;"><span class="slot-tag pm">下午 '+day.pms+'–'+day.pme+'</span>'+(pr.pm?'<span style="font-size:10px;background:#FAEEDA;color:#633806;border:1px solid #FAC775;padding:1px 4px;border-radius:3px;">偏好</span>':'')+'</div>';
+        if(!day.am&&!day.pm)sh+='<span class="slot-tag empty">未排班</span>';
+        if(dh>0)sh+='<span style="font-size:11px;color:#888;">共 '+dh.toFixed(1)+'h</span>';
+        slots.innerHTML=sh;
+      }
+      if(gap){
+        var gh='';
+        if(amGap)gh+='<span class="gap-pill '+amGap.cls+'">上 '+amGap.text+'</span>';
+        if(pmGap)gh+='<span class="gap-pill '+pmGap.cls+'">下 '+pmGap.text+'</span>';
+        gap.innerHTML=gh;
+      }
+    }
+  }
+}
 
 function renderAdmin(){document.getElementById('adminMonLbl').textContent=vy+'年 '+MONTHS[vm];renderAdminStats();renderAdminOv();renderAdminPeople();renderWeekTemplate();renderPrefGrid();}
 function switchTab(id,el){document.querySelectorAll('.tsec').forEach(function(s){s.classList.remove('active');});document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('active');});document.getElementById('tab-'+id).classList.add('active');el.classList.add('active');}
 function renderAdminStats(){var met=0,part=0,none2=0;state.staff.forEach(function(p){var h=monthHrs(p.id,vy,vm);if(h>=TARGET)met++;else if(h>0)part++;else none2++;});document.getElementById('adminStats').innerHTML='<div class="stat"><div class="stat-lbl">總人數</div><div class="stat-val">'+state.staff.length+'</div></div><div class="stat"><div class="stat-lbl">已達標</div><div class="stat-val ok">'+met+'</div></div><div class="stat"><div class="stat-lbl">填報中</div><div class="stat-val warn">'+part+'</div></div><div class="stat"><div class="stat-lbl">未填報</div><div class="stat-val">'+none2+'</div></div>';}
-function renderAdminOv(){var el=document.getElementById('adminOv');if(!el)return;var dim=new Date(vy,vm+1,0).getDate(),k=mkey(vy,vm),html='';for(var d=1;d<=dim;d++){var dow=new Date(vy,vm,d).getDay(),isWE=dow===0||dow===6,pr=getPref(d,vy,vm);var amArr=[],pmArr=[];state.staff.forEach(function(p,i){var day=((state.schedule[k]||{})[p.id]||{})[d];if(!day)return;if(day.am&&calcH(day.ams,day.ame)>0)amArr.push({p:p,i:i,s:day.ams,e:day.ame});if(day.pm&&calcH(day.pms,day.pme)>0)pmArr.push({p:p,i:i,s:day.pms,e:day.pme});});var amGap=gapLabel(d,'am',vy,vm),pmGap=gapLabel(d,'pm',vy,vm);var amPref=pr.am?'<span style="font-size:10px;background:#E1F5EE;color:#085041;border:1px solid #5DCAA5;padding:1px 4px;border-radius:3px;margin-right:2px;">偏好</span>':'';var pmPref=pr.pm?'<span style="font-size:10px;background:#FAEEDA;color:#633806;border:1px solid #FAC775;padding:1px 4px;border-radius:3px;margin-right:2px;">偏好</span>':'';html+='<div class="overview-row"><div style="font-size:12px;color:'+(isWE?'#A32D2D':'#666')+';line-height:1.5;padding-top:2px;text-align:center;">'+(vm+1)+'/'+d+'<br>'+DW[dow]+'</div><div class="ov-slots"><div class="ov-slot-row"><span class="ov-slot-lbl am">上午</span><div class="ov-chips">'+amPref+(amArr.length?amArr.map(function(x){return '<span style="display:inline-block;background:'+COLORS[x.i%8][0]+';color:'+COLORS[x.i%8][1]+';border-radius:8px;padding:2px 7px;font-size:11px;font-weight:500;">'+x.p.name+'<span style="font-size:9px;opacity:.7;"> '+x.s+'–'+x.e+'</span></span>';}).join(''):'<span style="font-size:11px;color:#aaa;">—</span>')+(amGap?'<span class="gap-pill '+amGap.cls+'" style="font-size:11px;padding:2px 6px;border-radius:4px;">'+amGap.text+'</span>':'')+'</div></div><div class="ov-slot-row"><span class="ov-slot-lbl pm">下午</span><div class="ov-chips">'+pmPref+(pmArr.length?pmArr.map(function(x){return '<span style="display:inline-block;background:'+COLORS[x.i%8][0]+';color:'+COLORS[x.i%8][1]+';border-radius:8px;padding:2px 7px;font-size:11px;font-weight:500;">'+x.p.name+'<span style="font-size:9px;opacity:.7;"> '+x.s+'–'+x.e+'</span></span>';}).join(''):'<span style="font-size:11px;color:#aaa;">—</span>')+(pmGap?'<span class="gap-pill '+pmGap.cls+'" style="font-size:11px;padding:2px 6px;border-radius:4px;">'+pmGap.text+'</span>':'')+'</div></div></div></div>';}el.innerHTML=html;}
+function renderAdminOv(){
+  var el=document.getElementById('adminOv');if(!el)return;
+  var dim=new Date(vy,vm+1,0).getDate(),k=mkey(vy,vm),html='';
+  for(var d=1;d<=dim;d++){
+    var dow=new Date(vy,vm,d).getDay(),isWE=dow===0||dow===6,pr=getPref(d,vy,vm);
+    var amArr=[],pmArr=[];
+    state.staff.forEach(function(p,i){var day=((state.schedule[k]||{})[p.id]||{})[d];if(!day)return;if(day.am&&calcH(day.ams,day.ame)>0)amArr.push({p:p,i:i,s:day.ams,e:day.ame});if(day.pm&&calcH(day.pms,day.pme)>0)pmArr.push({p:p,i:i,s:day.pms,e:day.pme});});
+    var amGap=gapLabel(d,'am',vy,vm),pmGap=gapLabel(d,'pm',vy,vm);
+    var amPref=pr.am?'<span style="font-size:10px;background:#E1F5EE;color:#085041;border:1px solid #5DCAA5;padding:1px 4px;border-radius:3px;margin-right:2px;">偏好</span>':'';
+    var pmPref=pr.pm?'<span style="font-size:10px;background:#FAEEDA;color:#633806;border:1px solid #FAC775;padding:1px 4px;border-radius:3px;margin-right:2px;">偏好</span>':'';
+    html+='<div class="overview-row"><div style="font-size:12px;color:'+(isWE?'#A32D2D':'#666')+';line-height:1.5;padding-top:2px;text-align:center;">'+(vm+1)+'/'+d+'<br>'+DW[dow]+'</div><div class="ov-slots"><div class="ov-slot-row"><span class="ov-slot-lbl am">上午</span><div class="ov-chips">'+amPref+(amArr.length?amArr.map(function(x){return '<span style="display:inline-block;background:'+COLORS[x.i%8][0]+';color:'+COLORS[x.i%8][1]+';border-radius:8px;padding:2px 7px;font-size:11px;font-weight:500;">'+x.p.name+'<span style="font-size:9px;opacity:.7;"> '+x.s+'–'+x.e+'</span></span>';}).join(''):'<span style="font-size:11px;color:#aaa;">—</span>')+(amGap?'<span class="gap-pill '+amGap.cls+'" style="font-size:11px;padding:2px 6px;border-radius:4px;">'+amGap.text+'</span>':'')+'</div></div><div class="ov-slot-row"><span class="ov-slot-lbl pm">下午</span><div class="ov-chips">'+pmPref+(pmArr.length?pmArr.map(function(x){return '<span style="display:inline-block;background:'+COLORS[x.i%8][0]+';color:'+COLORS[x.i%8][1]+';border-radius:8px;padding:2px 7px;font-size:11px;font-weight:500;">'+x.p.name+'<span style="font-size:9px;opacity:.7;"> '+x.s+'–'+x.e+'</span></span>';}).join(''):'<span style="font-size:11px;color:#aaa;">—</span>')+(pmGap?'<span class="gap-pill '+pmGap.cls+'" style="font-size:11px;padding:2px 6px;border-radius:4px;">'+pmGap.text+'</span>':'')+'</div></div></div></div>';
+  }
+  el.innerHTML=html;
+}
 function renderAdminPeople(){var el=document.getElementById('adminPeople');if(!el)return;var html='';state.staff.forEach(function(p,i){var hrs=monthHrs(p.id,vy,vm),pct=Math.min(100,hrs/TARGET*100),sub=isSubmitted(p.id,vy,vm);var fc=hrs>=TARGET?'#1D9E75':hrs>0?'#BA7517':'#888780';var badge=sub?'<span class="badge badge-green">已送出</span>':hrs>=TARGET?'<span class="badge badge-teal">達標未送</span>':hrs>0?'<span class="badge badge-amber">填報中</span>':'<span class="badge badge-gray">未填報</span>';html+='<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #f0f0f0;"><div style="width:32px;height:32px;border-radius:50%;background:'+COLORS[i%8][0]+';color:'+COLORS[i%8][1]+';display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:500;flex-shrink:0;">'+p.name[0]+'</div><div style="flex:1;"><div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;"><span style="font-size:14px;font-weight:500;">'+p.name+'</span>'+badge+'</div><div style="display:flex;align-items:center;gap:8px;"><div class="progress-bar" style="flex:1;"><div class="progress-fill" style="width:'+pct.toFixed(0)+'%;background:'+fc+';"></div></div><span style="font-size:12px;color:#888;">'+hrs.toFixed(1)+'/'+TARGET+'h</span></div></div><button class="btn-red" style="font-size:12px;padding:4px 10px;" onclick="removeStaff(\''+p.id+'\')">移除</button></div>';});el.innerHTML=html||'<p style="font-size:13px;color:#aaa;">尚無人員，請先在 Airtable 「人員名單」表格新增，或使用上方新增按鈕</p>';}
 function renderWeekTemplate(){var el=document.getElementById('weekTemplate');if(!el)return;var html='';for(var i=0;i<7;i++){var t=state.weekTpl[i];html+='<div class="wk-row"><div style="font-size:12px;color:#666;text-align:center;">'+DW[i]+'</div><div style="display:flex;flex-direction:column;gap:4px;"><button class="toggle-btn'+(t.am?' on-am':'')+'" onclick="wkToggle('+i+',\'am\')" style="font-size:12px;padding:6px 0;width:100%;">'+(t.am?'&#10003; 上午':'上午')+'</button>'+(t.am?'<div style="display:flex;align-items:center;gap:3px;"><span style="font-size:11px;color:#666;">需</span><select onchange="wkN('+i+',\'am\',this.value)" style="font-size:12px;padding:3px;flex:1;">'+[1,2,3].map(function(n){return '<option'+(t.amN===n?' selected':'')+'>'+n+'</option>';}).join('')+'</select><span style="font-size:11px;color:#666;">人</span></div>':'')+'</div><div style="display:flex;flex-direction:column;gap:4px;"><button class="toggle-btn'+(t.pm?' on-pm':'')+'" onclick="wkToggle('+i+',\'pm\')" style="font-size:12px;padding:6px 0;width:100%;">'+(t.pm?'&#10003; 下午':'下午')+'</button>'+(t.pm?'<div style="display:flex;align-items:center;gap:3px;"><span style="font-size:11px;color:#666;">需</span><select onchange="wkN('+i+',\'pm\',this.value)" style="font-size:12px;padding:3px;flex:1;">'+[1,2,3].map(function(n){return '<option'+(t.pmN===n?' selected':'')+'>'+n+'</option>';}).join('')+'</select><span style="font-size:11px;color:#666;">人</span></div>':'')+'</div></div>';}el.innerHTML=html;}
 function wkToggle(i,slot){state.weekTpl[i][slot]=!state.weekTpl[i][slot];renderWeekTemplate();saveLocal();}
@@ -581,7 +678,21 @@ function renderPrefGrid(){var el=document.getElementById('prefGrid');if(!el)retu
 function togglePref(d,slot){var pr=getPref(d,vy,vm),u={am:pr.am,amN:pr.amN||1,pm:pr.pm,pmN:pr.pmN||1};u[slot]=!pr[slot];setPref(d,u,vy,vm);renderPrefGrid();saveLocal();}
 function savePrefN(d,slot){var pr=getPref(d,vy,vm),u={am:pr.am,amN:pr.amN||1,pm:pr.pm,pmN:pr.pmN||1};var el=document.getElementById((slot==='am'?'pamN_':'ppmN_')+d);if(el)u[slot==='am'?'amN':'pmN']=parseInt(el.value);setPref(d,u,vy,vm);saveLocal();}
 
-function doPrint(){var dim=new Date(vy,vm+1,0).getDate(),k=mkey(vy,vm),rows='';for(var d=1;d<=dim;d++){var dow=new Date(vy,vm,d).getDay(),isWE=dow===0||dow===6,pr=getPref(d,vy,vm),amL=[],pmL=[];state.staff.forEach(function(p){var day=((state.schedule[k]||{})[p.id]||{})[d];if(!day)return;if(day.am&&calcH(day.ams,day.ame)>0)amL.push(p.name+'('+day.ams+'–'+day.ame+')');if(day.pm&&calcH(day.pms,day.pme)>0)pmL.push(p.name+'('+day.pms+'–'+day.pme+')');});var amGap=gapLabel(d,'am',vy,vm),pmGap=gapLabel(d,'pm',vy,vm);var aGH=amGap?'<span style="font-size:9px;background:'+(amGap.cls==='gap-full'?'#E1F5EE':'#FAEEDA')+';color:'+(amGap.cls==='gap-full'?'#085041':'#633806')+';padding:0 4px;border-radius:2px;margin-left:2px;">'+amGap.text+'</span>':'';var pGH=pmGap?'<span style="font-size:9px;background:'+(pmGap.cls==='gap-full'?'#E1F5EE':'#FAEEDA')+';color:'+(pmGap.cls==='gap-full'?'#085041':'#633806')+';padding:0 4px;border-radius:2px;margin-left:2px;">'+pmGap.text+'</span>':'';rows+='<tr style="background:'+(isWE?'#f8f4ef':'#fff')+'"><td style="font-weight:700;text-align:center;white-space:nowrap;color:'+(dow===0?'#c0392b':dow===6?'#185FA5':'#333')+';border-right:2px solid #ddd;">'+(vm+1)+'/'+d+'<br><span style="font-size:10px;font-weight:400;color:#888;">'+DW[dow]+'</span></td><td style="border-right:1px solid #eee;">'+(pr.am?'<span style="font-size:9px;background:#E1F5EE;color:#085041;padding:0 4px;border-radius:2px;margin-right:2px;">偏好</span>':'')+(amL.length?amL.map(function(n){return '<span style="display:inline-block;background:#d4f5e6;color:#085041;border-radius:3px;padding:2px 6px;font-size:11px;margin:1px;">'+n+'</span>';}).join(''):'<span style="color:#bbb;font-size:11px;">—</span>')+aGH+'</td><td>'+(pr.pm?'<span style="font-size:9px;background:#FAEEDA;color:#633806;padding:0 4px;border-radius:2px;margin-right:2px;">偏好</span>':'')+(pmL.length?pmL.map(function(n){return '<span style="display:inline-block;background:#fde8c3;color:#633806;border-radius:3px;padding:2px 6px;font-size:11px;margin:1px;">'+n+'</span>';}).join(''):'<span style="color:#bbb;font-size:11px;">—</span>')+pGH+'</td></tr>';}var sr='';state.staff.forEach(function(p){var h=monthHrs(p.id,vy,vm),ok=h>=TARGET,sub=isSubmitted(p.id,vy,vm);sr+='<tr><td>'+p.name+'</td><td>'+h.toFixed(1)+' h</td><td style="color:'+(ok?'#0F6E56':'#A32D2D')+'">'+(ok?'已達標':'尚缺 '+(TARGET-h).toFixed(1)+'h')+'</td><td>'+(sub?'✓ 已同步':'—')+'</td></tr>';});var w=window.open('','_blank');w.document.write('<!DOCTYPE html><html><head><meta charset="utf-8"><title>'+vy+'年'+(vm+1)+'月班表</title><style>*{box-sizing:border-box;margin:0;padding:0;}body{font-family:Arial,sans-serif;padding:20px;font-size:13px;}h1{font-size:20px;font-weight:700;margin-bottom:4px;}.sub{font-size:11px;color:#888;margin-bottom:12px;}.sh{font-size:12px;font-weight:700;background:#333;color:#fff;padding:5px 10px;margin-bottom:0;}table{width:100%;border-collapse:collapse;margin-bottom:14px;}th{background:#555;color:#fff;padding:7px 10px;font-size:12px;text-align:left;}td{padding:6px 8px;border-bottom:0.5px solid #e0e0e0;vertical-align:middle;}.ft{font-size:10px;color:#aaa;border-top:1px solid #eee;padding-top:8px;margin-top:8px;display:flex;justify-content:space-between;}@media print{body{padding:8px;}@page{margin:.8cm;size:A4;}}</style></head><body><h1>'+vy+' 年 '+MONTHS[vm]+' 班表</h1><div class="sub">共 '+state.staff.length+' 位人員　目標：'+TARGET+'h／人</div><div class="sh">每日上下午出班人員</div><table><thead><tr><th style="width:50px;">日期</th><th style="width:50%;">上午班</th><th>下午班</th></tr></thead><tbody>'+rows+'</tbody></table><div class="sh">人員工時統計</div><table><thead><tr><th>姓名</th><th>本月總工時</th><th>狀態</th><th>Airtable</th></tr></thead><tbody>'+sr+'</tbody></table><div class="ft"><span>'+vy+' 年 '+MONTHS[vm]+'　共 '+dim+' 天</span><span>列印：'+new Date().toLocaleString('zh-TW')+'</span></div><scr'+'ipt>window.onload=function(){window.print()};<\/script></body></html>');w.document.close();}
+function doPrint(){
+  var dim=new Date(vy,vm+1,0).getDate(),k=mkey(vy,vm),rows='';
+  for(var d=1;d<=dim;d++){
+    var dow=new Date(vy,vm,d).getDay(),isWE=dow===0||dow===6,pr=getPref(d,vy,vm),amL=[],pmL=[];
+    state.staff.forEach(function(p){var day=((state.schedule[k]||{})[p.id]||{})[d];if(!day)return;if(day.am&&calcH(day.ams,day.ame)>0)amL.push(p.name+'('+day.ams+'–'+day.ame+')');if(day.pm&&calcH(day.pms,day.pme)>0)pmL.push(p.name+'('+day.pms+'–'+day.pme+')');});
+    var amGap=gapLabel(d,'am',vy,vm),pmGap=gapLabel(d,'pm',vy,vm);
+    var aGH=amGap?'<span style="font-size:9px;background:'+(amGap.cls==='gap-full'?'#E1F5EE':'#FAEEDA')+';color:'+(amGap.cls==='gap-full'?'#085041':'#633806')+';padding:0 4px;border-radius:2px;margin-left:2px;">'+amGap.text+'</span>':'';
+    var pGH=pmGap?'<span style="font-size:9px;background:'+(pmGap.cls==='gap-full'?'#E1F5EE':'#FAEEDA')+';color:'+(pmGap.cls==='gap-full'?'#085041':'#633806')+';padding:0 4px;border-radius:2px;margin-left:2px;">'+pmGap.text+'</span>':'';
+    rows+='<tr style="background:'+(isWE?'#f8f4ef':'#fff')+'"><td style="font-weight:700;text-align:center;white-space:nowrap;color:'+(dow===0?'#c0392b':dow===6?'#185FA5':'#333')+';border-right:2px solid #ddd;">'+(vm+1)+'/'+d+'<br><span style="font-size:10px;font-weight:400;color:#888;">'+DW[dow]+'</span></td><td style="border-right:1px solid #eee;">'+(pr.am?'<span style="font-size:9px;background:#E1F5EE;color:#085041;padding:0 4px;border-radius:2px;margin-right:2px;">偏好</span>':'')+(amL.length?amL.map(function(n){return '<span style="display:inline-block;background:#d4f5e6;color:#085041;border-radius:3px;padding:2px 6px;font-size:11px;margin:1px;">'+n+'</span>';}).join(''):'<span style="color:#bbb;font-size:11px;">—</span>')+aGH+'</td><td>'+(pr.pm?'<span style="font-size:9px;background:#FAEEDA;color:#633806;padding:0 4px;border-radius:2px;margin-right:2px;">偏好</span>':'')+(pmL.length?pmL.map(function(n){return '<span style="display:inline-block;background:#fde8c3;color:#633806;border-radius:3px;padding:2px 6px;font-size:11px;margin:1px;">'+n+'</span>';}).join(''):'<span style="color:#bbb;font-size:11px;">—</span>')+pGH+'</td></tr>';
+  }
+  var sr='';state.staff.forEach(function(p){var h=monthHrs(p.id,vy,vm),ok=h>=TARGET,sub=isSubmitted(p.id,vy,vm);sr+='<tr><td>'+p.name+'</td><td>'+h.toFixed(1)+' h</td><td style="color:'+(ok?'#0F6E56':'#A32D2D')+'">'+(ok?'已達標':'尚缺 '+(TARGET-h).toFixed(1)+'h')+'</td><td>'+(sub?'✓ 已同步':'—')+'</td></tr>';});
+  var w=window.open('','_blank');
+  w.document.write('<!DOCTYPE html><html><head><meta charset="utf-8"><title>'+vy+'年'+(vm+1)+'月班表</title><style>*{box-sizing:border-box;margin:0;padding:0;}body{font-family:Arial,sans-serif;padding:20px;font-size:13px;}h1{font-size:20px;font-weight:700;margin-bottom:4px;}.sub{font-size:11px;color:#888;margin-bottom:12px;}.sh{font-size:12px;font-weight:700;background:#333;color:#fff;padding:5px 10px;margin-bottom:0;}table{width:100%;border-collapse:collapse;margin-bottom:14px;}th{background:#555;color:#fff;padding:7px 10px;font-size:12px;text-align:left;}td{padding:6px 8px;border-bottom:0.5px solid #e0e0e0;vertical-align:middle;}.ft{font-size:10px;color:#aaa;border-top:1px solid #eee;padding-top:8px;margin-top:8px;display:flex;justify-content:space-between;}@media print{body{padding:8px;}@page{margin:.8cm;size:A4;}}</style></head><body><h1>'+vy+' 年 '+MONTHS[vm]+' 班表</h1><div class="sub">共 '+state.staff.length+' 位人員　目標：'+TARGET+'h／人</div><div class="sh">每日上下午出班人員</div><table><thead><tr><th style="width:50px;">日期</th><th style="width:50%;">上午班</th><th>下午班</th></tr></thead><tbody>'+rows+'</tbody></table><div class="sh">人員工時統計</div><table><thead><tr><th>姓名</th><th>本月總工時</th><th>狀態</th><th>Airtable</th></tr></thead><tbody>'+sr+'</tbody></table><div class="ft"><span>'+vy+' 年 '+MONTHS[vm]+'　共 '+dim+' 天</span><span>列印：'+new Date().toLocaleString('zh-TW')+'</span></div><scr'+'ipt>window.onload=function(){window.print()};<\/script></body></html>');
+  w.document.close();
+}
 
 init();
 </script>
