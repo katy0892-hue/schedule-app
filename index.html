@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>排班填報系統 - 專業版</title>
+<title>醫院排班填報系統</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
 body{background:#f5f5f5;color:#222;font-family:Arial,sans-serif;line-height:1.4;}
@@ -12,50 +12,32 @@ button{cursor:pointer;font-family:inherit;font-size:13px;padding:6px 14px;border
 button:hover{background:#f0f0f0;}
 .btn-blue{background:#E6F1FB;color:#0C447C;border-color:#85B7EB;}
 .btn-blue:hover{background:#B5D4F4;}
-.btn-teal{background:#f5f5f5;color:#666;border-color:#ccc;}
 .btn-green{background:#EAF3DE;color:#27500A;border-color:#97C459;}
-.btn-red{color:#791F1F;border-color:#F09595;}
 .card{background:#fff;border:1px solid #e8e8e8;border-radius:12px;padding:1rem 1.25rem;margin-bottom:1rem;}
 input,select{font-family:inherit;font-size:14px;padding:8px 10px;border:1px solid #ccc;border-radius:8px;background:#fff;color:#222;outline:none;}
 .screen{display:none;}.screen.active{display:block;}
 .topbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:1rem;}
 .topbar h2{font-size:17px;font-weight:500;flex:1;min-width:80px;}
-
-/* 統一灰色標籤樣式 */
-.badge-gray, .gap-pill, .pref-tag-gray {
-    font-size:11px;
-    padding:2px 8px;
-    border-radius:4px;
-    font-weight:500;
-    background:#f5f5f5;
-    color:#666;
-    border:1px solid #ddd;
-    white-space:nowrap;
-}
-
+.badge-gray, .gap-pill, .pref-tag-gray { font-size:11px; padding:2px 8px; border-radius:4px; font-weight:500; background:#f5f5f5; color:#666; border:1px solid #ddd; }
 .stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:1rem;}
 .stat{background:#f5f5f5;border-radius:8px;padding:10px;text-align:center;}
 .stat-lbl{font-size:11px;color:#666;margin-bottom:3px;}
-.stat-val{font-size:20px;font-weight:500;}
+.stat-val{font-size:18px;font-weight:700;}
 .stat-val.ok{color:#0F6E56;}.stat-val.warn{color:#854F0B;}
 .tabs{display:flex;gap:0;margin-bottom:1rem;border-bottom:1px solid #e8e8e8;}
 .tab{padding:8px 12px;font-size:13px;border:none;background:transparent;color:#888;cursor:pointer;}
-.tab.active{color:#0C447C;border-bottom:2px solid #378ADD;font-weight:500;}
+.tab.active{color:#0C447C;border-bottom:2px solid #378ADD;font-weight:700;}
 .tsec{display:none;}.tsec.active{display:block;}
-.progress-bar{height:5px;border-radius:3px;background:#e8e8e8;}
-.progress-fill{height:5px;border-radius:3px;}
-
-.day-list-row, .overview-row{display:flex;align-items:center;padding:11px 4px;border-bottom:1px solid #f0f0f0;}
+.overview-row{display:flex;align-items:center;padding:11px 4px;border-bottom:1px solid #f0f0f0;}
 .day-date{width:46px;flex-shrink:0;font-size:12px;color:#666;text-align:center;}
 .day-date.we{color:#A32D2D;font-weight:700;}
 .ov-slots{flex:1;display:flex;flex-direction:column;gap:4px;}
 .ov-slot-row{display:flex;align-items:flex-start;gap:6px;}
-.ov-slot-lbl{font-size:11px;color:#999;width:28px;flex-shrink:0;padding-top:2px;}
+.ov-slot-lbl{font-size:11px;color:#999;width:15px;flex-shrink:0;padding-top:2px;}
 .ov-chips{display:flex;flex-wrap:wrap;gap:3px;flex:1;}
-.slot-tag{display:inline-flex;align-items:center;gap:4px;font-size:12px;padding:3px 8px;border-radius:6px;font-weight:500;}
 .overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:999;background:rgba(0,0,0,.5);align-items:center;justify-content:center;}
 .overlay.show{display:flex;}
-.modal-box{background:#fff;border-radius:12px;width:90%;max-width:360px;padding:1.25rem;}
+.modal-box{background:#fff;border-radius:12px;width:90%;max-width:360px;padding:1.25rem;max-height:90vh;overflow-y:auto;}
 .spinner{width:28px;height:28px;border:3px solid #e8e8e8;border-top-color:#378ADD;border-radius:50%;animation:spin .8s linear infinite;}
 @keyframes spin{to{transform:rotate(360deg);}}
 </style>
@@ -66,18 +48,18 @@ input,select{font-family:inherit;font-size:14px;padding:8px 10px;border:1px soli
 <div id="scr-init" class="screen active">
     <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:300px;gap:10px;">
         <div class="spinner"></div>
-        <div style="font-size:13px;color:#666;">系統同步中...</div>
+        <div style="font-size:13px;color:#666;">系統啟動中...</div>
     </div>
 </div>
 
 <div id="scr-setup" class="screen">
     <div style="max-width:380px;margin:2rem auto;">
-        <h2 style="text-align:center;margin-bottom:1rem;">系統初始化</h2>
+        <h2 style="text-align:center;margin-bottom:1.5rem;">連線設定</h2>
         <div class="card">
-            <div class="field-row"><label>Airtable Token</label><input type="password" id="setup_token"></div>
-            <div class="field-row"><label>Base ID</label><input type="text" id="setup_base"></div>
-            <button class="btn-blue" style="width:100%;margin-top:10px;" onclick="doSetup()">連線並啟動</button>
-            <div id="setupErr"></div>
+            <div style="margin-bottom:10px;"><label style="font-size:12px;color:#666;">Airtable Token</label><input type="password" id="setup_token" style="width:100%;"></div>
+            <div style="margin-bottom:10px;"><label style="font-size:12px;color:#666;">Base ID</label><input type="text" id="setup_base" style="width:100%;"></div>
+            <button class="btn-blue" style="width:100%;padding:12px;" onclick="doSetup()">儲存並啟動</button>
+            <div id="setupErr" style="color:red;font-size:12px;margin-top:10px;"></div>
         </div>
     </div>
 </div>
@@ -93,117 +75,81 @@ input,select{font-family:inherit;font-size:14px;padding:8px 10px;border:1px soli
             </select>
             <button class="btn-blue" style="width:100%;padding:12px;" onclick="doLogin()">登入</button>
         </div>
+        <button style="margin-top:20px;font-size:12px;color:#999;border:none;background:none;" onclick="showScreen('scr-setup')">重新設定連線</button>
     </div>
 </div>
 
 <div id="scr-overview" class="screen">
-    <div class="topbar">
-        <h2>排班總覽</h2>
-        <div style="display:flex;gap:4px;">
-            <button onclick="prevM_ov()">&#8249;</button>
-            <span id="ovMonLbl" style="font-size:13px;font-weight:700;min-width:70px;text-align:center;"></span>
-            <button onclick="nextM_ov()">&#8250;</button>
-        </div>
-        <button id="ovActionBtn" class="btn-blue" style="display:none;"></button>
-        <button onclick="goLogin()">登出</button>
-    </div>
-    <div class="card" style="padding:10px;">
-        <div style="font-size:11px;color:#999;margin-bottom:8px;">人員姓名顏色：</div>
-        <div id="ovLegend" style="display:flex;flex-wrap:wrap;gap:5px;"></div>
-    </div>
+    <div class="topbar"><h2>排班總覽</h2><div style="display:flex;gap:4px;"><button onclick="changeMonthOv(-1)">&#8249;</button><span id="ovMonLbl" style="font-size:13px;font-weight:700;min-width:70px;text-align:center;"></span><button onclick="changeMonthOv(1)">&#8250;</button></div><button id="ovActionBtn" class="btn-blue" style="display:none;"></button><button onclick="goLogin()">登出</button></div>
+    <div class="card" style="padding:10px;"><div style="font-size:11px;color:#999;margin-bottom:8px;">人員姓名顏色：</div><div id="ovLegend" style="display:flex;flex-wrap:wrap;gap:5px;"></div></div>
     <div class="card" id="ovBody" style="padding:10px;"></div>
 </div>
 
 <div id="scr-staff" class="screen">
-    <div class="topbar">
-        <h2 id="staffTitle"></h2>
-        <div style="display:flex;gap:4px;">
-            <button onclick="prevM_staff()">&#8249;</button>
-            <span id="staffMonLbl" style="font-size:13px;font-weight:700;min-width:70px;text-align:center;"></span>
-            <button onclick="nextM_staff()">&#8250;</button>
-        </div>
-        <button onclick="goToOv()">總覽</button>
-        <button onclick="goLogin()">登出</button>
-    </div>
+    <div class="topbar"><h2 id="staffTitle"></h2><div style="display:flex;gap:4px;"><button onclick="changeMonthStaff(-1)">&#8249;</button><span id="staffMonLbl" style="font-size:13px;font-weight:700;min-width:70px;text-align:center;"></span><button onclick="changeMonthStaff(1)">&#8250;</button></div><button onclick="goToOv()">總覽</button><button onclick="goLogin()">登出</button></div>
     <div class="stat-grid" id="staffStats"></div>
-    <div id="submitBanner" class="submit-banner" style="display:none;background:#EAF3DE;padding:15px;border-radius:12px;margin-bottom:15px;justify-content:space-between;align-items:center;">
-        <div>
-            <div style="font-weight:700;color:#27500A;">排班完成了嗎？</div>
-            <div style="font-size:11px;color:#555;">點擊右側按鈕送出至系統</div>
-        </div>
-        <button class="btn-green" id="submitBtn" onclick="submitToAirtable()">送出本月班表</button>
+    <div id="submitBanner" class="submit-banner" style="display:none;background:#EAF3DE;padding:15px;border-radius:12px;margin-bottom:15px;display:flex;justify-content:space-between;align-items:center;border:1px solid #97C459;">
+        <div><div style="font-weight:700;color:#27500A;">本月填報完成？</div><div style="font-size:11px;color:#555;">送出後會覆蓋舊資料</div></div><button class="btn-green" id="submitBtn" onclick="submitToAirtable()">送出本月班表</button>
     </div>
     <div id="submitStatus"></div>
     <div class="card" id="staffDayList"></div>
 </div>
 
 <div id="scr-admin" class="screen">
-    <div class="topbar">
-        <h2>管理者中心</h2>
-        <div style="display:flex;gap:4px;">
-            <button onclick="prevM()">&#8249;</button>
-            <span id="adminMonLbl" style="font-size:13px;font-weight:700;min-width:70px;text-align:center;"></span>
-            <button onclick="nextM()">&#8250;</button>
-        </div>
-        <button class="btn-blue" onclick="doPrint()">列印 A4 班表</button>
-        <button onclick="goLogin()">登出</button>
-    </div>
+    <div class="topbar"><h2>管理者中心</h2><div style="display:flex;gap:4px;"><button onclick="changeMonthAdmin(-1)">&#8249;</button><span id="adminMonLbl" style="font-size:13px;font-weight:700;min-width:70px;text-align:center;"></span><button onclick="changeMonthAdmin(1)">&#8250;</button></div><button class="btn-blue" onclick="doPrint()">列印 A4</button><button onclick="goLogin()">登出</button></div>
     <div class="stat-grid" id="adminStats"></div>
-    <div class="tabs">
-        <button class="tab active" onclick="switchTab('overview',this)">每日班表</button>
-        <button class="tab" onclick="switchTab('people',this)">人員進度</button>
-        <button class="tab" onclick="switchTab('pref',this)">偏好時段</button>
-    </div>
-    <div id="tab-overview" class="tsec active"><div class="card" id="adminOv"></div></div>
-    <div id="tab-people" class="tsec"><div class="card" id="adminPeople"></div></div>
-    <div id="tab-pref" class="tsec">
-        <div class="card">
-            <div style="font-size:13px;font-weight:700;margin-bottom:10px;">每週模板設定</div>
-            <div id="weekTemplate" style="background:#f9f9f9;padding:10px;border-radius:8px;margin-bottom:15px;"></div>
-            <button class="btn-teal" style="width:100%;" onclick="applyWeekTemplate()">套用至本月日期</button>
-            <hr style="margin:15px 0;border:0;border-top:1px solid #eee;">
-            <div id="prefGrid"></div>
-        </div>
-    </div>
+    <div class="tabs"><button class="tab active" onclick="switchTab('overview',this)">每日班表</button><button class="tab" onclick="switchTab('people',this)">人員進度</button><button class="tab" onclick="switchTab('pref',this)">偏好設定</button></div>
+    <div id="tab-overview" class="tsec active"><div class="card" id="adminOvBody" style="padding:10px;"></div></div>
+    <div id="tab-people" class="tsec"><div class="card" id="adminPeopleBody"></div></div>
+    <div id="tab-pref" class="tsec"><div class="card"><div id="weekTemplate" style="background:#f9f9f9;padding:10px;border-radius:8px;margin-bottom:15px;"></div><button class="btn-blue" style="width:100%;" onclick="applyWeekTemplate()">套用模板</button><div id="prefGrid" style="margin-top:20px;"></div></div></div>
 </div>
 
 <div id="dayOverlay" class="overlay" onclick="overlayBgClick(event)">
-    <div class="modal-box">
-        <h3 id="modalTitle" style="margin-bottom:15px;font-size:18px;"></h3>
-        <div id="modalGapRow" style="display:flex;gap:5px;margin-bottom:15px;"></div>
-        <div id="modalBody"></div>
-        <button style="width:100%;padding:12px;margin-top:10px;" class="btn-blue" onclick="closeModal()">確認完成</button>
-    </div>
+    <div class="modal-box"><h3 id="modalTitle" style="margin-bottom:15px;"></h3><div id="modalBody"></div><button style="width:100%;padding:12px;margin-top:10px;" class="btn-blue" onclick="closeModal()">確認完成</button></div>
 </div>
 
 </div>
 
 <script>
-/* --- 核心邏輯 (計算、同步、狀態) --- */
+/* --- 1. 基礎控制與全域變數 --- */
 var TARGET=31;
 var COLORS=[['#E6F1FB','#0C447C'],['#E1F5EE','#085041'],['#FBEAF0','#72243E'],['#EEEDFE','#3C3489'],['#FAEEDA','#633806'],['#FAECE7','#712B13'],['#EAF3DE','#27500A'],['#FCEBEB','#791F1F']];
-var MONTHS=['一月','二月','三月','四月','五月','六月','七月','八月','九月','十月','十一月','十二月'];
 var DW=['日','一','二','三','四','五','六'];
-var today=new Date(),vy=today.getFullYear(),vm=today.getMonth();
-var ovy=vy,ovm=vm,staffY=vy,staffM=vm;
-var currentUser=null,modalPid,modalD,modalY,modalM;
-var state={ staff:[], nextId:1, schedule:{}, pref:{}, submitted:{}, weekTpl:[0,1,2,3,4,5,6].map(()=>({am:false,amN:1,pm:false,pmN:1})) };
+var today=new Date(), vy=today.getFullYear(), vm=today.getMonth();
+var ovy=vy, ovm=vm, staffY=vy, staffM=vm;
+var currentUser=null, modalPid, modalD, modalY, modalM;
+var state={ staff:[], schedule:{}, pref:{}, submitted:{}, weekTpl:[0,1,2,3,4,5,6].map(()=>({am:false,pm:false})) };
 var AT={token:'',base:'',dailyTable:'每日班表',hrsTable:'人員工時',staffTable:'人員名單'};
 
+// 核心導航函數 (必須放在最上方)
+function showScreen(id){ 
+    document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active')); 
+    const target = document.getElementById(id);
+    if(target) target.classList.add('active');
+}
+function goLogin(){ location.reload(); }
+function goToOv(){ showScreen('scr-overview'); renderOv(); }
+
+/* --- 2. 工具函數 --- */
 function pad(n){return n<10?'0'+n:''+n;}
 function mkey(y,m){return y+'-'+pad(m+1);}
 function t2n(t){var p=t.split(':');return +p[0]+ +p[1]/60;}
-function calcH(s,e){if(!s||!e)return 0;var h=t2n(e)-t2n(s);return h>0?h:0;}
+function calcH(s,e){if(!s||!e)return 0; var h=t2n(e)-t2n(s); return h>0?h:0;}
 function genTimes(){var t=[];for(var h=7;h<=20;h++){t.push(pad(h)+':00');if(h<20)t.push(pad(h)+':30');}return t;}
 var TIMES=genTimes();
 
 function saveLocal(){ localStorage.setItem('at_config',JSON.stringify(AT)); localStorage.setItem('at_state',JSON.stringify(state)); }
 function loadLocal(){ 
     var c=localStorage.getItem('at_config'); if(c) Object.assign(AT, JSON.parse(c)); 
-    var s=localStorage.getItem('at_state'); if(s) Object.assign(state, JSON.parse(s));
+    var s=localStorage.getItem('at_state'); if(s) {
+        var parsed = JSON.parse(s);
+        state.schedule = parsed.schedule || {};
+        state.pref = parsed.pref || {};
+        state.submitted = parsed.submitted || {};
+    }
 }
 
-/* --- Airtable API 互動 --- */
+/* --- 3. Airtable API --- */
 async function atFetch(method,table,body,params){
     var url='https://api.airtable.com/v0/'+AT.base+'/'+encodeURIComponent(table);
     if(params)url+='?'+params;
@@ -217,21 +163,20 @@ async function atFetch(method,table,body,params){
 
 async function atGetAll(table,formula){
     var records=[],offset='';
-    do{
+    do {
         var params='pageSize=100'+(formula?'&filterByFormula='+encodeURIComponent(formula):'')+(offset?'&offset='+offset:'');
         var r=await atFetch('GET',table,null,params);
         records=records.concat(r.records||[]);
         offset=r.offset||'';
-    }while(offset);
+    } while(offset);
     return records;
 }
 
 async function syncScheduleFromAT(y, m) {
+    var k = mkey(y, m);
     var monthLabel = y + '年' + (m + 1) + '月';
-    var formula = '{月份}="' + monthLabel + '"';
     try {
-        var records = await atGetAll(AT.dailyTable, formula);
-        var k = mkey(y, m);
+        var records = await atGetAll(AT.dailyTable, `{月份}="${monthLabel}"`);
         state.schedule[k] = {};
         records.forEach(rec => {
             var f = rec.fields;
@@ -250,22 +195,20 @@ async function syncScheduleFromAT(y, m) {
     } catch (e) { console.error("同步失敗", e); }
 }
 
+/* --- 4. 提交邏輯 (包含清理舊資料) --- */
 async function submitToAirtable() {
-    var pid = currentUser.pid, y = staffY, m = staffM;
+    var pid = currentUser.pid, y = staffY, m = staffM, k = mkey(y,m);
     var p = state.staff.find(x => x.id === pid);
-    var btn = document.getElementById('submitBtn'); btn.disabled = true; btn.textContent = '同步中...';
+    var btn = document.getElementById('submitBtn'); btn.disabled = true; btn.textContent = '清理中...';
     var monthLabel = y + '年' + (m + 1) + '月';
     try {
-        // 先清理該人該月舊資料
-        var formula = 'AND({姓名}="' + p.name + '",{月份}="' + monthLabel + '")';
-        var existing = await atGetAll(AT.dailyTable, formula);
+        var existing = await atGetAll(AT.dailyTable, `AND({姓名}="${p.name}",{月份}="${monthLabel}")`);
         for (var rec of existing) {
-            await fetch('https://api.airtable.com/v0/' + AT.base + '/' + encodeURIComponent(AT.dailyTable) + '/' + rec.id, {
+            await fetch(`https://api.airtable.com/v0/${AT.base}/${encodeURIComponent(AT.dailyTable)}/${rec.id}`, {
                 method: 'DELETE', headers: { Authorization: 'Bearer ' + AT.token }
             });
         }
-        // 重新上傳
-        var k = mkey(y, m), pd = state.schedule[k][pid], count = 0, dim = new Date(y, m + 1, 0).getDate();
+        var pd = state.schedule[k][pid], count = 0, dim = new Date(y, m + 1, 0).getDate();
         for (var d = 1; d <= dim; d++) {
             var day = pd[d], dh = 0;
             if (day && day.am) dh += calcH(day.ams, day.ame);
@@ -280,197 +223,27 @@ async function submitToAirtable() {
             await atFetch('POST', AT.dailyTable, { records: [{ fields: fields }] });
             count++;
         }
-        // 更新工時總表
-        var totalHrs = 0; Object.values(pd).forEach(day => { if(day.am) totalHrs += calcH(day.ams, day.ame); if(day.pm) totalHrs += calcH(day.pms, day.pme); });
-        var hrsFields = { '姓名': p.name, '月份': monthLabel, '總工時': parseFloat(totalHrs.toFixed(1)), '是否達標': totalHrs >= TARGET, '唯一鍵': p.name + '_' + monthLabel };
-        var existingHrs = await atGetAll(AT.hrsTable, 'FIND("' + (p.name + '_' + monthLabel) + '",{唯一鍵})=1');
-        if(existingHrs.length > 0) await atFetch('PATCH', AT.hrsTable, { records: [{ id: existingHrs[0].id, fields: hrsFields }] });
-        else await atFetch('POST', AT.hrsTable, { records: [{ fields: hrsFields }] });
-
         state.submitted[pid + '-' + k] = true; saveLocal();
-        alert('同步完成，共上傳 ' + count + ' 筆資料');
+        alert('同步成功！');
         btn.disabled = false; btn.textContent = '重新送出';
         renderStaff();
     } catch (err) { alert('同步失敗: ' + err.message); btn.disabled = false; }
 }
 
-/* --- 渲染函數 --- */
-function renderOv(){
+/* --- 5. 渲染函數 --- */
+function renderOv() {
     var y=ovy, m=ovm; document.getElementById('ovMonLbl').textContent = y + '年 ' + (m+1) + '月';
-    var btn = document.getElementById('ovActionBtn');
-    if(currentUser?.role==='staff'){ btn.style.display='block'; btn.textContent='前往填寫'; btn.onclick=()=>{staffY=y;staffM=m;showScreen('scr-staff');renderStaff();}; }
-    
-    var leg=''; state.staff.forEach((p,i)=> leg+=`<span style="background:${COLORS[i%8][0]};color:${COLORS[i%8][1]};padding:2px 8px;border-radius:10px;font-size:11px;">${p.name}</span>`);
+    var k = mkey(y, m), dim = new Date(y, m+1, 0).getDate(), html = '';
+    var leg = ''; state.staff.forEach((p,i)=> leg+=`<span style="background:${COLORS[i%8][0]};color:${COLORS[i%8][1]};padding:2px 8px;border-radius:10px;font-size:11px;margin:2px;">${p.name}</span>`);
     document.getElementById('ovLegend').innerHTML = leg;
-
-    var dim=new Date(y,m+1,0).getDate(), k=mkey(y,m), html='';
-    for(var d=1;d<=dim;d++){
-        var dow=new Date(y,m,d).getDay(), isWE=dow===0||dow===6, pr=getPref(d,y,m);
-        var amArr=[], pmArr=[];
-        state.staff.forEach((p,i)=>{
-            var day = ((state.schedule[k]||{})[p.id]||{})[d];
-            if(day?.am) amArr.push({n:p.name, i:i, t:day.ams});
-            if(day?.pm) pmArr.push({n:p.name, i:i, t:day.pms});
-        });
-        var amGap = gapLabel(d,'am',y,m), pmGap = gapLabel(d,'pm',y,m);
-        html += `<div class="overview-row"><div class="day-date ${isWE?'we':''}">${m+1}/${d}<br>${DW[dow]}</div><div class="ov-slots">
-            <div class="ov-slot-row"><span class="ov-slot-lbl">上</span><div class="ov-chips">
-                ${pr.am?'<span class="pref-tag-gray">偏好</span>':''}
-                ${amArr.map(x=>`<span style="background:${COLORS[x.i%8][0]};color:${COLORS[x.i%8][1]};border-radius:6px;padding:2px 6px;font-size:11px;">${x.n} ${x.t}</span>`).join('')||'—'}
-                ${amGap?`<span class="gap-pill">${amGap.text}</span>`:''}
-            </div></div>
-            <div class="ov-slot-row"><span class="ov-slot-lbl">下</span><div class="ov-chips">
-                ${pr.pm?'<span class="pref-tag-gray">偏好</span>':''}
-                ${pmArr.map(x=>`<span style="background:${COLORS[x.i%8][0]};color:${COLORS[x.i%8][1]};border-radius:6px;padding:2px 6px;font-size:11px;">${x.n} ${x.t}</span>`).join('')||'—'}
-                ${pmGap?`<span class="gap-pill">${pmGap.text}</span>`:''}
-            </div></div>
-        </div></div>`;
-    }
-    document.getElementById('ovBody').innerHTML = html;
-}
-
-function renderStaff(){
-    var y=staffY, m=staffM, p = state.staff.find(x => x.id === currentUser.pid);
-    document.getElementById('staffTitle').textContent = p.name;
-    document.getElementById('staffMonLbl').textContent = y + '年 ' + (m+1) + '月';
-    document.getElementById('submitBanner').style.display = 'flex';
-    var k = mkey(y,m), dim = new Date(y,m+1,0).getDate(), html = '', totalHrs = 0;
-    var pd = (state.schedule[k]||{})[p.id]||{};
-    for(var d=1; d<=dim; d++){
-        var dow=new Date(y,m,d).getDay(), isWE=dow===0||dow===6, day=pd[d]||{}, pr=getPref(d,y,m);
-        var dh = 0; if(day.am) dh += calcH(day.ams, day.ame); if(day.pm) dh += calcH(day.pms, day.pme);
-        totalHrs += dh;
-        var amGap = gapLabel(d,'am',y,m), pmGap = gapLabel(d,'pm',y,m);
-        html += `<div class="day-list-row" onclick="openDayModal('${p.id}',${d},${y},${m})">
-            <div class="day-date ${isWE?'we':''}">${m+1}/${d}<br>${DW[dow]}</div>
-            <div style="flex:1;">
-                ${day.am?`<div style="display:flex;align-items:center;gap:5px;"><span class="slot-tag" style="background:#f0f0f0;">上午 ${day.ams}-${day.ame}</span>${pr.am?'<span class="pref-tag-gray">偏好</span>':''}</div>`:''}
-                ${day.pm?`<div style="display:flex;align-items:center;gap:5px;margin-top:4px;"><span class="slot-tag" style="background:#f0f0f0;">下午 ${day.pms}-${day.pme}</span>${pr.pm?'<span class="pref-tag-gray">偏好</span>':''}</div>`:''}
-                ${(!day.am && !day.pm)?'<span class="slot-tag" style="color:#ccc;">未排班</span>':''}
-            </div>
-            <div style="text-align:right;">${dh>0?`<span style="font-size:11px;color:#999;">${dh.toFixed(1)}h</span>`:''} ${amGap||pmGap?'<span class="gap-pill">需人</span>':''}</div>
-        </div>`;
-    }
-    document.getElementById('staffDayList').innerHTML = html;
-    var rem = Math.max(0, TARGET - totalHrs);
-    document.getElementById('staffStats').innerHTML = `<div class="stat"><div class="stat-lbl">已排</div><div class="stat-val ${totalHrs>=TARGET?'ok':''}">${totalHrs.toFixed(1)}h</div></div><div class="stat"><div class="stat-lbl">目標</div><div class="stat-val">${TARGET}h</div></div><div class="stat"><div class="stat-lbl">尚缺</div><div class="stat-val ${rem>0?'warn':''}">${rem.toFixed(1)}h</div></div><div class="stat"><div class="stat-lbl">同步</div><div style="padding-top:4px;">${state.submitted[p.id+'-'+k]?'<span class="badge badge-green">已送出</span>':'<span class="badge badge-gray">未送出</span>'}</div></div>`;
-}
-
-/* --- 精簡 A4 列印格式 --- */
-function doPrint() {
-    var dim = new Date(vy, vm + 1, 0).getDate(), k = mkey(vy, vm);
-    var mid = 15; // 分兩欄顯示
-
-    function getDayHtml(d) {
-        if(d > dim) return `<td></td><td></td><td></td>`;
-        var dow = new Date(vy, vm, d).getDay(), isWE = dow === 0 || dow === 6;
-        var amL = [], pmL = [];
+    for (var d = 1; d <= dim; d++) {
+        var dow = new Date(y, m, d).getDay(), isWE = dow === 0 || dow === 6;
+        var amArr = [], pmArr = [];
         state.staff.forEach((p, i) => {
             var day = ((state.schedule[k] || {})[p.id] || {})[d];
-            if (day?.am) amL.push(`<span style="background:${COLORS[i%8][0]};padding:1px 3px;border-radius:3px;">${p.name}(${day.ams})</span>`);
-            if (day?.pm) pmL.push(`<span style="background:${COLORS[i%8][0]};padding:1px 3px;border-radius:3px;">${p.name}(${day.pms})</span>`);
+            if (day && day.am) amArr.push({ n: p.name, i: i, t: day.ams });
+            if (day && day.pm) pmArr.push({ n: p.name, i: i, t: day.pms });
         });
-        return `<td style="background:${isWE?'#f5f5f5':'#fff'}; text-align:center;">${d} (${DW[dow]})</td>
-                <td>${amL.join(' ')}</td><td>${pmL.join(' ')}</td>`;
-    }
-
-    var rows = '';
-    for (var i = 1; i <= 16; i++) {
-        rows += `<tr style="font-size:11px;">${getDayHtml(i)}${getDayHtml(i + 16)}</tr>`;
-    }
-
-    var sr = ''; state.staff.forEach(p => {
-        var h = 0; var pd = (state.schedule[k]||{})[p.id]||{};
-        Object.values(pd).forEach(d => { if(d.am) h+=calcH(d.ams,d.ame); if(d.pm) h+=calcH(d.pms,d.pme); });
-        sr += `<span style="display:inline-block; margin-right:15px;">${p.name}: <b>${h.toFixed(1)}h</b> ${h>=TARGET?'(達)':'(缺)'}</span>`;
-    });
-
-    var w = window.open('', '_blank');
-    w.document.write(`<html><head><title>班表</title><style>
-        body{font-family:sans-serif; padding:10px;} 
-        table{width:100%; border-collapse:collapse; margin-bottom:10px;} 
-        th,td{border:1px solid #000; padding:4px; font-size:11px; vertical-align:top;}
-        h2{text-align:center; font-size:18px; margin-bottom:10px;}
-        .footer{border-top:2px solid #000; padding-top:10px; font-size:11px;}
-        @page { size: A4; margin: 1cm; }
-    </style></head><body>
-        <h2>${vy} 年 ${vm+1} 月 排班總表</h2>
-        <table><thead><tr>
-            <th width="8%">日期</th><th width="17%">上午</th><th width="25%">下午</th>
-            <th width="8%">日期</th><th width="17%">上午</th><th width="25%">下午</th>
-        </tr></thead><tbody>${rows}</tbody></table>
-        <div class="footer"><b>本月時數統計：</b><br>${sr}</div>
-    </body></html>`);
-    w.document.close(); w.print();
-}
-
-/* --- 基礎系統邏輯 (略，與原版一致) --- */
-function doLogin(){
-    var role = document.getElementById('loginRole').value; if(!role) return;
-    if(role==='admin'){ currentUser={role:'admin'}; showAdmin(); }
-    else{ var p = state.staff.find(x=>x.id===role); currentUser={role:'staff', pid:p.id, name:p.name}; syncScheduleFromAT(staffY, staffM).then(renderStaff); showScreen('scr-staff'); }
-}
-function showAdmin(){ showScreen('scr-admin'); document.getElementById('adminMonLbl').textContent = vy+'年 '+(vm+1)+'月'; syncScheduleFromAT(vy, vm).then(renderAdmin); }
-function renderAdminStats(){ /* 同原版 */ }
-function renderAdminOv(){ renderOv(); document.getElementById('adminOv').innerHTML = document.getElementById('ovBody').innerHTML; }
-function getPref(d,y,m){ return state.pref[mkey(y,m)+'-'+d] || {am:false,amN:1,pm:false,pmN:1}; }
-function gapLabel(d,slot,y,m){ 
-    var pr = getPref(d,y,m), need = slot==='am'?pr.amN:pr.pmN, active = slot==='am'?pr.am:pr.pm;
-    if(!active) return null;
-    var count = 0; state.staff.forEach(p=> { if(state.schedule[mkey(y,m)]?.[p.id]?.[d]?.[slot]) count++; });
-    if(count >= need) return {text:'已滿', cls:''};
-    return {text:'缺'+(need-count), cls:''};
-}
-function openDayModal(pid, d, y, m){
-    modalPid=pid; modalD=d; modalY=y; modalM=m;
-    var day = (state.schedule[mkey(y,m)]?.[pid]?.[d]) || {am:false,ams:'09:00',ame:'12:00',pm:false,pms:'13:00',pme:'16:00'};
-    document.getElementById('modalTitle').textContent = `${y}/${m+1}/${d}`;
-    document.getElementById('modalBody').innerHTML = `
-        <div style="background:#f9f9f9;padding:10px;border-radius:8px;margin-bottom:10px;">
-            <label><input type="checkbox" id="m_am" ${day.am?'checked':''} onchange="mToggle('am')"> 上午班</label>
-            <div style="display:flex;gap:5px;margin-top:8px;">${mkSel('m_ams',day.ams,"mTime('am','s',this.value)")}~${mkSel('m_ame',day.ame,"mTime('am','e',this.value)")}</div>
-        </div>
-        <div style="background:#f9f9f9;padding:10px;border-radius:8px;">
-            <label><input type="checkbox" id="m_pm" ${day.pm?'checked':''} onchange="mToggle('pm')"> 下午班</label>
-            <div style="display:flex;gap:5px;margin-top:8px;">${mkSel('m_pms',day.pms,"mTime('pm','s',this.value)")}~${mkSel('m_pme',day.pme,"mTime('pm','e',this.value)")}</div>
-        </div>
-    `;
-    document.getElementById('dayOverlay').classList.add('show');
-}
-function mToggle(s){ ensureDay(); state.schedule[mkey(modalY,modalM)][modalPid][modalD][s]=document.getElementById('m_'+s).checked; saveLocal(); }
-function mTime(s,se,v){ ensureDay(); var f=s==='am'?(se==='s'?'ams':'ame'):(se==='s'?'pms':'pme'); state.schedule[mkey(modalY,modalM)][modalPid][modalD][f]=v; saveLocal(); }
-function ensureDay(){ var k=mkey(modalY,modalM); if(!state.schedule[k])state.schedule[k]={}; if(!state.schedule[k][modalPid])state.schedule[k][modalPid]={}; if(!state.schedule[k][modalPid][modalD])state.schedule[k][modalPid][modalD]={am:false,ams:'09:00',ame:'12:00',pm:false,pms:'13:00',pme:'16:00'}; }
-function closeModal(){ document.getElementById('dayOverlay').classList.remove('show'); if(currentUser.role==='staff') renderStaff(); else renderAdmin(); }
-function mkSel(id,v,onch){ var h=`<select id="${id}" onchange="${onch}" style="flex:1;">`; TIMES.forEach(t=>h+=`<option ${t===v?'selected':''}>${t}</option>`); return h+'</select>'; }
-
-// 月份切換與初始化
-async function prevM_ov(){ ovm--; if(ovm<0){ovm=11;ovy--;} await syncScheduleFromAT(ovy,ovm); renderOv(); }
-async function nextM_ov(){ ovm++; if(ovm>11){ovm=0;ovy++;} await syncScheduleFromAT(ovy,ovm); renderOv(); }
-async function prevM_staff(){ staffM--; if(staffM<0){staffM=11;staffY--;} await syncScheduleFromAT(staffY,staffM); renderStaff(); }
-async function nextM_staff(){ staffM++; if(staffM>11){staffM=0;staffY++;} await syncScheduleFromAT(staffY,staffM); renderStaff(); }
-function goToOv(){ showScreen('scr-overview'); renderOv(); }
-function goLogin(){ location.reload(); }
-function switchTab(id,el){ 
-    document.querySelectorAll('.tsec').forEach(s=>s.classList.remove('active')); 
-    document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
-    document.getElementById('tab-'+id).classList.add('active'); el.classList.add('active');
-    if(id==='overview') renderAdminOv(); if(id==='people') renderAdminPeople();
-}
-function renderAdminPeople(){ /* 略，顯示列表 */ }
-function renderAdminStats(){ /* 略 */ }
-
-async function init(){
-    loadLocal();
-    if(!AT.token) { showScreen('scr-setup'); return; }
-    try {
-        var res = await atGetAll(AT.staffTable);
-        state.staff = res.map(r=>({id:r.id, name:r.fields['姓名']}));
-        var og = document.getElementById('staffOpts'); og.innerHTML='';
-        state.staff.forEach(p=> og.innerHTML+=`<option value="${p.id}">${p.name}</option>`);
-        showScreen('scr-login');
-    } catch(e) { showScreen('scr-setup'); }
-}
-init();
-</script>
-</body>
-</html>
+        html += `<div class="overview-row"><div class="day-date ${isWE ? 'we' : ''}">${m + 1}/${d}<br>${DW[dow]}</div><div class="ov-slots">
+            <div class="ov-slot-row"><span class="ov-slot-lbl">上</span><div class="ov-chips">${amArr.map(x => `<span style="background:${COLORS[x.i % 8][0]};color:${COLORS[x.i % 8][1]};border-radius:4px;padding:2px 6px;font-size:11px;">${x.n} ${x.t}</span>`).join('') || '—'}</div></div>
+            <div class
