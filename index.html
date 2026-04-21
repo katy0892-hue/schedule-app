@@ -5,11 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>醫院排班填報系統</title>
 <style>
-/* --- 基礎樣式 --- */
 *{box-sizing:border-box;margin:0;padding:0;}
 body{background:#f5f5f5;color:#222;font-family:Arial,sans-serif;line-height:1.4;}
 .app{padding:1rem;max-width:600px;margin:0 auto;}
-button{cursor:pointer;font-family:inherit;font-size:13px;padding:8px 14px;border:1px solid #ccc;border-radius:8px;background:#fff;color:#222;}
+button{cursor:pointer;font-family:inherit;font-size:13px;padding:6px 14px;border:1px solid #ccc;border-radius:8px;background:#fff;color:#222;}
 button:hover{background:#f0f0f0;}
 .btn-blue{background:#E6F1FB;color:#0C447C;border-color:#85B7EB;}
 .btn-blue:hover{background:#B5D4F4;}
@@ -22,38 +21,29 @@ input,select{font-family:inherit;font-size:14px;padding:8px 10px;border:1px soli
 .topbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:1rem;}
 .topbar h2{font-size:17px;font-weight:500;flex:1;min-width:80px;}
 
-/* --- 標籤樣式 --- */
 .badge-gray, .gap-pill, .pref-tag-gray {
-    font-size:11px;
-    padding:2px 8px;
-    border-radius:4px;
-    font-weight:500;
-    background:#f5f5f5;
-    color:#666;
-    border:1px solid #ddd;
-    white-space:nowrap;
+    font-size:11px; padding:2px 8px; border-radius:4px; font-weight:500;
+    background:#f5f5f5; color:#666; border:1px solid #ddd; white-space:nowrap;
 }
 
 .stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:1rem;}
 .stat{background:#f5f5f5;border-radius:8px;padding:10px;text-align:center;}
 .stat-lbl{font-size:11px;color:#666;margin-bottom:3px;}
-.stat-val{font-size:20px;font-weight:500;}
+.stat-val{font-size:18px;font-weight:700;}
 .stat-val.ok{color:#0F6E56;}.stat-val.warn{color:#854F0B;}
+
 .tabs{display:flex;gap:0;margin-bottom:1rem;border-bottom:1px solid #e8e8e8;}
 .tab{padding:8px 12px;font-size:13px;border:none;background:transparent;color:#888;cursor:pointer;}
 .tab.active{color:#0C447C;border-bottom:2px solid #378ADD;font-weight:500;}
 .tsec{display:none;}.tsec.active{display:block;}
-.progress-bar{height:5px;border-radius:3px;background:#e8e8e8;}
-.progress-fill{height:5px;border-radius:3px;}
 
-.day-list-row, .overview-row{display:flex;align-items:center;padding:11px 4px;border-bottom:1px solid #f0f0f0;}
+.overview-row{display:flex;align-items:center;padding:11px 4px;border-bottom:1px solid #f0f0f0;}
 .day-date{width:46px;flex-shrink:0;font-size:12px;color:#666;text-align:center;}
 .day-date.we{color:#A32D2D;font-weight:700;}
 .ov-slots{flex:1;display:flex;flex-direction:column;gap:4px;}
 .ov-slot-row{display:flex;align-items:flex-start;gap:6px;}
-.ov-slot-lbl{font-size:11px;color:#999;width:28px;flex-shrink:0;padding-top:2px;}
+.ov-slot-lbl{font-size:11px;color:#999;width:15px;flex-shrink:0;padding-top:2px;}
 .ov-chips{display:flex;flex-wrap:wrap;gap:3px;flex:1;}
-.slot-tag{display:inline-flex;align-items:center;gap:4px;font-size:12px;padding:3px 8px;border-radius:6px;font-weight:500;}
 .overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:999;background:rgba(0,0,0,.5);align-items:center;justify-content:center;}
 .overlay.show{display:flex;}
 .modal-box{background:#fff;border-radius:12px;width:90%;max-width:360px;padding:1.25rem;}
@@ -67,7 +57,7 @@ input,select{font-family:inherit;font-size:14px;padding:8px 10px;border:1px soli
 <div id="scr-init" class="screen active">
     <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:300px;gap:10px;">
         <div class="spinner"></div>
-        <div style="font-size:13px;color:#666;">系統同步中...</div>
+        <div style="font-size:13px;color:#666;">系統啟動中...</div>
     </div>
 </div>
 
@@ -75,10 +65,10 @@ input,select{font-family:inherit;font-size:14px;padding:8px 10px;border:1px soli
     <div style="max-width:380px;margin:2rem auto;">
         <h2 style="text-align:center;margin-bottom:1rem;">系統初始化</h2>
         <div class="card">
-            <div class="field-row"><label>Airtable Token</label><input type="password" id="setup_token"></div>
-            <div class="field-row"><label>Base ID</label><input type="text" id="setup_base"></div>
+            <div class="field-row"><label>Airtable Token</label><input type="password" id="setup_token" style="width:100%;"></div>
+            <div class="field-row"><label>Base ID</label><input type="text" id="setup_base" style="width:100%;"></div>
             <button class="btn-blue" style="width:100%;margin-top:10px;" onclick="doSetup()">連線並啟動</button>
-            <div id="setupErr"></div>
+            <div id="setupErr" style="color:red;font-size:12px;margin-top:5px;"></div>
         </div>
     </div>
 </div>
@@ -101,9 +91,9 @@ input,select{font-family:inherit;font-size:14px;padding:8px 10px;border:1px soli
     <div class="topbar">
         <h2>排班總覽</h2>
         <div style="display:flex;gap:4px;">
-            <button onclick="prevM_ov()">&#8249;</button>
+            <button onclick="changeMonthOv(-1)">&#8249;</button>
             <span id="ovMonLbl" style="font-size:13px;font-weight:700;min-width:70px;text-align:center;"></span>
-            <button onclick="nextM_ov()">&#8250;</button>
+            <button onclick="changeMonthOv(1)">&#8250;</button>
         </div>
         <button id="ovActionBtn" class="btn-blue" style="display:none;"></button>
         <button onclick="goLogin()">登出</button>
@@ -119,18 +109,18 @@ input,select{font-family:inherit;font-size:14px;padding:8px 10px;border:1px soli
     <div class="topbar">
         <h2 id="staffTitle"></h2>
         <div style="display:flex;gap:4px;">
-            <button onclick="prevM_staff()">&#8249;</button>
+            <button onclick="changeMonthStaff(-1)">&#8249;</button>
             <span id="staffMonLbl" style="font-size:13px;font-weight:700;min-width:70px;text-align:center;"></span>
-            <button onclick="nextM_staff()">&#8250;</button>
+            <button onclick="changeMonthStaff(1)">&#8250;</button>
         </div>
         <button onclick="goToOv()">總覽</button>
         <button onclick="goLogin()">登出</button>
     </div>
     <div class="stat-grid" id="staffStats"></div>
-    <div id="submitBanner" class="submit-banner" style="display:none;background:#EAF3DE;padding:15px;border-radius:12px;margin-bottom:15px;justify-content:space-between;align-items:center;">
+    <div id="submitBanner" class="submit-banner" style="display:none;background:#EAF3DE;padding:15px;border-radius:12px;margin-bottom:15px;justify-content:space-between;align-items:center;border:1px solid #97C459;">
         <div>
             <div style="font-weight:700;color:#27500A;">排班完成了嗎？</div>
-            <div style="font-size:11px;color:#555;">點擊右側按鈕送出至系統</div>
+            <div style="font-size:11px;color:#555;">送出後將同步資料</div>
         </div>
         <button class="btn-green" id="submitBtn" onclick="submitToAirtable()">送出本月班表</button>
     </div>
@@ -142,9 +132,9 @@ input,select{font-family:inherit;font-size:14px;padding:8px 10px;border:1px soli
     <div class="topbar">
         <h2>管理者中心</h2>
         <div style="display:flex;gap:4px;">
-            <button onclick="prevM()">&#8249;</button>
+            <button onclick="changeMonthAdmin(-1)">&#8249;</button>
             <span id="adminMonLbl" style="font-size:13px;font-weight:700;min-width:70px;text-align:center;"></span>
-            <button onclick="nextM()">&#8250;</button>
+            <button onclick="changeMonthAdmin(1)">&#8250;</button>
         </div>
         <button class="btn-blue" onclick="doPrint()">列印 A4 班表</button>
         <button onclick="goLogin()">登出</button>
@@ -153,25 +143,14 @@ input,select{font-family:inherit;font-size:14px;padding:8px 10px;border:1px soli
     <div class="tabs">
         <button class="tab active" onclick="switchTab('overview',this)">每日班表</button>
         <button class="tab" onclick="switchTab('people',this)">人員進度</button>
-        <button class="tab" onclick="switchTab('pref',this)">偏好時段</button>
     </div>
     <div id="tab-overview" class="tsec active"><div class="card" id="adminOv"></div></div>
-    <div id="tab-people" class="tsec"><div class="card" id="adminPeople"></div></div>
-    <div id="tab-pref" class="tsec">
-        <div class="card">
-            <div style="font-size:13px;font-weight:700;margin-bottom:10px;">每週模板設定</div>
-            <div id="weekTemplate" style="background:#f9f9f9;padding:10px;border-radius:8px;margin-bottom:15px;"></div>
-            <button class="btn-teal" style="width:100%;" onclick="applyWeekTemplate()">套用至本月日期</button>
-            <hr style="margin:15px 0;border:0;border-top:1px solid #eee;">
-            <div id="prefGrid"></div>
-        </div>
-    </div>
+    <div id="tab-people" class="tsec"><div class="card" id="adminPeopleBody"></div></div>
 </div>
 
 <div id="dayOverlay" class="overlay" onclick="overlayBgClick(event)">
     <div class="modal-box">
         <h3 id="modalTitle" style="margin-bottom:15px;font-size:18px;"></h3>
-        <div id="modalGapRow" style="display:flex;gap:5px;margin-bottom:15px;"></div>
         <div id="modalBody"></div>
         <button style="width:100%;padding:12px;margin-top:10px;" class="btn-blue" onclick="closeModal()">確認完成</button>
     </div>
@@ -180,29 +159,19 @@ input,select{font-family:inherit;font-size:14px;padding:8px 10px;border:1px soli
 </div>
 
 <script>
-/* --- 1. 核心導航 (放置最前) --- */
-function showScreen(id){ 
-    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active')); 
-    const el = document.getElementById(id);
-    if(el) el.classList.add('active');
-}
-function goLogin(){ location.reload(); }
-
-/* --- 2. 全域變數 --- */
+/* --- 全域變數 --- */
 var TARGET=31, COLORS=[['#E6F1FB','#0C447C'],['#E1F5EE','#085041'],['#FBEAF0','#72243E'],['#EEEDFE','#3C3489'],['#FAEEDA','#633806'],['#FAECE7','#712B13'],['#EAF3DE','#27500A'],['#FCEBEB','#791F1F']];
 var DW=['日','一','二','三','四','五','六'], today=new Date();
 var vy=today.getFullYear(), vm=today.getMonth(), ovy=vy, ovm=vm, staffY=vy, staffM=vm;
 var currentUser=null, modalPid, modalD, modalY, modalM;
-var state={ staff:[], schedule:{}, submitted:{} };
+var state={ staff:[], schedule:{}, submitted:{}, pref:{} };
 var AT={token:'', base:'', dailyTable:'每日班表', hrsTable:'人員工時', staffTable:'人員名單'};
 
-/* --- 3. 工具與計算 --- */
 function pad(n){return n<10?'0'+n:''+n;}
 function mkey(y,m){return y+'-'+pad(m+1);}
 function t2n(t){var p=t.split(':');return +p[0]+ +p[1]/60;}
 function calcH(s,e){if(!s||!e)return 0; var h=t2n(e)-t2n(s); return h>0?h:0;}
-function genTimes(){var t=[];for(var h=7;h<=20;h++){t.push(pad(h)+':00');if(h<20)t.push(pad(h)+':30');}return t;}
-var TIMES=genTimes();
+var TIMES=(function(){var t=[];for(var h=7;h<=20;h++){t.push(pad(h)+':00');if(h<20)t.push(pad(h)+':30');}return t;})();
 
 function saveLocal(){ localStorage.setItem('at_config',JSON.stringify(AT)); localStorage.setItem('at_state',JSON.stringify(state)); }
 function loadLocal(){ 
@@ -210,13 +179,11 @@ function loadLocal(){
     var s=localStorage.getItem('at_state'); if(s){ var p=JSON.parse(s); state.schedule=p.schedule||{}; state.submitted=p.submitted||{}; }
 }
 
-/* --- 4. Airtable API --- */
+/* --- API --- */
 async function atFetch(method,table,body,params){
     var url='https://api.airtable.com/v0/'+AT.base+'/'+encodeURIComponent(table);
     if(params)url+='?'+params;
-    var opts={method:method,headers:{Authorization:'Bearer '+AT.token,'Content-Type':'application/json'}};
-    if(body)opts.body=JSON.stringify(body);
-    var res=await fetch(url,opts);
+    var res=await fetch(url,{method:method,headers:{Authorization:'Bearer '+AT.token,'Content-Type':'application/json'},body:body?JSON.stringify(body):null});
     var json=await res.json();
     if(!res.ok)throw new Error(json.error.message);
     return json;
@@ -234,189 +201,115 @@ async function atGetAll(table,formula){
 }
 
 async function syncFromAT(y, m) {
-    var monthLabel = y + '年' + (m + 1) + '月';
-    var formula = '{月份}="' + monthLabel + '"';
+    var k=mkey(y,m), monthLabel = y+'年'+(m+1)+'月';
     try {
-        var records = await atGetAll(AT.dailyTable, formula);
-        var k = mkey(y, m);
+        var records = await atGetAll(AT.dailyTable, `{月份}="${monthLabel}"`);
         state.schedule[k] = {};
         records.forEach(rec => {
-            var f = rec.fields;
-            var staff = state.staff.find(s => s.name === f['姓名']);
-            if (!staff) return;
-            var pid = staff.id;
-            if (!state.schedule[k][pid]) state.schedule[k][pid] = {};
-            var d = parseInt(f['日期'].split('-')[2]);
-            state.schedule[k][pid][d] = {
-                am: !!f['上午開始'], ams: f['上午開始'] || '09:00', ame: f['上午結束'] || '12:00',
-                pm: !!f['下午開始'], pms: f['下午開始'] || '13:00', pme: f['下午結束'] || '16:00'
+            var f=rec.fields, staff=state.staff.find(s=>s.name===f['姓名']);
+            if(!staff)return;
+            if(!state.schedule[k][staff.id]) state.schedule[k][staff.id]={};
+            state.schedule[k][staff.id][parseInt(f['日期'].split('-')[2])] = {
+                am:!!f['上午開始'], ams:f['上午開始']||'09:00', ame:f['上午結束']||'12:00',
+                pm:!!f['下午開始'], pms:f['下午開始']||'13:00', pme:f['下午結束']||'16:00'
             };
-            state.submitted[pid + '-' + k] = true;
+            state.submitted[staff.id+'-'+k]=true;
         });
         saveLocal();
-    } catch (e) { console.error("同步失敗", e); }
+    } catch(e){ console.error(e); }
 }
 
-/* --- 5. 提交與刪除 --- */
 async function submitToAirtable() {
-    var pid = currentUser.pid, y = staffY, m = staffM;
-    var p = state.staff.find(x => x.id === pid);
-    var btn = document.getElementById('submitBtn'); btn.disabled = true; btn.textContent = '同步中...';
-    var monthLabel = y + '年' + (m + 1) + '月';
+    var pid=currentUser.pid, y=staffY, m=staffM, k=mkey(y,m), p=state.staff.find(x=>x.id===pid);
+    var btn=document.getElementById('submitBtn'); btn.disabled=true; btn.textContent='清理舊資料...';
+    var monthLabel=y+'年'+(m+1)+'月';
     try {
-        var formula = 'AND({姓名}="' + p.name + '",{月份}="' + monthLabel + '")';
-        var existing = await atGetAll(AT.dailyTable, formula);
-        for (var rec of existing) {
-            await fetch('https://api.airtable.com/v0/' + AT.base + '/' + encodeURIComponent(AT.dailyTable) + '/' + rec.id, {
-                method: 'DELETE', headers: { Authorization: 'Bearer ' + AT.token }
-            });
-        }
-        // 重新上傳
-        var k = mkey(y, m), pd = state.schedule[k][pid], count = 0, dim = new Date(y, m + 1, 0).getDate();
-        for (var d = 1; d <= dim; d++) {
-            var day = pd[d], dh = 0;
-            if (day && day.am) dh += calcH(day.ams, day.ame);
-            if (day && day.pm) dh += calcH(day.pms, day.pme);
-            if (dh <= 0) continue;
-            var fields = {
-                '姓名': p.name, '月份': monthLabel, '日期': y + '-' + pad(m + 1) + '-' + pad(d),
-                '上午開始': day.am ? day.ams : '', '上午結束': day.am ? day.ame : '',
-                '下午開始': day.pm ? day.pms : '', '下午結束': day.pm ? day.pme : '',
-                '當日工時': parseFloat(dh.toFixed(2)), '唯一鍵': p.name + '_' + monthLabel + '_' + pad(d)
-            };
-            await atFetch('POST', AT.dailyTable, { records: [{ fields: fields }] });
+        var existing = await atGetAll(AT.dailyTable, `AND({姓名}="${p.name}",{月份}="${monthLabel}")`);
+        for(var rec of existing){ await fetch('https://api.airtable.com/v0/'+AT.base+'/'+encodeURIComponent(AT.dailyTable)+'/'+rec.id, {method:'DELETE',headers:{Authorization:'Bearer '+AT.token}}); }
+        var pd=state.schedule[k][pid], count=0, dim=new Date(y,m+1,0).getDate();
+        for(var d=1; d<=dim; d++){
+            var day=pd[d]; if(!day)continue;
+            var dh = 0; if(day.am) dh+=calcH(day.ams,day.ame); if(day.pm) dh+=calcH(day.pms,day.pme);
+            if(dh<=0)continue;
+            await atFetch('POST', AT.dailyTable, {records:[{fields:{'姓名':p.name,'月份':monthLabel,'日期':y+'-'+pad(m+1)+'-'+pad(d),'上午開始':day.am?day.ams:'','上午結束':day.am?day.ame:'','下午開始':day.pm?day.pms:'','下午結束':day.pm?day.pme:'','當日工時':parseFloat(dh.toFixed(2)),'唯一鍵':p.name+'_'+monthLabel+'_'+pad(d)}}]});
             count++;
         }
-        // 更新工時總表
-        var totalHrs = 0; Object.values(pd).forEach(day => { if(day.am) totalHrs += calcH(day.ams, day.ame); if(day.pm) totalHrs += calcH(day.pms, day.pme); });
-        var hrsFields = { '姓名': p.name, '月份': monthLabel, '總工時': parseFloat(totalHrs.toFixed(1)), '是否達標': totalHrs >= TARGET, '唯一鍵': p.name + '_' + monthLabel };
-        var existingHrs = await atGetAll(AT.hrsTable, 'FIND("' + (p.name + '_' + monthLabel) + '",{唯一鍵})=1');
-        if(existingHrs.length > 0) await atFetch('PATCH', AT.hrsTable, { records: [{ id: existingHrs[0].id, fields: hrsFields }] });
-        else await atFetch('POST', AT.hrsTable, { records: [{ fields: hrsFields }] });
-
-        state.submitted[pid + '-' + k] = true; saveLocal();
-        alert('同步完成，共上傳 ' + count + ' 筆資料');
-        btn.disabled = false; btn.textContent = '重新送出';
-        renderStaff();
-    } catch (err) { alert('同步失敗: ' + err.message); btn.disabled = false; }
+        state.submitted[pid+'-'+k]=true; saveLocal(); alert('同步完成！');
+        btn.disabled=false; btn.textContent='重新送出'; renderStaff();
+    } catch(err){ alert('失敗:'+err.message); btn.disabled=false; }
 }
-    
-/* --- 6. 介面渲染 --- */
+
+/* --- 渲染 --- */
 function renderOv(){
-    var y=ovy, m=ovm; document.getElementById('ovMonLbl').textContent = y + '年 ' + (m+1) + '月';
+    var y=ovy, m=ovm, k=mkey(y,m), dim=new Date(y,m+1,0).getDate(), html='';
+    document.getElementById('ovMonLbl').textContent = y+'年 '+(m+1)+'月';
     var btn = document.getElementById('ovActionBtn');
     if(currentUser?.role==='staff'){ btn.style.display='block'; btn.textContent='前往填寫'; btn.onclick=()=>{staffY=y;staffM=m;showScreen('scr-staff');renderStaff();}; }
-    
-    var leg=''; state.staff.forEach((p,i)=> leg+=`<span style="background:${COLORS[i%8][0]};color:${COLORS[i%8][1]};padding:2px 8px;border-radius:10px;font-size:11px;">${p.name}</span>`);
+    var leg=''; state.staff.forEach((p,i)=> leg+=`<span style="background:${COLORS[i%8][0]};color:${COLORS[i%8][1]};padding:2px 8px;border-radius:10px;font-size:11px;margin:2px;">${p.name}</span>`);
     document.getElementById('ovLegend').innerHTML = leg;
-
-    var dim=new Date(y,m+1,0).getDate(), k=mkey(y,m), html='';
     for(var d=1;d<=dim;d++){
-        var dow=new Date(y,m,d).getDay(), isWE=dow===0||dow===6, pr=getPref(d,y,m);
-        var amArr=[], pmArr=[];
+        var dow=new Date(y,m,d).getDay(), amArr=[], pmArr=[];
         state.staff.forEach((p,i)=>{
-            var day = ((state.schedule[k]||{})[p.id]||{})[d];
+            var day=(state.schedule[k]||{})[p.id]?.[d];
             if(day?.am) amArr.push({n:p.name, i:i, t:day.ams});
             if(day?.pm) pmArr.push({n:p.name, i:i, t:day.pms});
         });
-        var amGap = gapLabel(d,'am',y,m), pmGap = gapLabel(d,'pm',y,m);
-        html += `<div class="overview-row"><div class="day-date ${isWE?'we':''}">${m+1}/${d}<br>${DW[dow]}</div><div class="ov-slots">
-            <div class="ov-slot-row"><span class="ov-slot-lbl">上</span><div class="ov-chips">
-                ${pr.am?'<span class="pref-tag-gray">偏好</span>':''}
-                ${amArr.map(x=>`<span style="background:${COLORS[x.i%8][0]};color:${COLORS[x.i%8][1]};border-radius:6px;padding:2px 6px;font-size:11px;">${x.n} ${x.t}</span>`).join('')||'—'}
-                ${amGap?`<span class="gap-pill">${amGap.text}</span>`:''}
-            </div></div>
-            <div class="ov-slot-row"><span class="ov-slot-lbl">下</span><div class="ov-chips">
-                ${pr.pm?'<span class="pref-tag-gray">偏好</span>':''}
-                ${pmArr.map(x=>`<span style="background:${COLORS[x.i%8][0]};color:${COLORS[x.i%8][1]};border-radius:6px;padding:2px 6px;font-size:11px;">${x.n} ${x.t}</span>`).join('')||'—'}
-                ${pmGap?`<span class="gap-pill">${pmGap.text}</span>`:''}
-            </div></div>
+        html+=`<div class="overview-row"><div class="day-date ${dow===0||dow===6?'we':''}">${m+1}/${d}<br>${DW[dow]}</div><div class="ov-slots">
+            <div class="ov-slot-row"><span class="ov-slot-lbl">上</span><div class="ov-chips">${amArr.map(x=>`<span style="background:${COLORS[x.i%8][0]};color:${COLORS[x.i%8][1]};border-radius:4px;padding:2px 6px;font-size:11px;">${x.n} ${x.t}</span>`).join('')||'—'}</div></div>
+            <div class="ov-slot-row"><span class="ov-slot-lbl">下</span><div class="ov-chips">${pmArr.map(x=>`<span style="background:${COLORS[x.i%8][0]};color:${COLORS[x.i%8][1]};border-radius:4px;padding:2px 6px;font-size:11px;">${x.n} ${x.t}</span>`).join('')||'—'}</div></div>
         </div></div>`;
     }
     document.getElementById('ovBody').innerHTML = html;
 }
 
 function renderStaff(){
-    var y=staffY, m=staffM, p = state.staff.find(x => x.id === currentUser.pid);
+    var y=staffY, m=staffM, p=state.staff.find(x=>x.id===currentUser.pid), k=mkey(y,m), total=0, html='';
     document.getElementById('staffTitle').textContent = p.name;
-    document.getElementById('staffMonLbl').textContent = y + '年 ' + (m+1) + '月';
-    document.getElementById('submitBanner').style.display = 'flex';
-    var k = mkey(y,m), dim = new Date(y,m+1,0).getDate(), html = '', totalHrs = 0;
-    var pd = (state.schedule[k]||{})[p.id]||{};
+    document.getElementById('staffMonLbl').textContent = y+'年 '+(m+1)+'月';
+    var pd=(state.schedule[k]||{})[p.id]||{}, dim=new Date(y,m+1,0).getDate();
     for(var d=1; d<=dim; d++){
-        var dow=new Date(y,m,d).getDay(), isWE=dow===0||dow===6, day=pd[d]||{}, pr=getPref(d,y,m);
-        var dh = 0; if(day.am) dh += calcH(day.ams, day.ame); if(day.pm) dh += calcH(day.pms, day.pme);
-        totalHrs += dh;
-        var amGap = gapLabel(d,'am',y,m), pmGap = gapLabel(d,'pm',y,m);
-        html += `<div class="day-list-row" onclick="openDayModal('${p.id}',${d},${y},${m})">
-            <div class="day-date ${isWE?'we':''}">${m+1}/${d}<br>${DW[dow]}</div>
-            <div style="flex:1;">
-                ${day.am?`<div style="display:flex;align-items:center;gap:5px;"><span class="slot-tag" style="background:#f0f0f0;">上午 ${day.ams}-${day.ame}</span>${pr.am?'<span class="pref-tag-gray">偏好</span>':''}</div>`:''}
-                ${day.pm?`<div style="display:flex;align-items:center;gap:5px;margin-top:4px;"><span class="slot-tag" style="background:#f0f0f0;">下午 ${day.pms}-${day.pme}</span>${pr.pm?'<span class="pref-tag-gray">偏好</span>':''}</div>`:''}
-                ${(!day.am && !day.pm)?'<span class="slot-tag" style="color:#ccc;">未排班</span>':''}
-            </div>
-            <div style="text-align:right;">${dh>0?`<span style="font-size:11px;color:#999;">${dh.toFixed(1)}h</span>`:''} ${amGap||pmGap?'<span class="gap-pill">需人</span>':''}</div>
+        var day=pd[d]||{}, dh=0; if(day.am) dh+=calcH(day.ams,day.ame); if(day.pm) dh+=calcH(day.pms,day.pme); total+=dh;
+        html+=`<div class="overview-row" style="cursor:pointer;" onclick="openDayModal('${p.id}',${d},${y},${m})">
+            <div class="day-date ${new Date(y,m,d).getDay()===0||new Date(y,m,d).getDay()===6?'we':''}">${m+1}/${d}</div>
+            <div style="flex:1;">${day.am?`<span class="badge-gray" style="margin-right:5px;">上 ${day.ams}</span>`:''} ${day.pm?`<span class="badge-gray">下 ${day.pms}</span>`:''} ${(!day.am&&!day.pm)?'<span style="color:#ccc;">未排班</span>':''}</div>
+            <div style="font-size:11px;color:#999;">${dh>0?dh.toFixed(1)+'h':''} ›</div>
         </div>`;
     }
     document.getElementById('staffDayList').innerHTML = html;
-    var rem = Math.max(0, TARGET - totalHrs);
-    document.getElementById('staffStats').innerHTML = `<div class="stat"><div class="stat-lbl">已排</div><div class="stat-val ${totalHrs>=TARGET?'ok':''}">${totalHrs.toFixed(1)}h</div></div><div class="stat"><div class="stat-lbl">目標</div><div class="stat-val">${TARGET}h</div></div><div class="stat"><div class="stat-lbl">尚缺</div><div class="stat-val ${rem>0?'warn':''}">${rem.toFixed(1)}h</div></div><div class="stat"><div class="stat-lbl">同步</div><div style="padding-top:4px;">${state.submitted[p.id+'-'+k]?'<span class="badge badge-green">已送出</span>':'<span class="badge badge-gray">未送出</span>'}</div></div>`;
+    document.getElementById('staffStats').innerHTML = `<div class="stat"><div class="stat-lbl">已排</div><div class="stat-val ${total>=TARGET?'ok':''}">${total.toFixed(1)}h</div></div><div class="stat"><div class="stat-lbl">目標</div><div class="stat-val">${TARGET}h</div></div><div class="stat"><div class="stat-lbl">尚缺</div><div class="stat-val ${Math.max(0,TARGET-total)>0?'warn':''}">${Math.max(0,TARGET-total).toFixed(1)}h</div></div><div class="stat"><div class="stat-lbl">同步</div><div style="padding-top:4px;">${state.submitted[p.id+'-'+k]?'已送出':'未送出'}</div></div>`;
+    document.getElementById('submitBanner').style.display='flex';
 }
 
-/* --- 精簡 A4 列印格式 --- */
+/* --- 列印 --- */
 function doPrint() {
     var dim = new Date(vy, vm + 1, 0).getDate(), k = mkey(vy, vm);
-    var mid = 15; // 分兩欄顯示
-
-    function getDayHtml(d) {
-        if(d > dim) return `<td></td><td></td><td></td>`;
-        var dow = new Date(vy, vm, d).getDay(), isWE = dow === 0 || dow === 6;
-        var amL = [], pmL = [];
-        state.staff.forEach((p, i) => {
-            var day = ((state.schedule[k] || {})[p.id] || {})[d];
-            if (day?.am) amL.push(`<span style="background:${COLORS[i%8][0]};padding:1px 3px;border-radius:3px;">${p.name}(${day.ams})</span>`);
-            if (day?.pm) pmL.push(`<span style="background:${COLORS[i%8][0]};padding:1px 3px;border-radius:3px;">${p.name}(${day.pms})</span>`);
+    function getCell(d) {
+        if(d > dim) return '<td></td><td></td><td></td>';
+        var amL=[], pmL=[]; 
+        state.staff.forEach((p,i)=>{
+            var day=state.schedule[k]?.[p.id]?.[d];
+            if(day?.am) amL.push(`<span style="background:${COLORS[i%8][0]};padding:1px 2px;">${p.name}(${day.ams[0]+day.ams[1]})</span>`);
+            if(day?.pm) pmL.push(`<span style="background:${COLORS[i%8][0]};padding:1px 2px;">${p.name}(${day.pms[0]+day.pms[1]})</span>`);
         });
-        return `<td style="background:${isWE?'#f5f5f5':'#fff'}; text-align:center;">${d} (${DW[dow]})</td>
-                <td>${amL.join(' ')}</td><td>${pmL.join(' ')}</td>`;
+        return `<td>${d}</td><td>${amL.join(' ')}</td><td>${pmL.join(' ')}</td>`;
     }
-
-    var rows = '';
-    for (var i = 1; i <= 16; i++) {
-        rows += `<tr style="font-size:11px;">${getDayHtml(i)}${getDayHtml(i + 16)}</tr>`;
-    }
-
+    var rows = ''; for (var d = 1; d <= 16; d++) { rows += `<tr style="font-size:10px;">${getCell(d)}${getCell(d+16)}</tr>`; }
     var sr = ''; state.staff.forEach(p => {
         var h = 0; var pd = (state.schedule[k]||{})[p.id]||{};
         Object.values(pd).forEach(d => { if(d.am) h+=calcH(d.ams,d.ame); if(d.pm) h+=calcH(d.pms,d.pme); });
-        sr += `<span style="display:inline-block; margin-right:15px;">${p.name}: <b>${h.toFixed(1)}h</b> ${h>=TARGET?'(達)':'(缺)'}</span>`;
+        sr += `<span style="display:inline-block; margin-right:15px;">${p.name}: <b>${h.toFixed(1)}h</b></span>`;
     });
-
     var w = window.open('', '_blank');
-    w.document.write(`<html><head><title>班表</title><style>
-        body{font-family:sans-serif; padding:10px;} 
-        table{width:100%; border-collapse:collapse; margin-bottom:10px;} 
-        th,td{border:1px solid #000; padding:4px; font-size:11px; vertical-align:top;}
-        h2{text-align:center; font-size:18px; margin-bottom:10px;}
-        .footer{border-top:2px solid #000; padding-top:10px; font-size:11px;}
-        @page { size: A4; margin: 1cm; }
-    </style></head><body>
-        <h2>${vy} 年 ${vm+1} 月 排班總表</h2>
-        <table><thead><tr>
-            <th width="8%">日期</th><th width="17%">上午</th><th width="25%">下午</th>
-            <th width="8%">日期</th><th width="17%">上午</th><th width="25%">下午</th>
-        </tr></thead><tbody>${rows}</tbody></table>
-        <div class="footer"><b>本月時數統計：</b><br>${sr}</div>
-    </body></html>`);
+    w.document.write(`<html><head><style>table{width:100%;border-collapse:collapse;} th,td{border:1px solid #000;padding:2px;} @page{size:A4;margin:1cm;}</style></head><body><h2 style="text-align:center;">${vy}年${vm+1}月 班表</h2><table><thead><tr><th>日</th><th>上</th><th>下</th><th>日</th><th>上</th><th>下</th></tr></thead><tbody>${rows}</tbody></table><div style="margin-top:10px;font-size:11px;">${sr}</div></body></html>`);
     w.document.close(); w.print();
+}
 
+/* --- 控制 --- */
+function showScreen(id){ document.querySelectorAll('.screen').forEach(s => s.classList.remove('active')); document.getElementById(id).classList.add('active'); }
+function goLogin(){ location.reload(); }
+function goToOv(){ showScreen('scr-overview'); renderOv(); }
 
-    
-
-
-    
-/* --- 7. 功能操作 --- */
-function doLogin(){
+async function doLogin(){
     var role=document.getElementById('loginRole').value; if(!role)return;
     if(role==='admin'){ currentUser={role:'admin'}; showAdmin(); }
     else {
@@ -424,54 +317,19 @@ function doLogin(){
         await syncFromAT(staffY, staffM); showScreen('scr-staff'); renderStaff();
     }
 }
+
 function showAdmin(){ showScreen('scr-admin'); document.getElementById('adminMonLbl').textContent=vy+'年 '+(vm+1)+'月'; syncFromAT(vy,vm).then(renderAdmin); }
-function renderAdmin(){ renderOv(); document.getElementById('adminOvBody').innerHTML = document.getElementById('ovBody').innerHTML; }
-function switchTab(id,el){ document.querySelectorAll('.tsec').forEach(s=>s.classList.remove('active')); document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active')); document.getElementById('tab-'+id).classList.add('active'); el.classList.add('active'); if(id==='overview') renderAdmin(); }
-
-function openDayModal(pid,d,y,m){
-    modalPid=pid; modalD=d; modalY=y; modalM=m;
-    var day=(state.schedule[mkey(y,m)]||{})[pid]?.[d]||{am:false,ams:'09:00',ame:'12:00',pm:false,pms:'13:00',pme:'16:00'};
-    document.getElementById('modalTitle').textContent=`${y}/${m+1}/${d}`;
-    document.getElementById('modalBody').innerHTML=`<div class="slot-section"><label><input type="checkbox" id="m_am" ${day.am?'checked':''} onchange="mToggle('am')"> 上午</label><div style="display:flex;gap:5px;margin-top:8px;">${mkSel('m_ams',day.ams,"mTime('am','s',this.value)")}~${mkSel('m_ame',day.ame,"mTime('am','e',this.value)")}</div></div><div class="slot-section"><label><input type="checkbox" id="m_pm" ${day.pm?'checked':''} onchange="mToggle('pm')"> 下午</label><div style="display:flex;gap:5px;margin-top:8px;">${mkSel('m_pms',day.pms,"mTime('pm','s',this.value)")}~${mkSel('m_pme',day.pme,"mTime('pm','e',this.value)")}</div></div>`;
-    document.getElementById('dayOverlay').classList.add('show');
-}
-function mkSel(id,v,on){ var h=`<select id="${id}" onchange="${on}" style="flex:1;">`; TIMES.forEach(t=>h+=`<option ${t===v?'selected':''}>${t}</option>`); return h+'</select>'; }
-function mToggle(s){ ensureDay(); state.schedule[mkey(modalY,modalM)][modalPid][modalD][s]=document.getElementById('m_'+s).checked; saveLocal(); }
-function mTime(s,se,v){ ensureDay(); var f=s==='am'?(se==='s'?'ams':'ame'):(se==='s'?'pms':'pme'); state.schedule[mkey(modalY,modalM)][modalPid][modalD][f]=v; saveLocal(); }
-function ensureDay(){ var k=mkey(modalY,modalM); if(!state.schedule[k])state.schedule[k]={}; if(!state.schedule[k][modalPid])state.schedule[k][modalPid]={}; if(!state.schedule[k][modalPid][modalD])state.schedule[k][modalPid][modalD]={am:false,ams:'09:00',ame:'12:00',pm:false,pms:'13:00',pme:'16:00'}; }
-function closeModal(){ document.getElementById('dayOverlay').classList.remove('show'); if(currentUser.role==='staff') renderStaff(); else renderAdmin(); }
-function overlayBgClick(e){ if(e.target.id==='dayOverlay') closeModal(); }
-
-function doPrint(){
-    var dim=new Date(vy,vm+1,0).getDate(), k=mkey(vy,vm), rows='';
-    for(var d=1; d<=16; d++){ rows += `<tr style="font-size:10px;">${getDP(d,k)}${getDP(d+16,k)}</tr>`; }
-    var w=window.open('','_blank');
-    w.document.write(`<html><head><style>table{width:100%;border-collapse:collapse;} th,td{border:1px solid #000;padding:2px;} @page{size:A4;margin:1cm;}</style></head><body><h3 style="text-align:center;">${vy}年${vm+1}月 班表</h3><table><thead><tr><th>日</th><th>上午</th><th>下午</th><th>日</th><th>上午</th><th>下午</th></tr></thead><tbody>${rows}</tbody></table></body></html>`);
-    w.document.close(); w.print();
-}
-function getDP(d,k){
-    if(d > new Date(vy,vm+1,0).getDate()) return '<td></td><td></td><td></td>';
-    var aL=[], pL=[]; state.staff.forEach((p,i)=>{ var day=state.schedule[k]?.[p.id]?.[d]; if(day?.am) aL.push(`<span style="background:${COLORS[i%8][0]};padding:1px 2px;">${p.name}(${day.ams[0]+day.ams[1]})</span>`); if(day?.pm) pL.push(`<span style="background:${COLORS[i%8][0]};padding:1px 2px;">${p.name}(${day.pms[0]+day.pms[1]})</span>`); });
-    return `<td>${d}</td><td>${aL.join(' ')}</td><td>${pL.join(' ')}</td>`;
-}
-
-async function changeMonthOv(v){ ovm+=v; if(ovm<0){ovm=11;ovy--;} if(ovm>11){ovm=0;ovy++;} await syncFromAT(ovy,ovm); renderOv(); }
-async function changeMonthStaff(v){ staffM+=v; if(staffM<0){staffM=11;staffY--;} if(staffM>11){staffM=0;staffY++;} await syncFromAT(staffY,staffM); renderStaff(); }
-async function changeMonthAdmin(v){ vm+=v; if(vm<0){vm=11;vy--;} if(vm>11){vm=0;vy++;} await syncFromAT(vy,vm); renderAdmin(); }
-
-/* --- 8. 初始化 --- */
-async function init(){
-    loadLocal();
-    if(!AT.token) { showScreen('scr-setup'); return; }
-    try {
-        var res = await atGetAll(AT.staffTable);
-        state.staff = res.map(r=>({id:r.id, name:r.fields['姓名']}));
-        var og = document.getElementById('staffOpts'); og.innerHTML='';
-        state.staff.forEach(p=> og.innerHTML+=`<option value="${p.id}">${p.name}</option>`);
-        showScreen('scr-login');
-    } catch(e) { showScreen('scr-setup'); }
-}
-init();
-</script>
-</body>
-</html>
+function renderAdmin(){ 
+    renderOv(); 
+    document.getElementById('adminOv').innerHTML = document.getElementById('ovBody').innerHTML; 
+    var k = mkey(vy,vm), html = '';
+    state.staff.forEach((p,i) => {
+        var hrs = 0; var pd = (state.schedule[k]||{})[p.id]||{};
+        Object.values(pd).forEach(d => { if(d.am) hrs+=calcH(d.ams,d.ame); if(d.pm) hrs+=calcH(d.pms,d.pme); });
+        html += `<div style="display:flex; align-items:center; padding:10px; border-bottom:1px solid #eee;">
+            <div style="width:30px; height:30px; border-radius:50%; background:${COLORS[i%8][0]}; color:${COLORS[i%8][1]}; display:flex; align-items:center; justify-content:center; font-weight:700; margin-right:10px;">${p.name[0]}</div>
+            <div style="flex:1;"><b>${p.name}</b></div><div style="font-weight:700;">${hrs.toFixed(1)} / ${TARGET}h</div>
+        </div>`;
+    });
+    document.getElementById('adminPeopleBody').innerHTML = html;
+    document.getElementById('adminStats').innerHTML = `<div class="stat"><div class="stat-lbl">總人數</div><div class="stat-val
