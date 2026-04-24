@@ -3,150 +3,176 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>排班填報系統</title>
+<title>排班填報系統 v3</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
-body{background:#f5f5f5;color:#222;font-family:Arial,sans-serif;}
-.app{padding:1rem;max-width:600px;margin:0 auto;}
-button{cursor:pointer;font-family:inherit;font-size:13px;padding:6px 14px;border:1px solid #ccc;border-radius:8px;background:#fff;color:#222;}
+body{background:#f4f4f2;color:#1a1a1a;font-family:'Noto Sans TC',Arial,sans-serif;}
+.app{padding:1rem;max-width:640px;margin:0 auto;}
+button{cursor:pointer;font-family:inherit;font-size:13px;padding:6px 14px;border:1px solid #ccc;border-radius:8px;background:#fff;color:#222;transition:background .15s;}
 button:hover{background:#f0f0f0;}
 .btn-blue{background:#E6F1FB;color:#0C447C;border-color:#85B7EB;}
 .btn-blue:hover{background:#B5D4F4;}
 .btn-teal{background:#E1F5EE;color:#085041;border-color:#5DCAA5;}
+.btn-teal:hover{background:#B3E8D6;}
 .btn-green{background:#EAF3DE;color:#27500A;border-color:#97C459;}
 .btn-green:hover{background:#C0DD97;}
+.btn-amber{background:#FEF3C7;color:#78350f;border-color:#F5C842;}
+.btn-amber:hover{background:#FDE68A;}
 .btn-red{color:#791F1F;border-color:#F09595;}
 .btn-red:hover{background:#FCEBEB;}
-.card{background:#fff;border:1px solid #e8e8e8;border-radius:12px;padding:1rem 1.25rem;margin-bottom:1rem;}
-input,select{font-family:inherit;font-size:14px;padding:8px 10px;border:1px solid #ccc;border-radius:8px;background:#fff;color:#222;outline:none;}
+.card{background:#fff;border:1px solid #e4e4e0;border-radius:12px;padding:1rem 1.25rem;margin-bottom:1rem;}
+input,select,textarea{font-family:inherit;font-size:14px;padding:8px 10px;border:1px solid #ccc;border-radius:8px;background:#fff;color:#222;outline:none;}
 input:focus,select:focus{box-shadow:0 0 0 2px #85B7EB;}
 .screen{display:none;}.screen.active{display:block;}
-.topbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:1rem;}
-.topbar h2{font-size:17px;font-weight:500;flex:1;min-width:80px;}
+.topbar{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:1rem;}
+.topbar h2{font-size:17px;font-weight:600;flex:1;min-width:80px;}
 .badge{font-size:11px;padding:2px 8px;border-radius:20px;font-weight:500;white-space:nowrap;}
 .badge-teal{background:#E1F5EE;color:#085041;}
 .badge-amber{background:#FAEEDA;color:#633806;}
-.badge-gray{background:#f5f5f5;color:#666;}
+.badge-gray{background:#f0f0ee;color:#666;}
 .badge-green{background:#EAF3DE;color:#27500A;}
+.badge-red{background:#FCEBEB;color:#791F1F;}
+.badge-blue{background:#E6F1FB;color:#0C447C;}
 .stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:1rem;}
-.stat{background:#f5f5f5;border-radius:8px;padding:10px;text-align:center;}
-.stat-lbl{font-size:11px;color:#666;margin-bottom:3px;}
-.stat-val{font-size:20px;font-weight:500;}
+.stat{background:#f7f7f5;border-radius:8px;padding:10px;text-align:center;}
+.stat-lbl{font-size:11px;color:#777;margin-bottom:3px;}
+.stat-val{font-size:20px;font-weight:600;}
 .stat-val.ok{color:#0F6E56;}.stat-val.warn{color:#854F0B;}
-.tabs{display:flex;gap:0;margin-bottom:1rem;border-bottom:1px solid #e8e8e8;overflow-x:auto;}
-.tab{padding:8px 12px;font-size:13px;border:none;background:transparent;color:#888;border-bottom:2px solid transparent;margin-bottom:-1px;cursor:pointer;white-space:nowrap;}
-.tab.active{color:#0C447C;border-bottom-color:#378ADD;font-weight:500;}
+.tabs{display:flex;gap:0;margin-bottom:1rem;border-bottom:1px solid #e4e4e0;overflow-x:auto;}
+.tab{padding:8px 10px;font-size:12px;border:none;background:transparent;color:#999;border-bottom:2px solid transparent;margin-bottom:-1px;cursor:pointer;white-space:nowrap;}
+.tab.active{color:#0C447C;border-bottom-color:#378ADD;font-weight:600;}
 .tsec{display:none;}.tsec.active{display:block;}
-.progress-bar{height:5px;border-radius:3px;background:#e8e8e8;}
+.progress-bar{height:5px;border-radius:3px;background:#e4e4e0;}
 .progress-fill{height:5px;border-radius:3px;}
-.toggle-btn{display:inline-flex;align-items:center;justify-content:center;font-size:12px;padding:5px 14px;border-radius:20px;cursor:pointer;border:1px solid #ccc;background:#f5f5f5;color:#888;}
+.pref-tag{font-size:10px;background:#f0f0ee;color:#888;border:1px solid #ddd;padding:1px 5px;border-radius:3px;white-space:nowrap;}
+/* 出勤狀態標籤 */
+.attn-confirmed{background:#D1FAE5;color:#065f46;border:1px solid #6EE7B7;font-size:10px;padding:1px 6px;border-radius:3px;font-weight:600;white-space:nowrap;}
+.attn-absent{background:#FCEBEB;color:#791F1F;border:1px solid #FCA5A5;font-size:10px;padding:1px 6px;border-radius:3px;font-weight:600;white-space:nowrap;}
+.attn-makeup{background:#E6F1FB;color:#0C447C;border:1px solid #85B7EB;font-size:10px;padding:1px 6px;border-radius:3px;font-weight:600;white-space:nowrap;}
+.toggle-btn{display:inline-flex;align-items:center;justify-content:center;font-size:12px;padding:5px 14px;border-radius:20px;cursor:pointer;border:1px solid #ccc;background:#f7f7f5;color:#999;}
 .toggle-btn.on-am{background:#E1F5EE;color:#085041;border-color:#5DCAA5;font-weight:500;}
 .toggle-btn.on-pm{background:#FAEEDA;color:#633806;border-color:#FAC775;font-weight:500;}
-.day-list-row{display:flex;align-items:center;padding:11px 4px;border-bottom:1px solid #f0f0f0;cursor:pointer;-webkit-tap-highlight-color:transparent;border-radius:6px;}
+.day-list-row{display:flex;align-items:center;padding:10px 4px;border-bottom:1px solid #f0f0ee;-webkit-tap-highlight-color:transparent;border-radius:6px;}
 .day-list-row:last-child{border-bottom:none;}
-.day-list-row:active{background:#f9f9f9;}
-.day-date{width:46px;flex-shrink:0;font-size:12px;color:#666;line-height:1.5;text-align:center;}
+.day-list-row.clickable{cursor:pointer;}
+.day-list-row.clickable:active{background:#f9f9f7;}
+.day-date{width:46px;flex-shrink:0;font-size:12px;color:#777;line-height:1.5;text-align:center;}
 .day-date.we{color:#A32D2D;}
 .day-slots{flex:1;display:flex;flex-direction:column;gap:4px;}
 .slot-tag{display:inline-flex;align-items:center;gap:4px;font-size:12px;padding:3px 8px;border-radius:6px;font-weight:500;}
 .slot-tag.am{background:#E1F5EE;color:#085041;}
 .slot-tag.pm{background:#FAEEDA;color:#633806;}
-.slot-tag.empty{background:#f5f5f5;color:#aaa;font-weight:400;}
-.day-gap{display:flex;flex-direction:column;gap:3px;margin-left:6px;width:72px;flex-shrink:0;}
-.gap-pill{font-size:11px;padding:2px 6px;border-radius:4px;text-align:center;white-space:nowrap;}
+.slot-tag.empty{background:#f7f7f5;color:#aaa;font-weight:400;}
+.slot-tag.makeup-tag{background:#E6F1FB;color:#0C447C;}
+.day-gap{display:flex;flex-direction:column;gap:3px;margin-left:4px;width:60px;flex-shrink:0;}
+.gap-pill{font-size:10px;padding:2px 5px;border-radius:4px;text-align:center;white-space:nowrap;}
 .gap-need{background:#FAEEDA;color:#633806;}
 .gap-full{background:#E1F5EE;color:#085041;}
 .day-arrow{color:#ccc;font-size:16px;margin-left:4px;flex-shrink:0;}
-.overview-row{display:grid;grid-template-columns:46px 1fr;gap:6px;padding:8px 0;border-bottom:1px solid #f0f0f0;}
+.overview-row{display:grid;grid-template-columns:46px 1fr;gap:6px;padding:8px 0;border-bottom:1px solid #f0f0ee;}
 .overview-row:last-child{border-bottom:none;}
 .ov-slots{display:flex;flex-direction:column;gap:5px;}
 .ov-slot-row{display:flex;align-items:flex-start;gap:6px;}
-.ov-slot-lbl{font-size:11px;font-weight:500;width:28px;flex-shrink:0;padding-top:2px;}
+.ov-slot-lbl{font-size:11px;font-weight:600;width:28px;flex-shrink:0;padding-top:2px;}
 .ov-slot-lbl.am{color:#085041;}.ov-slot-lbl.pm{color:#633806;}
 .ov-chips{display:flex;flex-wrap:wrap;gap:3px;flex:1;}
-.wk-row{display:grid;grid-template-columns:36px 1fr 1fr;gap:6px;align-items:start;padding:7px 0;border-bottom:1px solid #f0f0f0;}
+.wk-row{display:grid;grid-template-columns:36px 1fr 1fr;gap:6px;align-items:start;padding:7px 0;border-bottom:1px solid #f0f0ee;}
 .wk-row:last-child{border-bottom:none;}
-.pref-day-row{display:grid;grid-template-columns:46px 1fr 1fr;gap:6px;align-items:start;padding:7px 0;border-bottom:1px solid #f0f0f0;}
+.pref-day-row{display:grid;grid-template-columns:46px 1fr 1fr;gap:6px;align-items:start;padding:7px 0;border-bottom:1px solid #f0f0ee;}
 .pref-day-row:last-child{border-bottom:none;}
 .overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:999;background:rgba(0,0,0,.5);align-items:center;justify-content:center;padding:1rem;}
 .overlay.show{display:flex;}
-.modal-box{background:#fff;border:1px solid #ddd;border-radius:12px;width:100%;max-width:360px;padding:1.25rem;max-height:90vh;overflow-y:auto;}
-.modal-title{font-size:16px;font-weight:500;margin-bottom:.75rem;}
+.modal-box{background:#fff;border:1px solid #ddd;border-radius:14px;width:100%;max-width:420px;padding:1.25rem;max-height:92vh;overflow-y:auto;}
+.modal-title{font-size:16px;font-weight:600;margin-bottom:.75rem;}
 .modal-gap-row{display:flex;gap:8px;margin-bottom:.75rem;}
 .modal-gap-pill{flex:1;text-align:center;padding:6px 8px;border-radius:8px;font-size:12px;font-weight:500;}
-.slot-section{background:#f5f5f5;border-radius:12px;padding:.875rem;margin-bottom:.75rem;}
-.slot-section.pref-border{border:1px solid #FAC775;}
+.slot-section{background:#f7f7f5;border-radius:12px;padding:.875rem;margin-bottom:.75rem;border:1px solid transparent;}
+.slot-section.pref-border{border:1px solid #ccc;}
 .big-checkbox{width:22px;height:22px;cursor:pointer;accent-color:#1D9E75;flex-shrink:0;}
 .time-row{display:flex;gap:8px;align-items:center;margin-top:8px;}
 .time-row select{flex:1;font-size:14px;padding:9px 8px;}
 .at-status{display:flex;align-items:center;gap:6px;font-size:12px;padding:8px 10px;border-radius:8px;margin-bottom:8px;}
 .at-status.ok{background:#EAF3DE;color:#27500A;}
 .at-status.err{background:#FCEBEB;color:#791F1F;}
-.at-status.loading{background:#f5f5f5;color:#666;}
+.at-status.loading{background:#f7f7f5;color:#666;}
 .field-row{margin-bottom:10px;}
-.field-row label{display:block;font-size:12px;color:#666;margin-bottom:4px;}
-.field-row input{width:100%;}
+.field-row label{display:block;font-size:12px;color:#777;margin-bottom:4px;}
+.field-row input,.field-row select{width:100%;}
 .submit-banner{border:1px solid #97C459;border-radius:12px;padding:.875rem 1rem;margin-bottom:1rem;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;}
 .loading-screen{display:flex;align-items:center;justify-content:center;min-height:200px;flex-direction:column;gap:12px;}
-.spinner{width:28px;height:28px;border:3px solid #e8e8e8;border-top-color:#378ADD;border-radius:50%;animation:spin .8s linear infinite;}
+.spinner{width:28px;height:28px;border:3px solid #e4e4e0;border-top-color:#378ADD;border-radius:50%;animation:spin .8s linear infinite;}
 @keyframes spin{to{transform:rotate(360deg);}}
+.gcal-section{background:#f0f6ff;border:1px solid #b3d4f5;border-radius:10px;padding:.875rem;margin-bottom:1rem;}
+.word-preview-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:1100;background:rgba(0,0,0,.6);align-items:center;justify-content:center;padding:1rem;}
+.word-preview-overlay.show{display:flex;}
+.word-preview-box{background:#fff;border-radius:14px;width:100%;max-width:720px;max-height:90vh;overflow:hidden;display:flex;flex-direction:column;}
+.word-preview-header{padding:1rem 1.25rem;border-bottom:1px solid #e4e4e0;display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.word-preview-body{flex:1;overflow-y:auto;padding:1rem;}
+.word-preview-footer{padding:.875rem 1.25rem;border-top:1px solid #e4e4e0;display:flex;gap:8px;justify-content:flex-end;}
+.person-chip{display:inline-block;border-radius:8px;padding:2px 7px;font-size:11px;font-weight:500;}
+/* 確認出勤行 */
+.confirm-row{display:flex;align-items:center;gap:6px;padding:4px 0;}
+.confirm-slot-label{font-size:12px;font-weight:600;width:36px;flex-shrink:0;}
+.confirm-slot-label.am{color:#085041;}
+.confirm-slot-label.pm{color:#633806;}
+.confirm-time-input{font-size:13px;padding:5px 8px;width:80px;border-radius:6px;border:1px solid #ccc;}
+.confirm-section{border-radius:10px;padding:.75rem;margin-bottom:.75rem;}
+.confirm-section.am-sec{background:#f0faf6;border:1px solid #9EDFC5;}
+.confirm-section.pm-sec{background:#fffbf0;border:1px solid #F5D58A;}
+.confirm-section.makeup-sec{background:#eef5ff;border:1px solid #90BAF5;}
+.absent-check{display:flex;align-items:center;gap:6px;font-size:13px;margin-top:6px;cursor:pointer;}
+/* 補班卡片 */
+.makeup-card{background:#EEF5FF;border:1px solid #90BAF5;border-radius:10px;padding:.75rem;margin-bottom:.5rem;display:flex;align-items:flex-start;gap:8px;}
+.makeup-card-body{flex:1;}
+.makeup-card-date{font-size:12px;font-weight:600;color:#0C447C;margin-bottom:2px;}
+.makeup-card-time{font-size:12px;color:#555;}
+.makeup-card-note{font-size:11px;color:#888;margin-top:2px;}
 </style>
 </head>
 <body>
 <div class="app">
 
+<!-- ===== INIT ===== -->
 <div id="scr-init" class="screen active">
-  <div class="loading-screen">
-    <div class="spinner"></div>
-    <div style="font-size:13px;color:#666;">連線中，請稍候…</div>
-  </div>
+  <div class="loading-screen"><div class="spinner"></div><div style="font-size:13px;color:#777;">連線中，請稍候…</div></div>
 </div>
 
+<!-- ===== SETUP ===== -->
 <div id="scr-setup" class="screen">
   <div style="max-width:380px;margin:2rem auto;">
     <div style="text-align:center;margin-bottom:1.5rem;">
-      <div style="font-size:20px;font-weight:500;margin-bottom:4px;">排班系統初始設定</div>
-      <div style="font-size:13px;color:#666;">請填入 Airtable 連線資訊</div>
+      <div style="font-size:20px;font-weight:700;margin-bottom:4px;">排班系統初始設定</div>
+      <div style="font-size:13px;color:#777;">請填入 Airtable 連線資訊</div>
     </div>
     <div class="card" style="margin:0;">
       <div class="field-row"><label>Personal Access Token</label><input type="password" id="setup_token" placeholder="patXXXXXXXXXXXXXXX"></div>
       <div class="field-row"><label>Base ID</label><input type="text" id="setup_base" placeholder="appXXXXXXXXXXXXXX"></div>
       <details style="margin-bottom:14px;">
-        <summary style="font-size:12px;color:#666;cursor:pointer;margin-bottom:8px;">進階：自訂表格名稱（預設即可）</summary>
+        <summary style="font-size:12px;color:#777;cursor:pointer;margin-bottom:8px;">進階：自訂表格名稱</summary>
         <div style="padding:8px 0;">
-          <div class="field-row"><label>每日班表 表格名稱</label><input type="text" id="setup_daily" placeholder="每日班表"></div>
-          <div class="field-row"><label>人員工時 表格名稱</label><input type="text" id="setup_hrs" placeholder="人員工時"></div>
-          <div class="field-row"><label>人員名單 表格名稱</label><input type="text" id="setup_staff" placeholder="人員名單"></div>
+          <div class="field-row"><label>每日班表</label><input type="text" id="setup_daily" placeholder="每日班表"></div>
+          <div class="field-row"><label>人員工時</label><input type="text" id="setup_hrs" placeholder="人員工時"></div>
+          <div class="field-row"><label>人員名單</label><input type="text" id="setup_staff" placeholder="人員名單"></div>
         </div>
       </details>
       <button class="btn-blue" style="width:100%;padding:11px;font-size:15px;" onclick="doSetup()">連線並啟動</button>
       <div id="setupErr" style="margin-top:8px;"></div>
     </div>
-    <div class="card" style="margin-top:1rem;font-size:12px;color:#666;line-height:1.8;">
-      <div style="font-weight:500;color:#222;margin-bottom:6px;">Airtable 需要建立三張表：</div>
-      <div><b>人員名單：</b>姓名（Single line text）</div>
-      <div style="margin-top:4px;"><b>每日班表：</b>姓名、月份、日期（Date）、上午開始、上午結束、下午開始、下午結束（Single line text）、當日工時（Number）、唯一鍵（Single line text）</div>
-      <div style="margin-top:4px;"><b>人員工時：</b>姓名、月份（Single line text）、總工時（Number）、是否達標（Checkbox）、唯一鍵（Single line text）</div>
-      <div style="margin-top:8px;color:#aaa;">「唯一鍵」欄位用於 upsert，格式為「姓名_月份_日期」</div>
-    </div>
   </div>
 </div>
 
+<!-- ===== LOGIN ===== -->
 <div id="scr-login" class="screen">
   <div style="display:flex;align-items:center;justify-content:center;min-height:300px;">
     <div style="width:100%;max-width:320px;">
       <div style="text-align:center;margin-bottom:1.5rem;">
-        <div style="font-size:22px;font-weight:500;margin-bottom:4px;">排班填報系統</div>
-        <div style="font-size:14px;color:#666;">請選擇身份登入</div>
+        <div style="font-size:22px;font-weight:700;margin-bottom:4px;">排班填報系統</div>
+        <div style="font-size:14px;color:#777;">請選擇身份登入</div>
       </div>
       <div class="card" style="margin:0;">
         <div style="margin-bottom:12px;">
-          <div style="font-size:13px;color:#666;margin-bottom:6px;">身份</div>
-          <select id="loginRole" style="width:100%;">
-            <option value="">-- 請選擇 --</option>
-            <option value="admin">管理者</option>
-            <optgroup id="staffOpts" label="── 人員 ──"></optgroup>
-          </select>
+          <div style="font-size:13px;color:#777;margin-bottom:6px;">身份</div>
+          <select id="loginRole" style="width:100%;"><option value="">-- 請選擇 --</option><option value="admin">管理者</option><optgroup id="staffOpts" label="── 人員 ──"></optgroup></select>
         </div>
         <button class="btn-blue" style="width:100%;padding:11px;font-size:15px;" onclick="doLogin()">登入</button>
       </div>
@@ -157,108 +183,162 @@ input:focus,select:focus{box-shadow:0 0 0 2px #85B7EB;}
   </div>
 </div>
 
+<!-- ===== OVERVIEW (staff view) ===== -->
 <div id="scr-overview" class="screen">
   <div class="topbar">
     <h2>本月排班總覽</h2>
     <div style="display:flex;align-items:center;gap:4px;">
       <button onclick="prevM_ov()">&#8249;</button>
-      <span id="ovMonLbl" style="font-size:13px;font-weight:500;min-width:72px;text-align:center;"></span>
+      <span id="ovMonLbl" style="font-size:13px;font-weight:600;min-width:72px;text-align:center;"></span>
       <button onclick="nextM_ov()">&#8250;</button>
     </div>
     <button id="ovActionBtn" class="btn-blue" style="display:none;"></button>
     <button onclick="goLogin()">登出</button>
   </div>
   <div class="card" style="padding:.75rem 1rem;margin-bottom:.75rem;">
-    <div style="font-size:12px;color:#666;margin-bottom:8px;">查看所有人排班及缺額，再前往填寫</div>
+    <div style="font-size:12px;color:#777;margin-bottom:8px;">查看所有人排班及缺額</div>
     <div style="display:flex;flex-wrap:wrap;gap:6px;" id="ovLegend"></div>
   </div>
   <div class="card" style="padding:.75rem 1rem;"><div id="ovBody"></div></div>
 </div>
 
+<!-- ===== STAFF (personal schedule) ===== -->
 <div id="scr-staff" class="screen">
   <div class="topbar">
     <h2 id="staffTitle"></h2>
     <div style="display:flex;align-items:center;gap:4px;">
       <button onclick="prevM_staff()">&#8249;</button>
-      <span id="staffMonLbl" style="font-size:13px;font-weight:500;min-width:72px;text-align:center;"></span>
+      <span id="staffMonLbl" style="font-size:13px;font-weight:600;min-width:72px;text-align:center;"></span>
       <button onclick="nextM_staff()">&#8250;</button>
     </div>
     <button onclick="goToOv()">&#8592; 總覽</button>
     <button onclick="goLogin()">登出</button>
   </div>
   <div class="stat-grid" id="staffStats"></div>
-  <div id="prefHintBar" style="margin-bottom:.75rem;"></div>
   <div id="submitBanner" class="submit-banner" style="display:none;background:#EAF3DE;">
     <div>
-      <div style="font-size:13px;font-weight:500;color:#27500A;" id="submitBannerTitle">排班填寫完成了嗎？</div>
+      <div style="font-size:13px;font-weight:600;color:#27500A;" id="submitBannerTitle">排班填寫完成了嗎？</div>
       <div style="font-size:12px;color:#3B6D11;margin-top:2px;" id="submitBannerSub">送出後資料將同步到 Airtable</div>
     </div>
     <button class="btn-green" id="submitBtn" onclick="submitToAirtable()" style="padding:9px 16px;font-size:13px;">送出本月排班</button>
   </div>
   <div id="submitStatus"></div>
+
+  <!-- 補班快速新增 -->
   <div class="card" style="padding:.75rem 1rem;">
-    <div style="font-size:12px;color:#666;margin-bottom:10px;">點擊任一天填寫排班</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+      <div style="font-size:13px;font-weight:600;">📝 補班紀錄</div>
+      <button class="btn-amber" onclick="openMakeupModal(null)" style="font-size:12px;padding:5px 12px;">＋ 新增補班</button>
+    </div>
+    <div id="makeupList" style="font-size:12px;color:#999;">尚無補班紀錄</div>
+  </div>
+
+  <div class="card" style="padding:.75rem 1rem;">
+    <div style="font-size:12px;color:#777;margin-bottom:10px;">點擊任一天填寫排班</div>
     <div id="staffDayList"></div>
   </div>
 </div>
 
+<!-- ===== ADMIN ===== -->
 <div id="scr-admin" class="screen">
   <div class="topbar">
     <h2>管理者</h2>
     <div style="display:flex;align-items:center;gap:4px;">
       <button onclick="prevM()">&#8249;</button>
-      <span id="adminMonLbl" style="font-size:13px;font-weight:500;min-width:72px;text-align:center;"></span>
+      <span id="adminMonLbl" style="font-size:13px;font-weight:600;min-width:72px;text-align:center;"></span>
       <button onclick="nextM()">&#8250;</button>
     </div>
-    <button class="btn-blue" onclick="doPrint()">列印</button>
+    <button class="btn-blue" onclick="doPrint()">📋 列印</button>
+    <button class="btn-teal" onclick="showWordExport()">📄 簽到表</button>
     <button onclick="goLogin()">登出</button>
   </div>
   <div class="stat-grid" id="adminStats"></div>
   <div class="tabs">
     <button class="tab active" onclick="switchTab('overview',this)">每日總覽</button>
+    <button class="tab" onclick="switchTab('confirm',this)">✅ 確認出勤</button>
     <button class="tab" onclick="switchTab('people',this)">人員管理</button>
     <button class="tab" onclick="switchTab('pref',this)">偏好時段</button>
+    <button class="tab" onclick="switchTab('gcal',this)">行事曆</button>
   </div>
   <div id="tab-overview" class="tsec active">
     <div class="card" style="padding:.75rem 1rem;"><div id="adminOv"></div></div>
   </div>
+  <div id="tab-confirm" class="tsec">
+    <div class="card" style="padding:.75rem 1rem;">
+      <div style="font-size:13px;font-weight:600;margin-bottom:4px;">確認出勤狀態</div>
+      <div style="font-size:12px;color:#777;margin-bottom:12px;">
+        管理者可逐筆確認出勤；人員自行簽到的也會顯示在這裡。<br>
+        <span style="background:#D1FAE5;color:#065f46;padding:1px 5px;border-radius:3px;font-size:11px;">✓ 已確認</span> 才會列入簽到表。
+      </div>
+      <div style="margin-bottom:10px;display:flex;gap:8px;flex-wrap:wrap;">
+        <select id="confirmPersonSel" onchange="renderConfirm()" style="font-size:13px;padding:6px 8px;">
+          <option value="all">全部人員</option>
+        </select>
+        <select id="confirmStatusFilter" onchange="renderConfirm()" style="font-size:13px;padding:6px 8px;">
+          <option value="all">全部狀態</option>
+          <option value="scheduled">已排班</option>
+          <option value="confirmed">已確認</option>
+          <option value="absent">標記缺席</option>
+        </select>
+      </div>
+      <div id="confirmBody"></div>
+    </div>
+  </div>
   <div id="tab-people" class="tsec">
     <div class="card" style="padding:.75rem 1rem;">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
-        <div style="font-size:13px;font-weight:500;">人員列表</div>
+        <div style="font-size:13px;font-weight:600;">人員列表</div>
         <div style="display:flex;gap:6px;"><input type="text" id="newName" placeholder="新增人員姓名" style="width:130px;"><button class="btn-teal" onclick="addStaff()">新增</button></div>
       </div>
       <div id="adminPeople"></div>
-      <div id="staffSyncStatus" style="margin-top:8px;font-size:12px;color:#666;"></div>
+      <div id="staffSyncStatus" style="margin-top:8px;font-size:12px;color:#777;"></div>
     </div>
   </div>
   <div id="tab-pref" class="tsec">
     <div class="card" style="padding:.75rem 1rem;">
-      <div style="font-size:13px;font-weight:500;margin-bottom:4px;">偏好時段設定</div>
-      <div style="font-size:12px;color:#666;margin-bottom:12px;">先設定「每週模板」再套用到本月，個別日期仍可單獨修改。</div>
-      <div style="background:#f5f5f5;border-radius:12px;padding:.875rem;margin-bottom:1rem;">
-        <div style="font-size:13px;font-weight:500;margin-bottom:8px;">每週模板</div>
+      <div style="font-size:13px;font-weight:600;margin-bottom:4px;">偏好時段設定</div>
+      <div style="font-size:12px;color:#777;margin-bottom:12px;">先設定「每週模板」再套用到本月。偏好標記以 <span class="pref-tag">偏好</span> 灰色顯示。</div>
+      <div style="background:#f7f7f5;border-radius:12px;padding:.875rem;margin-bottom:1rem;">
+        <div style="font-size:13px;font-weight:600;margin-bottom:8px;">每週模板</div>
         <div style="display:grid;grid-template-columns:36px 1fr 1fr;gap:6px;margin-bottom:6px;">
-          <div style="font-size:11px;color:#aaa;">星期</div>
-          <div style="font-size:11px;color:#aaa;">上午</div>
-          <div style="font-size:11px;color:#aaa;">下午</div>
+          <div style="font-size:11px;color:#aaa;">星期</div><div style="font-size:11px;color:#aaa;">上午</div><div style="font-size:11px;color:#aaa;">下午</div>
         </div>
         <div id="weekTemplate"></div>
         <button class="btn-teal" style="width:100%;margin-top:10px;padding:9px;" onclick="applyWeekTemplate()">套用模板到本月所有日期</button>
       </div>
-      <div style="font-size:13px;font-weight:500;margin-bottom:6px;">個別日期微調</div>
+      <div style="font-size:13px;font-weight:600;margin-bottom:6px;">個別日期微調</div>
       <div style="display:grid;grid-template-columns:46px 1fr 1fr;gap:6px;margin-bottom:6px;">
-        <div style="font-size:11px;color:#aaa;">日期</div>
-        <div style="font-size:11px;color:#aaa;">上午</div>
-        <div style="font-size:11px;color:#aaa;">下午</div>
+        <div style="font-size:11px;color:#aaa;">日期</div><div style="font-size:11px;color:#aaa;">上午</div><div style="font-size:11px;color:#aaa;">下午</div>
       </div>
       <div id="prefGrid"></div>
     </div>
   </div>
+  <div id="tab-gcal" class="tsec">
+    <div class="card" style="padding:.75rem 1rem;">
+      <div style="font-size:15px;font-weight:700;margin-bottom:4px;">📅 Google 行事曆連動</div>
+      <div style="font-size:12px;color:#777;margin-bottom:14px;">將本月班表同步為共用排班行事曆。</div>
+      <div class="gcal-section">
+        <div style="font-size:13px;font-weight:600;margin-bottom:8px;">設定連線</div>
+        <div class="field-row"><label>Google 行事曆 ID</label><input type="text" id="gcal_id" placeholder="xxx@group.calendar.google.com" style="width:100%;"></div>
+        <div class="field-row"><label>OAuth Client ID</label><input type="text" id="gcal_client_id" placeholder="xxx.apps.googleusercontent.com" style="width:100%;"></div>
+        <button class="btn-blue" style="width:100%;padding:10px;margin-top:4px;" onclick="gcalAuth()">🔐 授權並連線 Google 帳號</button>
+        <div id="gcalAuthStatus" style="margin-top:8px;"></div>
+      </div>
+      <div id="gcalSyncSection" style="display:none;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;padding:8px 10px;background:#EAF3DE;border-radius:8px;">
+          <span>✅</span><span style="font-size:13px;color:#27500A;" id="gcalConnectedUser">已連線</span>
+          <button class="btn-red" style="margin-left:auto;font-size:11px;padding:3px 8px;" onclick="gcalDisconnect()">中斷</button>
+        </div>
+        <button class="btn-teal" style="width:100%;padding:11px;font-size:14px;" onclick="syncToGCal()">📤 同步本月班表到 Google 行事曆</button>
+        <div id="gcalSyncStatus" style="margin-top:8px;"></div>
+      </div>
+    </div>
+  </div>
 </div>
 
-</div>
+</div><!-- end .app -->
 
+<!-- ===== DAY MODAL (排班填寫) ===== -->
 <div id="dayOverlay" class="overlay" onclick="overlayBgClick(event)">
   <div class="modal-box">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem;">
@@ -271,44 +351,180 @@ input:focus,select:focus{box-shadow:0 0 0 2px #85B7EB;}
   </div>
 </div>
 
+<!-- ===== CONFIRM MODAL (管理者確認出勤) ===== -->
+<div id="confirmOverlay" class="overlay" onclick="confirmOverlayBg(event)">
+  <div class="modal-box">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem;">
+      <div class="modal-title" id="confirmModalTitle">確認出勤</div>
+      <button onclick="closeConfirmModal()" style="font-size:18px;padding:2px 8px;line-height:1;">&#x2715;</button>
+    </div>
+    <div id="confirmModalBody"></div>
+    <button style="width:100%;padding:11px;font-size:15px;margin-top:.5rem;" class="btn-green" onclick="saveConfirm()">儲存確認結果</button>
+  </div>
+</div>
+
+<!-- ===== MAKEUP MODAL (補班填寫) ===== -->
+<div id="makeupOverlay" class="overlay" onclick="makeupOverlayBg(event)">
+  <div class="modal-box">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem;">
+      <div class="modal-title">新增補班</div>
+      <button onclick="closeMakeupModal()" style="font-size:18px;padding:2px 8px;line-height:1;">&#x2715;</button>
+    </div>
+    <div style="font-size:12px;color:#777;margin-bottom:12px;">因缺席而補的班次，確認後自動列入簽到表。</div>
+    <div class="field-row"><label>補班日期</label><input type="date" id="makeup_date" style="width:100%;"></div>
+    <div class="field-row"><label>時段</label>
+      <select id="makeup_slot" style="width:100%;">
+        <option value="am">上午</option>
+        <option value="pm">下午</option>
+        <option value="both">上午＋下午</option>
+      </select>
+    </div>
+    <div id="makeup_time_fields">
+      <div class="field-row"><label>上午：簽到－簽退</label>
+        <div style="display:flex;gap:8px;">
+          <select id="makeup_ams" style="flex:1;"></select>
+          <span style="padding-top:10px;color:#aaa;">—</span>
+          <select id="makeup_ame" style="flex:1;"></select>
+        </div>
+      </div>
+      <div class="field-row" id="makeup_pm_row"><label>下午：簽到－簽退</label>
+        <div style="display:flex;gap:8px;">
+          <select id="makeup_pms" style="flex:1;"></select>
+          <span style="padding-top:10px;color:#aaa;">—</span>
+          <select id="makeup_pme" style="flex:1;"></select>
+        </div>
+      </div>
+    </div>
+    <div class="field-row"><label>補班原因（選填）</label><input type="text" id="makeup_note" placeholder="例：1/15 因故缺席補班" style="width:100%;"></div>
+    <div style="display:flex;gap:8px;margin-top:.5rem;">
+      <button style="flex:1;padding:10px;" onclick="closeMakeupModal()">取消</button>
+      <button class="btn-amber" style="flex:2;padding:10px;font-size:14px;" onclick="saveMakeup()">新增補班（待確認）</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== WORD PREVIEW ===== -->
+<div id="wordPreviewOverlay" class="word-preview-overlay" onclick="wordOverlayBgClick(event)">
+  <div class="word-preview-box">
+    <div class="word-preview-header">
+      <div style="flex:1;">
+        <div style="font-size:16px;font-weight:700;">簽到表預覽</div>
+        <div style="font-size:12px;color:#777;margin-top:2px;" id="wordPreviewSubtitle"></div>
+      </div>
+      <select id="wordPersonSel" onchange="refreshWordPreview()" style="font-size:13px;padding:6px 8px;"></select>
+      <select id="wordModeSel" onchange="refreshWordPreview()" style="font-size:13px;padding:6px 8px;">
+        <option value="attendance">考勤版（21~20日）</option>
+        <option value="full">護理長版（完整月）</option>
+      </select>
+      <button onclick="closeWordPreview()" style="font-size:18px;padding:2px 8px;line-height:1;">&#x2715;</button>
+    </div>
+    <div style="padding:8px 1rem;background:#FEF3C7;font-size:12px;color:#78350f;border-bottom:1px solid #e4e4e0;">
+      ⚠️ 簽到表僅列出「已確認出勤」的紀錄（含補班），未確認的排班不會出現。
+    </div>
+    <div class="word-preview-body" id="wordPreviewBody"></div>
+    <div class="word-preview-footer">
+      <button onclick="closeWordPreview()">取消</button>
+      <button class="btn-green" onclick="downloadWord()" style="padding:9px 18px;font-size:14px;">⬇ 下載 Word 檔</button>
+    </div>
+  </div>
+</div>
+
 <script>
+// ============================================================
+// 常數與狀態
+// ============================================================
 var TARGET=31;
-var COLORS=[['#E6F1FB','#0C447C'],['#E1F5EE','#085041'],['#FBEAF0','#72243E'],['#EEEDFE','#3C3489'],['#FAEEDA','#633806'],['#FAECE7','#712B13'],['#EAF3DE','#27500A'],['#FCEBEB','#791F1F']];
+var PERSON_COLORS=[
+  ['#DBEAFE','#1e40af'],['#D1FAE5','#065f46'],['#FCE7F3','#831843'],
+  ['#EDE9FE','#4c1d95'],['#FEF3C7','#78350f'],['#FFE4E6','#881337'],
+  ['#DCFCE7','#14532d'],['#F0F9FF','#0c4a6e']
+];
 var MONTHS=['一月','二月','三月','四月','五月','六月','七月','八月','九月','十月','十一月','十二月'];
 var DW=['日','一','二','三','四','五','六'];
 var today=new Date(),vy=today.getFullYear(),vm=today.getMonth();
 var ovy=vy,ovm=vm,staffY=vy,staffM=vm;
 var currentUser=null,modalPid,modalD,modalY,modalM;
+var confirmTarget={pid:null,d:null,y:null,m:null}; // 目前正在確認的
+
 var state={
-  staff:[],nextId:1,schedule:{},pref:{},submitted:{},
+  staff:[],nextId:1,
+  schedule:{},   // schedule[mkey][pid][d] = {am,ams,ame,pm,pms,pme}
+  pref:{},
+  submitted:{},
+  // 出勤確認：attendance[mkey][pid][d] = {amConfirmed,amAbsent,pmConfirmed,pmAbsent, actualAms,actualAme,actualPms,actualPme}
+  attendance:{},
+  // 補班：makeup[pid] = [{id,date,slot,ams,ame,pms,pme,note,confirmed,confirmedBy}]
+  makeup:{},
   weekTpl:[0,1,2,3,4,5,6].map(function(){return{am:false,amN:1,pm:false,pmN:1};})
 };
 var AT={token:'',base:'',dailyTable:'每日班表',hrsTable:'人員工時',staffTable:'人員名單'};
+var gcalState={accessToken:null,userEmail:null};
 
 function pad(n){return n<10?'0'+n:''+n;}
 function mkey(y,m){return y+'-'+pad(m+1);}
-function t2n(t){var p=t.split(':');return +p[0]+ +p[1]/60;}
-
-// --- 修正後的工時計算（包含12-13點） ---
-function calcH(s,e){
-  if(!s||!e)return 0;
-  var h=t2n(e)-t2n(s);
-  return h>0?h:0;
-}
-
+function t2n(t){if(!t)return 0;var p=t.split(':');return +p[0]+ +p[1]/60;}
+function calcH(s,e){if(!s||!e)return 0;var h=t2n(e)-t2n(s);return h>0?h:0;}
 function genTimes(){var t=[];for(var h=7;h<=20;h++){t.push(pad(h)+':00');if(h<20)t.push(pad(h)+':30');}return t;}
 var TIMES=genTimes();
+
 function getPdata(pid,y,m){var k=mkey(y,m);if(!state.schedule[k])state.schedule[k]={};if(!state.schedule[k][pid])state.schedule[k][pid]={};return state.schedule[k][pid];}
+function getAttn(pid,y,m){var k=mkey(y,m);if(!state.attendance[k])state.attendance[k]={};if(!state.attendance[k][pid])state.attendance[k][pid]={};return state.attendance[k][pid];}
 function getPref(d,y,m){return state.pref[mkey(y,m)+'-'+d]||{am:false,amN:1,pm:false,pmN:1};}
 function setPref(d,data,y,m){state.pref[mkey(y,m)+'-'+d]=data;}
-function monthHrs(pid,y,m){var dim=new Date(y,m+1,0).getDate(),total=0,pd=getPdata(pid,y,m);for(var d=1;d<=dim;d++){var day=pd[d];if(!day)continue;if(day.am&&day.ams&&day.ame)total+=calcH(day.ams,day.ame);if(day.pm&&day.pms&&day.pme)total+=calcH(day.pms,day.pme);}return total;}
-function slotCount(d,slot,y,m){var k=mkey(y,m),n=0;state.staff.forEach(function(p){var day=((state.schedule[k]||{})[p.id]||{})[d];if(!day)return;if(slot==='am'&&day.am&&calcH(day.ams,day.ame)>0)n++;if(slot==='pm'&&day.pm&&calcH(day.pms,day.pme)>0)n++;});return n;}
-function gapLabel(d,slot,y,m){var pr=getPref(d,y,m);var on=slot==='am'?pr.am:pr.pm;if(!on)return null;var need=slot==='am'?pr.amN:pr.pmN;var rem=need-slotCount(d,slot,y,m);if(rem<=0)return{text:'已滿',cls:'gap-full'};return{text:'缺'+rem+'人',cls:'gap-need'};}
-function isSubmitted(pid,y,m){return !!(state.submitted[pid+'-'+mkey(y,m)]);}
-function saveLocal(){try{localStorage.setItem('at_config',JSON.stringify(AT));localStorage.setItem('at_state',JSON.stringify({pref:state.pref,submitted:state.submitted,weekTpl:state.weekTpl,schedule:state.schedule}));}catch(e){}}
-function loadLocal(){try{var c=localStorage.getItem('at_config');if(c)AT=Object.assign(AT,JSON.parse(c));var s=localStorage.getItem('at_state');if(s){var d=JSON.parse(s);state.pref=d.pref||{};state.submitted=d.submitted||{};state.weekTpl=d.weekTpl||state.weekTpl;state.schedule=d.schedule||{};}}catch(e){}}
+function getPersonColor(idx){return PERSON_COLORS[idx%PERSON_COLORS.length];}
+function getMakeup(pid){if(!state.makeup[pid])state.makeup[pid]=[];return state.makeup[pid];}
 
-// --- Airtable API 核心 ---
+// 工時計算（含補班已確認的）
+function monthHrs(pid,y,m){
+  var dim=new Date(y,m+1,0).getDate(),total=0,pd=getPdata(pid,y,m),attn=getAttn(pid,y,m);
+  for(var d=1;d<=dim;d++){
+    var day=pd[d];if(!day)continue;
+    var at=attn[d]||{};
+    if(day.am&&day.ams&&day.ame&&at.amConfirmed)total+=calcH(at.actualAms||day.ams,at.actualAme||day.ame);
+    if(day.pm&&day.pms&&day.pme&&at.pmConfirmed)total+=calcH(at.actualPms||day.pms,at.actualPme||day.pme);
+  }
+  // 加入補班已確認的時數
+  getMakeup(pid).forEach(function(mk){
+    if(!mk.confirmed)return;
+    var d=new Date(mk.date);
+    if(d.getFullYear()===y&&d.getMonth()===m){
+      if(mk.slot==='am'||mk.slot==='both')total+=calcH(mk.ams,mk.ame);
+      if(mk.slot==='pm'||mk.slot==='both')total+=calcH(mk.pms,mk.pme);
+    }
+  });
+  return total;
+}
+
+function slotCount(d,slot,y,m){
+  var k=mkey(y,m),n=0;
+  state.staff.forEach(function(p){
+    var day=((state.schedule[k]||{})[p.id]||{})[d];if(!day)return;
+    var at=((state.attendance[k]||{})[p.id]||{})[d]||{};
+    if(slot==='am'&&day.am&&at.amConfirmed&&calcH(at.actualAms||day.ams,at.actualAme||day.ame)>0)n++;
+    if(slot==='pm'&&day.pm&&at.pmConfirmed&&calcH(at.actualPms||day.pms,at.actualPme||day.pme)>0)n++;
+  });
+  return n;
+}
+function gapLabel(d,slot,y,m){var pr=getPref(d,y,m);var on=slot==='am'?pr.am:pr.pm;if(!on)return null;var need=slot==='am'?pr.amN:pr.pmN;var rem=need-slotCount(d,slot,y,m);if(rem<=0)return{text:'已滿',cls:'gap-full'};return{text:'缺'+rem,cls:'gap-need'};}
+function isSubmitted(pid,y,m){return !!(state.submitted[pid+'-'+mkey(y,m)]);}
+
+function saveLocal(){
+  try{
+    localStorage.setItem('at_config',JSON.stringify(AT));
+    localStorage.setItem('at_state',JSON.stringify({pref:state.pref,submitted:state.submitted,weekTpl:state.weekTpl,schedule:state.schedule,attendance:state.attendance,makeup:state.makeup}));
+  }catch(e){}
+}
+function loadLocal(){
+  try{
+    var c=localStorage.getItem('at_config');if(c)AT=Object.assign(AT,JSON.parse(c));
+    var s=localStorage.getItem('at_state');
+    if(s){var d=JSON.parse(s);state.pref=d.pref||{};state.submitted=d.submitted||{};state.weekTpl=d.weekTpl||state.weekTpl;state.schedule=d.schedule||{};state.attendance=d.attendance||{};state.makeup=d.makeup||{};}
+  }catch(e){}
+}
+
+// ============================================================
+// Airtable
+// ============================================================
 async function atFetch(method,table,body,params){
   var url='https://api.airtable.com/v0/'+AT.base+'/'+encodeURIComponent(table);
   if(params)url+='?'+params;
@@ -324,285 +540,151 @@ async function atGetAll(table,formula){
   do{
     var params='pageSize=100'+(formula?'&filterByFormula='+encodeURIComponent(formula):'')+(offset?'&offset='+offset:'');
     var r=await atFetch('GET',table,null,params);
-    records=records.concat(r.records||[]);
-    offset=r.offset||'';
+    records=records.concat(r.records||[]);offset=r.offset||'';
   }while(offset);
   return records;
 }
-
-// --- 新增：從 Airtable 抓取班表數據 ---
-async function syncScheduleFromAT(y, m) {
-  var monthLabel = y + '年' + (m + 1) + '月';
-  var formula = '{月份}="' + monthLabel + '"';
-  try {
-    var records = await atGetAll(AT.dailyTable, formula);
-    var k = mkey(y, m);
-    state.schedule[k] = {}; // 清空本地該月暫存，以 Airtable 為準
-    
-    records.forEach(function(rec) {
-      var f = rec.fields;
-      var name = f['姓名'];
-      var staff = state.staff.find(function(s){ return s.name === name; });
-      if (!staff) return;
-      
-      var pid = staff.id;
-      if (!state.schedule[k][pid]) state.schedule[k][pid] = {};
-      
-      // 解析日期（格式 YYYY-MM-DD）
-      var dStr = f['日期'];
-      var d = parseInt(dStr.split('-')[2]);
-      
-      state.schedule[k][pid][d] = {
-        am: !!f['上午開始'],
-        ams: f['上午開始'] || '09:00',
-        ame: f['上午結束'] || '12:00',
-        pm: !!f['下午開始'],
-        pms: f['下午開始'] || '13:00',
-        pme: f['下午結束'] || '16:00'
-      };
-      // 只要抓得到紀錄，就標記為已送出
-      state.submitted[pid + '-' + k] = true;
+async function syncScheduleFromAT(y,m){
+  var monthLabel=y+'年'+(m+1)+'月',formula='{月份}="'+monthLabel+'"';
+  try{
+    var records=await atGetAll(AT.dailyTable,formula);
+    var k=mkey(y,m);state.schedule[k]={};
+    records.forEach(function(rec){
+      var f=rec.fields,name=f['姓名'],staff=state.staff.find(function(s){return s.name===name;});
+      if(!staff)return;
+      var pid=staff.id;if(!state.schedule[k][pid])state.schedule[k][pid]={};
+      var d=parseInt((f['日期']||'').split('-')[2]);
+      state.schedule[k][pid][d]={am:!!f['上午開始'],ams:f['上午開始']||'09:00',ame:f['上午結束']||'12:00',pm:!!f['下午開始'],pms:f['下午開始']||'13:00',pme:f['下午結束']||'16:00'};
+      state.submitted[pid+'-'+k]=true;
     });
     saveLocal();
-  } catch (e) {
-    console.error("同步班表失敗:", e);
-  }
+  }catch(e){console.error('同步班表失敗:',e);}
 }
-
 async function loadStaffFromAirtable(){
   var records=await atGetAll(AT.staffTable);
   state.staff=records.map(function(r,i){return{id:r.id,atId:r.id,name:r.fields['姓名']||'',idx:i};});
-  state.nextId=state.staff.length+1;
-  refreshStaffOpts();
+  refreshStaffOpts();refreshConfirmPersonSel();
 }
-async function syncStaffToAirtable(name){
-  var res=await atFetch('POST',AT.staffTable,{records:[{fields:{'姓名':name}}]});
-  return res.records[0];
-}
-async function deleteStaffFromAirtable(atId){
-  await fetch('https://api.airtable.com/v0/'+AT.base+'/'+encodeURIComponent(AT.staffTable)+'/'+atId,{method:'DELETE',headers:{Authorization:'Bearer '+AT.token}});
-}
-
-function makeFormula(key){ return 'FIND("'+key+'",{唯一鍵})=1'; }
-async function upsertDailyRecord(fields,uniqueKey){
-  var existing=await atGetAll(AT.dailyTable,makeFormula(uniqueKey));
-  if(existing.length>0){
-    await atFetch('PATCH',AT.dailyTable,{records:[{id:existing[0].id,fields:fields}]});
-  } else {
-    fields['唯一鍵']=uniqueKey;
-    await atFetch('POST',AT.dailyTable,{records:[{fields:fields}]});
-  }
-}
-async function upsertHrsRecord(fields,uniqueKey){
-  var existing=await atGetAll(AT.hrsTable,makeFormula(uniqueKey));
-  if(existing.length>0){
-    await atFetch('PATCH',AT.hrsTable,{records:[{id:existing[0].id,fields:fields}]});
-  } else {
-    fields['唯一鍵']=uniqueKey;
-    await atFetch('POST',AT.hrsTable,{records:[{fields:fields}]});
-  }
+async function syncStaffToAirtable(name){return (await atFetch('POST',AT.staffTable,{records:[{fields:{'姓名':name}}]})).records[0];}
+async function deleteStaffFromAirtable(atId){await fetch('https://api.airtable.com/v0/'+AT.base+'/'+encodeURIComponent(AT.staffTable)+'/'+atId,{method:'DELETE',headers:{Authorization:'Bearer '+AT.token}});}
+async function upsertHrsRecord(fields,key){
+  var ex=await atGetAll(AT.hrsTable,'FIND("'+key+'",{唯一鍵})=1');
+  if(ex.length>0)await atFetch('PATCH',AT.hrsTable,{records:[{id:ex[0].id,fields:fields}]});
+  else{fields['唯一鍵']=key;await atFetch('POST',AT.hrsTable,{records:[{fields:fields}]});}
 }
 
+// ============================================================
+// Setup / Login / Nav
+// ============================================================
 async function doSetup(){
-  var token=document.getElementById('setup_token').value.trim();
-  var base=document.getElementById('setup_base').value.trim();
-  var daily=document.getElementById('setup_daily').value.trim()||'每日班表';
-  var hrs=document.getElementById('setup_hrs').value.trim()||'人員工時';
-  var staff=document.getElementById('setup_staff').value.trim()||'人員名單';
+  var token=document.getElementById('setup_token').value.trim(),base=document.getElementById('setup_base').value.trim();
+  var daily=document.getElementById('setup_daily').value.trim()||'每日班表',hrs=document.getElementById('setup_hrs').value.trim()||'人員工時',staff=document.getElementById('setup_staff').value.trim()||'人員名單';
   if(!token||!base){document.getElementById('setupErr').innerHTML='<div class="at-status err">請填入 Token 和 Base ID</div>';return;}
   var btn=document.querySelector('#scr-setup button.btn-blue');btn.disabled=true;btn.textContent='連線中…';
-  document.getElementById('setupErr').innerHTML='<div class="at-status loading">連線測試中…</div>';
   AT={token:token,base:base,dailyTable:daily,hrsTable:hrs,staffTable:staff};
   try{
-    await atFetch('GET',staff,null,'maxRecords=1');
-    saveLocal();
+    await atFetch('GET',staff,null,'maxRecords=1');saveLocal();
     document.getElementById('setupErr').innerHTML='<div class="at-status ok">✓ 連線成功！</div>';
-    setTimeout(async function(){
-      await loadStaffFromAirtable();
-      showScreen('scr-login');
-    },800);
-  }catch(e){
-    document.getElementById('setupErr').innerHTML='<div class="at-status err">連線失敗：'+e.message+'</div>';
-    btn.disabled=false;btn.textContent='連線並啟動';
-  }
+    setTimeout(async function(){await loadStaffFromAirtable();showScreen('scr-login');},800);
+  }catch(e){document.getElementById('setupErr').innerHTML='<div class="at-status err">連線失敗：'+e.message+'</div>';btn.disabled=false;btn.textContent='連線並啟動';}
 }
-
 async function init(){
   loadLocal();
   if(!AT.token||!AT.base){showScreen('scr-setup');return;}
-  try{
-    await loadStaffFromAirtable();
-    await syncScheduleFromAT(vy, vm); // 初始化時抓一次當月班表
-    showScreen('scr-login');
-  }catch(e){
-    showScreen('scr-setup');
-    document.getElementById('setupErr').innerHTML='<div class="at-status err">自動連線失敗，請重新設定：'+e.message+'</div>';
-  }
+  try{await loadStaffFromAirtable();await syncScheduleFromAT(vy,vm);showScreen('scr-login');}
+  catch(e){showScreen('scr-setup');document.getElementById('setupErr').innerHTML='<div class="at-status err">自動連線失敗：'+e.message+'</div>';}
 }
-
-// --- 登入與導航 ---
 async function doLogin(){
-  var role=document.getElementById('loginRole').value;
-  if(!role)return;
-  if(role==='admin'){
-    currentUser={role:'admin'};
-    vy=today.getFullYear(); vm=today.getMonth();
-    await syncScheduleFromAT(vy, vm);
-    showAdmin();
-  } else {
-    var pid=role,p=state.staff.find(function(x){return x.id===pid;});
-    if(!p)return;
-    currentUser={role:'staff',pid:pid,name:p.name};
-    ovy=today.getFullYear(); ovm=today.getMonth();
-    staffY=today.getFullYear(); staffM=today.getMonth();
-    await syncScheduleFromAT(ovy, ovm); // 登入時抓取 Airtable 班表
-    showScreen('scr-overview');
-    renderOv();
+  var role=document.getElementById('loginRole').value;if(!role)return;
+  if(role==='admin'){currentUser={role:'admin'};vy=today.getFullYear();vm=today.getMonth();await syncScheduleFromAT(vy,vm);showAdmin();}
+  else{
+    var p=state.staff.find(function(x){return x.id===role;});if(!p)return;
+    currentUser={role:'staff',pid:p.id,name:p.name};
+    ovy=today.getFullYear();ovm=today.getMonth();staffY=today.getFullYear();staffM=today.getMonth();
+    await syncScheduleFromAT(ovy,ovm);showScreen('scr-overview');renderOv();
   }
 }
-
 function goLogin(){currentUser=null;document.getElementById('loginRole').value='';showScreen('scr-login');}
 function showScreen(id){document.querySelectorAll('.screen').forEach(function(s){s.classList.remove('active');});document.getElementById(id).classList.add('active');}
 function showAdmin(){showScreen('scr-admin');renderAdmin();}
 function goToOv(){showScreen('scr-overview');renderOv();}
+function refreshStaffOpts(){var og=document.getElementById('staffOpts');if(!og)return;og.innerHTML='';state.staff.forEach(function(p){var o=document.createElement('option');o.value=p.id;o.textContent=p.name;og.appendChild(o);});}
+function refreshConfirmPersonSel(){
+  var sel=document.getElementById('confirmPersonSel');if(!sel)return;
+  sel.innerHTML='<option value="all">全部人員</option>';
+  state.staff.forEach(function(p){var o=document.createElement('option');o.value=p.id;o.textContent=p.name;sel.appendChild(o);});
+}
 
-// --- 切換月份（加入同步邏輯） ---
-async function prevM_ov(){ ovm--; if(ovm<0){ovm=11;ovy--;} await syncScheduleFromAT(ovy, ovm); renderOv(); }
-async function nextM_ov(){ ovm++; if(ovm>11){ovm=0;ovy++;} await syncScheduleFromAT(ovy, ovm); renderOv(); }
-async function prevM_staff(){ staffM--; if(staffM<0){staffM=11;staffY--;} await syncScheduleFromAT(staffY, staffM); renderStaff(); }
-async function nextM_staff(){ staffM++; if(staffM>11){staffM=0;staffY++;} await syncScheduleFromAT(staffY, staffM); renderStaff(); }
-async function prevM(){ vm--; if(vm<0){vm=11;vy--;} await syncScheduleFromAT(vy, vm); renderAdmin(); }
-async function nextM(){ vm++; if(vm>11){vm=0;vy++;} await syncScheduleFromAT(vy, vm); renderAdmin(); }
-
-function refreshStaffOpts(){var og=document.getElementById('staffOpts');og.innerHTML='';state.staff.forEach(function(p){var o=document.createElement('option');o.value=p.id;o.textContent=p.name;og.appendChild(o);});}
+async function prevM_ov(){ovm--;if(ovm<0){ovm=11;ovy--;}await syncScheduleFromAT(ovy,ovm);renderOv();}
+async function nextM_ov(){ovm++;if(ovm>11){ovm=0;ovy++;}await syncScheduleFromAT(ovy,ovm);renderOv();}
+async function prevM_staff(){staffM--;if(staffM<0){staffM=11;staffY--;}await syncScheduleFromAT(staffY,staffM);renderStaff();}
+async function nextM_staff(){staffM++;if(staffM>11){staffM=0;staffY++;}await syncScheduleFromAT(staffY,staffM);renderStaff();}
+async function prevM(){vm--;if(vm<0){vm=11;vy--;}await syncScheduleFromAT(vy,vm);renderAdmin();}
+async function nextM(){vm++;if(vm>11){vm=0;vy++;}await syncScheduleFromAT(vy,vm);renderAdmin();}
 
 async function addStaff(){
   var inp=document.getElementById('newName'),name=inp.value.trim();if(!name)return;
-  var status=document.getElementById('staffSyncStatus');
-  status.textContent='新增中…';
-  try{
-    var rec=await syncStaffToAirtable(name);
-    state.staff.push({id:rec.id,atId:rec.id,name:name,idx:state.staff.length});
-    inp.value='';refreshStaffOpts();renderAdminPeople();
-    status.innerHTML='<span style="color:#0F6E56;">✓ 已新增並同步到 Airtable</span>';
-    setTimeout(function(){status.textContent='';},3000);
-  }catch(e){status.innerHTML='<span style="color:#A32D2D;">新增失敗：'+e.message+'</span>';}
+  var status=document.getElementById('staffSyncStatus');status.textContent='新增中…';
+  try{var rec=await syncStaffToAirtable(name);state.staff.push({id:rec.id,atId:rec.id,name:name,idx:state.staff.length});inp.value='';refreshStaffOpts();refreshConfirmPersonSel();renderAdminPeople();status.innerHTML='<span style="color:#0F6E56;">✓ 已新增</span>';setTimeout(function(){status.textContent='';},3000);}
+  catch(e){status.innerHTML='<span style="color:#A32D2D;">失敗：'+e.message+'</span>';}
 }
-
 async function removeStaff(id){
-  if(!confirm('確認刪除這位人員？（Airtable 人員名單也會同步刪除）'))return;
+  if(!confirm('確認刪除？'))return;
   var p=state.staff.find(function(x){return x.id===id;});if(!p)return;
-  var status=document.getElementById('staffSyncStatus');
-  status.textContent='刪除中…';
+  var status=document.getElementById('staffSyncStatus');status.textContent='刪除中…';
+  try{await deleteStaffFromAirtable(p.atId);state.staff=state.staff.filter(function(x){return x.id!==id;});refreshStaffOpts();refreshConfirmPersonSel();renderAdmin();status.innerHTML='<span style="color:#0F6E56;">✓ 已刪除</span>';setTimeout(function(){status.textContent='';},3000);}
+  catch(e){status.innerHTML='<span style="color:#A32D2D;">失敗：'+e.message+'</span>';}
+}
+
+async function submitToAirtable(){
+  var pid=currentUser.pid,y=staffY,m=staffM,p=state.staff.find(function(x){return x.id===pid;});if(!p)return;
+  var btn=document.getElementById('submitBtn');btn.disabled=true;btn.textContent='同步中…';
+  showSubmitStatus('loading','正在同步…');
+  var monthLabel=y+'年'+(m+1)+'月',dim=new Date(y,m+1,0).getDate(),pd=getPdata(pid,y,m);
   try{
-    await deleteStaffFromAirtable(p.atId);
-    state.staff=state.staff.filter(function(x){return x.id!==id;});
-    refreshStaffOpts();renderAdmin();
-    status.innerHTML='<span style="color:#0F6E56;">✓ 已刪除並同步到 Airtable</span>';
-    setTimeout(function(){status.textContent='';},3000);
-  }catch(e){status.innerHTML='<span style="color:#A32D2D;">刪除失敗：'+e.message+'</span>';}
-}
-
-async function submitToAirtable() {
-  var pid = currentUser.pid, y = staffY, m = staffM;
-  var p = state.staff.find(function(x) { return x.id === pid; });
-  if (!p) return;
-
-  var btn = document.getElementById('submitBtn');
-  btn.disabled = true;
-  btn.textContent = '同步中…';
-  showSubmitStatus('loading', '正在清理舊資料並同步到 Airtable…');
-
-  var monthLabel = y + '年' + (m + 1) + '月';
-  var dim = new Date(y, m + 1, 0).getDate();
-  var pd = getPdata(pid, y, m);
-
-  try {
-    // 1. 先找出該人員在該月份的所有「每日班表」舊資料
-    var formula = 'AND({姓名}="' + p.name + '",{月份}="' + monthLabel + '")';
-    var existingRecords = await atGetAll(AT.dailyTable, formula);
-
-    // 2. 執行刪除舊資料
-    if (existingRecords.length > 0) {
-      for (var rec of existingRecords) {
-        await fetch('https://api.airtable.com/v0/' + AT.base + '/' + encodeURIComponent(AT.dailyTable) + '/' + rec.id, {
-          method: 'DELETE',
-          headers: { Authorization: 'Bearer ' + AT.token }
-        });
-      }
+    var ex=await atGetAll(AT.dailyTable,'AND({姓名}="'+p.name+'",{月份}="'+monthLabel+'")');
+    for(var rec of ex)await fetch('https://api.airtable.com/v0/'+AT.base+'/'+encodeURIComponent(AT.dailyTable)+'/'+rec.id,{method:'DELETE',headers:{Authorization:'Bearer '+AT.token}});
+    var count=0;
+    for(var d=1;d<=dim;d++){
+      var day=pd[d],dh=0;
+      if(day&&day.am)dh+=calcH(day.ams,day.ame);
+      if(day&&day.pm)dh+=calcH(day.pms,day.pme);
+      if(dh<=0)continue;
+      var fields={'姓名':p.name,'月份':monthLabel,'日期':y+'-'+pad(m+1)+'-'+pad(d),'上午開始':day.am?day.ams:'','上午結束':day.am?day.ame:'','下午開始':day.pm?day.pms:'','下午結束':day.pm?day.pme:'','當日工時':parseFloat(dh.toFixed(2)),'唯一鍵':p.name+'_'+monthLabel+'_'+pad(d)};
+      await atFetch('POST',AT.dailyTable,{records:[{fields:fields}]});count++;
     }
-
-    // 3. 重新寫入目前網頁上的排班資料
-    var count = 0;
-    for (var d = 1; d <= dim; d++) {
-      var day = pd[d];
-      var dh = 0;
-      if (day && day.am && day.ams && day.ame) dh += calcH(day.ams, day.ame);
-      if (day && day.pm && day.pms && day.pme) dh += calcH(day.pms, day.pme);
-      
-      if (dh <= 0) continue; // 沒時數就不寫入（這就是為什麼先前的刪除很重要）
-
-      var uniqueKey = p.name + '_' + monthLabel + '_' + pad(d);
-      var fields = {
-        '姓名': p.name,
-        '月份': monthLabel,
-        '日期': y + '-' + pad(m + 1) + '-' + pad(d),
-        '上午開始': day.am ? day.ams : '',
-        '上午結束': day.am ? day.ame : '',
-        '下午開始': day.pm ? day.pms : '',
-        '下午結束': day.pm ? day.pme : '',
-        '當日工時': parseFloat(dh.toFixed(2))
-      };
-      
-      // 直接 POST 新增
-      fields['唯一鍵'] = uniqueKey;
-      await atFetch('POST', AT.dailyTable, { records: [{ fields: fields }] });
-      count++;
-    }
-
-    // 4. 更新「人員工時」總表（總表只有一筆，繼續使用 upsert 即可）
-    var totalHrs = monthHrs(pid, y, m);
-    var hrsKey = p.name + '_' + monthLabel;
-    var hrsFields = {
-      '姓名': p.name,
-      '月份': monthLabel,
-      '總工時': parseFloat(totalHrs.toFixed(1)),
-      '是否達標': totalHrs >= TARGET
-    };
-    await upsertHrsRecord(hrsFields, hrsKey);
-
-    state.submitted[pid + '-' + mkey(y, m)] = true;
-    saveLocal();
-    showSubmitStatus('ok', '✓ 已清除舊紀錄並重新同步 ' + count + ' 天排班，總計 ' + totalHrs.toFixed(1) + 'h');
-    btn.textContent = '重新送出';
-    btn.disabled = false;
-    renderStaff(); 
-
-  } catch (err) {
-    showSubmitStatus('err', '同步失敗：' + err.message);
-    btn.disabled = false;
-    btn.textContent = '重試送出';
-  }
+    var totalHrs=monthHrs(pid,y,m);
+    await upsertHrsRecord({'姓名':p.name,'月份':monthLabel,'總工時':parseFloat(totalHrs.toFixed(1)),'是否達標':totalHrs>=TARGET},p.name+'_'+monthLabel);
+    state.submitted[pid+'-'+mkey(y,m)]=true;saveLocal();
+    showSubmitStatus('ok','✓ 同步 '+count+' 天，總計 '+totalHrs.toFixed(1)+'h');
+    btn.textContent='重新送出';btn.disabled=false;renderStaff();
+  }catch(err){showSubmitStatus('err','同步失敗：'+err.message);btn.disabled=false;btn.textContent='重試';}
 }
+function showSubmitStatus(type,msg){var cls='at-status '+(type==='ok'?'ok':type==='err'?'err':'loading');document.getElementById('submitStatus').innerHTML='<div class="'+cls+'" style="margin-bottom:.75rem;">'+msg+'</div>';}
 
-function showSubmitStatus(type,msg){var cls=type==='ok'?'at-status ok':type==='err'?'at-status err':'at-status loading';document.getElementById('submitStatus').innerHTML='<div class="'+cls+'" style="margin-bottom:.75rem;">'+msg+'</div>';}
-
-// --- 渲染畫面 (其餘邏輯不變) ---
+// ============================================================
+// 渲染：總覽、個人排班
+// ============================================================
 function renderOv(){
   var y=ovy,m=ovm;document.getElementById('ovMonLbl').textContent=y+'年 '+MONTHS[m];
   var btn=document.getElementById('ovActionBtn');
   if(currentUser&&currentUser.role==='staff'){btn.style.display='';btn.textContent='填寫排班 →';btn.onclick=function(){staffY=y;staffM=m;showScreen('scr-staff');renderStaff();};}else btn.style.display='none';
-  var leg='';state.staff.forEach(function(p,i){leg+='<span style="font-size:12px;background:'+COLORS[i%8][0]+';color:'+COLORS[i%8][1]+';padding:2px 8px;border-radius:10px;margin:2px;display:inline-block;">'+p.name+'</span>';});
+  var leg='';state.staff.forEach(function(p,i){var c=getPersonColor(i);leg+='<span style="font-size:12px;background:'+c[0]+';color:'+c[1]+';padding:2px 8px;border-radius:10px;margin:2px;display:inline-block;">'+p.name+'</span>';});
   document.getElementById('ovLegend').innerHTML=leg;
   var dim=new Date(y,m+1,0).getDate(),k=mkey(y,m),html='';
   for(var d=1;d<=dim;d++){
-    var dow=new Date(y,m,d).getDay(),isWE=dow===0||dow===6,pr=getPref(d,y,m);
-    var amArr=[],pmArr=[];
-    state.staff.forEach(function(p,i){var day=((state.schedule[k]||{})[p.id]||{})[d];if(!day)return;if(day.am&&calcH(day.ams,day.ame)>0)amArr.push({p:p,i:i,s:day.ams,e:day.ame});if(day.pm&&calcH(day.pms,day.pme)>0)pmArr.push({p:p,i:i,s:day.pms,e:day.pme});});
+    var dow=new Date(y,m,d).getDay(),isWE=dow===0||dow===6,pr=getPref(d,y,m),amArr=[],pmArr=[];
+    state.staff.forEach(function(p,i){
+      var day=((state.schedule[k]||{})[p.id]||{})[d];if(!day)return;
+      var at=((state.attendance[k]||{})[p.id]||{})[d]||{};
+      if(day.am&&calcH(day.ams,day.ame)>0)amArr.push({p:p,i:i,s:at.actualAms||day.ams,e:at.actualAme||day.ame,confirmed:at.amConfirmed,absent:at.amAbsent});
+      if(day.pm&&calcH(day.pms,day.pme)>0)pmArr.push({p:p,i:i,s:at.actualPms||day.pms,e:at.actualPme||day.pme,confirmed:at.pmConfirmed,absent:at.pmAbsent});
+    });
     var amGap=gapLabel(d,'am',y,m),pmGap=gapLabel(d,'pm',y,m);
-    var amPref=pr.am?'<span style="font-size:10px;background:#E1F5EE;color:#085041;border:1px solid #5DCAA5;padding:1px 4px;border-radius:3px;margin-right:2px;">偏好</span>':'';
-    var pmPref=pr.pm?'<span style="font-size:10px;background:#FAEEDA;color:#633806;border:1px solid #FAC775;padding:1px 4px;border-radius:3px;margin-right:2px;">偏好</span>':'';
-    html+='<div class="overview-row"><div style="font-size:12px;color:'+(isWE?'#A32D2D':'#666')+';line-height:1.5;padding-top:2px;text-align:center;">'+(m+1)+'/'+d+'<br>'+DW[dow]+'</div><div class="ov-slots"><div class="ov-slot-row"><span class="ov-slot-lbl am">上午</span><div class="ov-chips">'+amPref+(amArr.length?amArr.map(function(x){return '<span style="display:inline-block;background:'+COLORS[x.i%8][0]+';color:'+COLORS[x.i%8][1]+';border-radius:8px;padding:2px 7px;font-size:11px;font-weight:500;">'+x.p.name+'<span style="font-size:9px;opacity:.7;"> '+x.s+'–'+x.e+'</span></span>';}).join(''):'<span style="font-size:11px;color:#aaa;">—</span>')+(amGap?'<span class="gap-pill '+amGap.cls+'" style="font-size:11px;padding:2px 6px;border-radius:4px;">'+amGap.text+'</span>':'')+'</div></div><div class="ov-slot-row"><span class="ov-slot-lbl pm">下午</span><div class="ov-chips">'+pmPref+(pmArr.length?pmArr.map(function(x){return '<span style="display:inline-block;background:'+COLORS[x.i%8][0]+';color:'+COLORS[x.i%8][1]+';border-radius:8px;padding:2px 7px;font-size:11px;font-weight:500;">'+x.p.name+'<span style="font-size:9px;opacity:.7;"> '+x.s+'–'+x.e+'</span></span>';}).join(''):'<span style="font-size:11px;color:#aaa;">—</span>')+(pmGap?'<span class="gap-pill '+pmGap.cls+'" style="font-size:11px;padding:2px 6px;border-radius:4px;">'+pmGap.text+'</span>':'')+'</div></div></div></div>';
+    html+='<div class="overview-row"><div style="font-size:12px;color:'+(isWE?'#A32D2D':'#777')+';line-height:1.5;padding-top:2px;text-align:center;">'+(m+1)+'/'+d+'<br>'+DW[dow]+'</div><div class="ov-slots">';
+    html+='<div class="ov-slot-row"><span class="ov-slot-lbl am">上午</span><div class="ov-chips">'+(amArr.length?amArr.map(function(x){var c=getPersonColor(x.i);var border=x.confirmed?'2px solid #6EE7B7':x.absent?'2px solid #FCA5A5':'none';return '<span style="display:inline-block;background:'+c[0]+';color:'+c[1]+';border-radius:8px;padding:2px 7px;font-size:11px;font-weight:500;border:'+border+';">'+x.p.name+'</span>';}).join(''):'<span style="font-size:11px;color:#bbb;">—</span>')+(amGap?'<span class="gap-pill '+amGap.cls+'">'+amGap.text+'</span>':'')+'</div></div>';
+    html+='<div class="ov-slot-row"><span class="ov-slot-lbl pm">下午</span><div class="ov-chips">'+(pmArr.length?pmArr.map(function(x){var c=getPersonColor(x.i);var border=x.confirmed?'2px solid #6EE7B7':x.absent?'2px solid #FCA5A5':'none';return '<span style="display:inline-block;background:'+c[0]+';color:'+c[1]+';border-radius:8px;padding:2px 7px;font-size:11px;font-weight:500;border:'+border+';">'+x.p.name+'</span>';}).join(''):'<span style="font-size:11px;color:#bbb;">—</span>')+(pmGap?'<span class="gap-pill '+pmGap.cls+'">'+pmGap.text+'</span>':'')+'</div></div>';
+    html+='</div></div>';
   }
   document.getElementById('ovBody').innerHTML=html;
 }
@@ -615,26 +697,32 @@ function renderStaff(){
   var submitted=isSubmitted(p.id,y,m);
   var banner=document.getElementById('submitBanner'),btn=document.getElementById('submitBtn');
   banner.style.display='flex';
-  if(submitted){
-    banner.style.background='#f5f5f5'; btn.textContent='重新送出';
-    document.getElementById('submitBannerTitle').textContent='本月排班已送出';
-    document.getElementById('submitBannerSub').textContent='可隨時修改後重新送出以更新 Airtable';
-  }else{
-    banner.style.background='#EAF3DE'; btn.textContent='送出本月排班';
-    document.getElementById('submitBannerTitle').textContent='排班填寫完成了嗎？';
-    document.getElementById('submitBannerSub').textContent='送出後資料將同步到 Airtable';
-  }
-  var dim=new Date(y,m+1,0).getDate(),pd=getPdata(p.id,y,m),html='';
+  if(submitted){banner.style.background='#f7f7f5';btn.textContent='重新送出';document.getElementById('submitBannerTitle').textContent='本月排班已送出';document.getElementById('submitBannerSub').textContent='可隨時修改後重新送出';}
+  else{banner.style.background='#EAF3DE';btn.textContent='送出本月排班';document.getElementById('submitBannerTitle').textContent='排班填寫完成了嗎？';document.getElementById('submitBannerSub').textContent='送出後資料將同步到 Airtable';}
+  renderMakeupList();
+  var dim=new Date(y,m+1,0).getDate(),pd=getPdata(p.id,y,m),attn=getAttn(p.id,y,m),html='';
   for(var d=1;d<=dim;d++){
     var dow=new Date(y,m,d).getDay(),isWE=dow===0||dow===6,pr=getPref(d,y,m);
-    var day=pd[d]||{am:false,ams:'09:00',ame:'12:00',pm:false,pms:'13:00',pme:'16:00'};
-    var dh=0;if(day.am)dh+=calcH(day.ams,day.ame);if(day.pm)dh+=calcH(day.pms,day.pme);
+    var day=pd[d]||{};var at=attn[d]||{};
+    var dh=0;if(day.am&&at.amConfirmed)dh+=calcH(at.actualAms||day.ams,at.actualAme||day.ame);if(day.pm&&at.pmConfirmed)dh+=calcH(at.actualPms||day.pms,at.actualPme||day.pme);
     var amGap=gapLabel(d,'am',y,m),pmGap=gapLabel(d,'pm',y,m);
-    html+='<div class="day-list-row" onclick="openDayModal(\''+p.id+'\','+d+','+y+','+m+')"><div class="day-date'+(isWE?' we':'')+'"><div style="font-size:15px;font-weight:500;">'+(m+1)+'/'+d+'</div><div style="font-size:11px;">'+DW[dow]+'</div></div><div class="day-slots">';
-    if(day.am&&calcH(day.ams,day.ame)>0)html+='<div style="display:flex;align-items:center;gap:5px;"><span class="slot-tag am">上午 '+day.ams+'–'+day.ame+'</span>'+(pr.am?'<span style="font-size:10px;background:#FAEEDA;color:#633806;border:1px solid #FAC775;padding:1px 4px;border-radius:3px;">偏好</span>':'')+'</div>';
-    if(day.pm&&calcH(day.pms,day.pme)>0)html+='<div style="display:flex;align-items:center;gap:5px;"><span class="slot-tag pm">下午 '+day.pms+'–'+day.pme+'</span>'+(pr.pm?'<span style="font-size:10px;background:#FAEEDA;color:#633806;border:1px solid #FAC775;padding:1px 4px;border-radius:3px;">偏好</span>':'')+'</div>';
+    html+='<div class="day-list-row clickable" onclick="openDayModal(\''+p.id+'\','+d+','+y+','+m+')"><div class="day-date'+(isWE?' we':'')+'"><div style="font-size:15px;font-weight:600;">'+(m+1)+'/'+d+'</div><div style="font-size:11px;">'+DW[dow]+'</div></div><div class="day-slots">';
+    if(day.am&&calcH(day.ams,day.ame)>0){
+      html+='<div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;"><span class="slot-tag am">上午 '+(at.actualAms||day.ams)+'–'+(at.actualAme||day.ame)+'</span>';
+      if(at.amConfirmed)html+='<span class="attn-confirmed">✓ 已確認</span>';
+      else if(at.amAbsent)html+='<span class="attn-absent">✗ 缺席</span>';
+      if(pr.am)html+='<span class="pref-tag">偏好</span>';
+      html+='</div>';
+    }
+    if(day.pm&&calcH(day.pms,day.pme)>0){
+      html+='<div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;"><span class="slot-tag pm">下午 '+(at.actualPms||day.pms)+'–'+(at.actualPme||day.pme)+'</span>';
+      if(at.pmConfirmed)html+='<span class="attn-confirmed">✓ 已確認</span>';
+      else if(at.pmAbsent)html+='<span class="attn-absent">✗ 缺席</span>';
+      if(pr.pm)html+='<span class="pref-tag">偏好</span>';
+      html+='</div>';
+    }
     if(!day.am&&!day.pm)html+='<span class="slot-tag empty">未排班</span>';
-    if(dh>0)html+='<span style="font-size:11px;color:#888;">共 '+dh.toFixed(1)+'h</span>';
+    if(dh>0)html+='<span style="font-size:11px;color:#999;">確認 '+dh.toFixed(1)+'h</span>';
     html+='</div><div class="day-gap">';
     if(amGap)html+='<span class="gap-pill '+amGap.cls+'">上 '+amGap.text+'</span>';
     if(pmGap)html+='<span class="gap-pill '+pmGap.cls+'">下 '+pmGap.text+'</span>';
@@ -643,26 +731,372 @@ function renderStaff(){
   document.getElementById('staffDayList').innerHTML=html;
 }
 
-function updateStaffStats(){
-  if(!currentUser||currentUser.role!=='staff')return;
-  var hrs=monthHrs(currentUser.pid,staffY,staffM),remain=Math.max(0,TARGET-hrs);
-  var col=hrs>=TARGET?'ok':remain<=2?'warn':'';
-  var sub=isSubmitted(currentUser.pid,staffY,staffM);
-  document.getElementById('staffStats').innerHTML='<div class="stat"><div class="stat-lbl">已排時數</div><div class="stat-val '+col+'">'+hrs.toFixed(1)+'h</div></div><div class="stat"><div class="stat-lbl">目標</div><div class="stat-val">'+TARGET+'h</div></div><div class="stat"><div class="stat-lbl">尚缺</div><div class="stat-val '+(remain>0?'warn':'ok')+'">'+remain.toFixed(1)+'h</div></div><div class="stat"><div class="stat-lbl">Airtable</div><div style="padding-top:4px;">'+(sub?'<span class="badge badge-green">已送出</span>':'<span class="badge badge-gray">未送出</span>')+'</div></div>';
+function scheduledHrs(pid,y,m){
+  // 已排（不論是否確認）的總時數
+  var dim=new Date(y,m+1,0).getDate(),total=0,pd=getPdata(pid,y,m);
+  for(var d=1;d<=dim;d++){
+    var day=pd[d];if(!day)continue;
+    if(day.am&&day.ams&&day.ame)total+=calcH(day.ams,day.ame);
+    if(day.pm&&day.pms&&day.pme)total+=calcH(day.pms,day.pme);
+  }
+  return total;
 }
 
+function updateStaffStats(){
+  if(!currentUser||currentUser.role!=='staff')return;
+  var confirmedHrs=monthHrs(currentUser.pid,staffY,staffM);
+  var scheduledH=scheduledHrs(currentUser.pid,staffY,staffM);
+  var remain=Math.max(0,TARGET-scheduledH);
+  var sub=isSubmitted(currentUser.pid,staffY,staffM);
+  // 統計缺席數
+  var attn=getAttn(currentUser.pid,staffY,staffM),absentCount=0;
+  var dim=new Date(staffY,staffM+1,0).getDate();
+  for(var d=1;d<=dim;d++){var at=attn[d]||{};if(at.amAbsent||at.pmAbsent)absentCount++;}
+  var schedColor=scheduledH>=TARGET?'ok':remain<=4?'warn':'';
+  document.getElementById('staffStats').innerHTML=
+    '<div class="stat"><div class="stat-lbl">已排時數</div><div class="stat-val '+schedColor+'">'+scheduledH.toFixed(1)+'h</div><div style="font-size:10px;color:#aaa;margin-top:1px;">目標 '+TARGET+'h'+(remain>0?' 差'+remain.toFixed(1)+'h':'  ✓')+'</div></div>'+
+    '<div class="stat"><div class="stat-lbl">已確認時數</div><div class="stat-val '+(confirmedHrs>=TARGET?'ok':confirmedHrs>0?'warn':'')+'">'+confirmedHrs.toFixed(1)+'h</div><div style="font-size:10px;color:#aaa;margin-top:1px;">'+(scheduledH>0?Math.round(confirmedHrs/scheduledH*100)+'% 已確認':'—')+'</div></div>'+
+    '<div class="stat"><div class="stat-lbl">缺席天數</div><div class="stat-val '+(absentCount>0?'warn':'')+'">'+absentCount+'</div><div style="font-size:10px;color:#aaa;margin-top:1px;">'+(absentCount>0?'需補班':'無缺席')+'</div></div>'+
+    '<div class="stat"><div class="stat-lbl">送出狀態</div><div style="padding-top:6px;">'+(sub?'<span class="badge badge-green">已送出</span>':'<span class="badge badge-gray">未送出</span>')+'</div></div>';
+}
+
+// ============================================================
+// 補班功能
+// ============================================================
+function initMakeupSelects(){
+  ['makeup_ams','makeup_ame','makeup_pms','makeup_pme'].forEach(function(id){
+    var el=document.getElementById(id);if(!el)return;
+    el.innerHTML='';
+    TIMES.forEach(function(t){var o=document.createElement('option');o.value=t;o.textContent=t;el.appendChild(o);});
+  });
+  document.getElementById('makeup_ams').value='09:00';
+  document.getElementById('makeup_ame').value='12:00';
+  document.getElementById('makeup_pms').value='13:00';
+  document.getElementById('makeup_pme').value='16:00';
+  document.getElementById('makeup_slot').onchange=function(){
+    var slot=this.value;
+    document.getElementById('makeup_pm_row').style.display=(slot==='pm'||slot==='both')?'':'none';
+    var amRow=document.getElementById('makeup_pm_row').previousElementSibling;
+    // show/hide am fields
+    var amLabel=document.querySelector('#makeup_time_fields .field-row:first-child label');
+    if(amLabel)amLabel.parentElement.style.display=(slot==='pm')?'none':'';
+  };
+  document.getElementById('makeup_date').value=today.getFullYear()+'-'+pad(today.getMonth()+1)+'-'+pad(today.getDate());
+}
+function openMakeupModal(editId){
+  initMakeupSelects();
+  document.getElementById('makeup_note').value='';
+  document.getElementById('makeupOverlay').classList.add('show');
+}
+function closeMakeupModal(){document.getElementById('makeupOverlay').classList.remove('show');}
+function makeupOverlayBg(e){if(e.target===document.getElementById('makeupOverlay'))closeMakeupModal();}
+
+function saveMakeup(){
+  var pid=currentUser.pid;
+  var dateVal=document.getElementById('makeup_date').value;
+  var slot=document.getElementById('makeup_slot').value;
+  var ams=document.getElementById('makeup_ams').value,ame=document.getElementById('makeup_ame').value;
+  var pms=document.getElementById('makeup_pms').value,pme=document.getElementById('makeup_pme').value;
+  var note=document.getElementById('makeup_note').value.trim();
+  if(!dateVal){alert('請選擇補班日期');return;}
+  var mk={id:Date.now().toString(),date:dateVal,slot:slot,ams:ams,ame:ame,pms:pms,pme:pme,note:note,confirmed:false,confirmedBy:null};
+  getMakeup(pid).push(mk);
+  saveLocal();closeMakeupModal();renderMakeupList();
+  // 如果是人員自己確認（自簽），也可以標記
+}
+
+function renderMakeupList(){
+  var pid=currentUser?currentUser.pid:null;if(!pid)return;
+  var list=getMakeup(pid);
+  var el=document.getElementById('makeupList');if(!el)return;
+  if(!list.length){el.innerHTML='<span style="color:#bbb;font-size:12px;">尚無補班紀錄</span>';return;}
+  var html='';
+  list.forEach(function(mk){
+    var d=new Date(mk.date),dow=DW[d.getDay()];
+    var dateLabel=(d.getMonth()+1)+'/'+d.getDate()+' ('+dow+')';
+    var slotLabel=mk.slot==='am'?'上午':mk.slot==='pm'?'下午':'全天';
+    var timeLabel='';
+    if(mk.slot==='am'||mk.slot==='both')timeLabel+=mk.ams+'–'+mk.ame;
+    if(mk.slot==='both')timeLabel+=' / ';
+    if(mk.slot==='pm'||mk.slot==='both')timeLabel+=mk.pms+'–'+mk.pme;
+    html+='<div class="makeup-card"><div class="makeup-card-body"><div class="makeup-card-date">'+dateLabel+' '+slotLabel+'</div><div class="makeup-card-time">'+timeLabel+'</div>'+(mk.note?'<div class="makeup-card-note">'+mk.note+'</div>':'')+'</div>';
+    if(mk.confirmed){html+='<span class="attn-confirmed">✓ 已確認</span>';}
+    else{html+='<div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end;"><span style="font-size:10px;color:#888;">待確認</span><button class="btn-red" style="font-size:11px;padding:3px 8px;" onclick="deleteMakeup(\''+pid+'\',\''+mk.id+'\')">刪除</button></div>';}
+    html+='</div>';
+  });
+  el.innerHTML=html;
+}
+
+function deleteMakeup(pid,id){
+  if(!confirm('確認刪除此補班紀錄？'))return;
+  state.makeup[pid]=(state.makeup[pid]||[]).filter(function(m){return m.id!==id;});
+  saveLocal();renderMakeupList();
+}
+
+// ============================================================
+// 確認出勤（管理者 tab）
+// ============================================================
+function renderConfirm(){
+  var y=vy,m=vm,k=mkey(y,m);
+  var filterPid=document.getElementById('confirmPersonSel').value;
+  var filterStatus=document.getElementById('confirmStatusFilter').value;
+  var dim=new Date(y,m+1,0).getDate(),html='';
+  var staffList=filterPid==='all'?state.staff:state.staff.filter(function(p){return p.id===filterPid;});
+  var hasAny=false;
+  for(var d=1;d<=dim;d++){
+    var dow=new Date(y,m,d).getDay(),isWE=dow===0||dow===6;
+    staffList.forEach(function(p,idx){
+      var day=((state.schedule[k]||{})[p.id]||{})[d];
+      var at=((state.attendance[k]||{})[p.id]||{})[d]||{};
+      var hasSched=(day&&(day.am&&calcH(day.ams,day.ame)>0||day.pm&&calcH(day.pms,day.pme)>0));
+      if(!hasSched)return;
+      var isConfirmed=at.amConfirmed||at.pmConfirmed,isAbsent=at.amAbsent||at.pmAbsent;
+      if(filterStatus==='confirmed'&&!isConfirmed)return;
+      if(filterStatus==='absent'&&!isAbsent)return;
+      if(filterStatus==='scheduled'&&(isConfirmed||isAbsent))return;
+      hasAny=true;
+      var c=getPersonColor(state.staff.indexOf(p));
+      var dateLabel=(m+1)+'/'+d+' '+DW[dow];
+      var statusBadge='';
+      if(at.amConfirmed&&day.am)statusBadge+='<span class="attn-confirmed">上午✓</span> ';
+      if(at.amAbsent&&day.am)statusBadge+='<span class="attn-absent">上午✗</span> ';
+      if(at.pmConfirmed&&day.pm)statusBadge+='<span class="attn-confirmed">下午✓</span> ';
+      if(at.pmAbsent&&day.pm)statusBadge+='<span class="attn-absent">下午✗</span> ';
+      if(!statusBadge)statusBadge='<span style="font-size:11px;color:#aaa;">未確認</span>';
+      html+='<div style="display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid #f0f0ee;flex-wrap:wrap;">';
+      html+='<span style="font-size:12px;color:'+(isWE?'#A32D2D':'#777')+';width:52px;flex-shrink:0;font-weight:'+(isWE?'600':'400')+';">'+dateLabel+'</span>';
+      html+='<span style="background:'+c[0]+';color:'+c[1]+';padding:2px 7px;border-radius:8px;font-size:12px;font-weight:500;flex-shrink:0;">'+p.name+'</span>';
+      html+='<span style="flex:1;font-size:11px;color:#777;">';
+      if(day.am)html+='上午 '+(at.actualAms||day.ams)+'–'+(at.actualAme||day.ame)+' ';
+      if(day.pm)html+='下午 '+(at.actualPms||day.pms)+'–'+(at.actualPme||day.pme);
+      html+='</span>';
+      html+='<span>'+statusBadge+'</span>';
+      html+='<button class="btn-blue" style="font-size:11px;padding:4px 10px;" onclick="openConfirmModal(\''+p.id+'\','+d+','+y+','+m+')">確認</button>';
+      html+='</div>';
+    });
+  }
+  // 補班也顯示在這裡
+  staffList.forEach(function(p){
+    getMakeup(p.id).forEach(function(mk){
+      var d=new Date(mk.date);
+      if(d.getFullYear()!==y||d.getMonth()!==m)return;
+      var c=getPersonColor(state.staff.indexOf(p));
+      var dow=DW[d.getDay()];
+      html+='<div style="display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid #f0f0ee;flex-wrap:wrap;background:#f0f6ff;">';
+      html+='<span style="font-size:12px;color:#0C447C;width:52px;flex-shrink:0;">'+(d.getMonth()+1)+'/'+d.getDate()+' '+dow+'</span>';
+      html+='<span style="background:'+c[0]+';color:'+c[1]+';padding:2px 7px;border-radius:8px;font-size:12px;font-weight:500;flex-shrink:0;">'+p.name+'</span>';
+      html+='<span class="attn-makeup">補班</span>';
+      html+='<span style="flex:1;font-size:11px;color:#555;">';
+      if(mk.slot==='am'||mk.slot==='both')html+=mk.ams+'–'+mk.ame+' ';
+      if(mk.slot==='pm'||mk.slot==='both')html+=mk.pms+'–'+mk.pme;
+      html+='</span>';
+      if(mk.confirmed){html+='<span class="attn-confirmed">✓ 已確認</span>';}
+      else{html+='<button class="btn-amber" style="font-size:11px;padding:4px 10px;" onclick="confirmMakeup(\''+p.id+'\',\''+mk.id+'\')">確認補班</button>';}
+      html+='</div>';
+      hasAny=true;
+    });
+  });
+  document.getElementById('confirmBody').innerHTML=hasAny?html:'<div style="font-size:13px;color:#bbb;text-align:center;padding:2rem;">本月無符合條件的出勤紀錄</div>';
+}
+
+function confirmMakeup(pid,mkId){
+  var list=getMakeup(pid),mk=list.find(function(m){return m.id===mkId;});
+  if(!mk)return;
+  mk.confirmed=true;mk.confirmedBy='admin';
+  saveLocal();renderConfirm();
+}
+
+function openConfirmModal(pid,d,y,m){
+  confirmTarget={pid:pid,d:d,y:y,m:m};
+  var p=state.staff.find(function(x){return x.id===pid;});
+  var day=((state.schedule[mkey(y,m)]||{})[pid]||{})[d]||{};
+  var at=((state.attendance[mkey(y,m)]||{})[pid]||{})[d]||{};
+  var dow=new Date(y,m,d).getDay();
+  document.getElementById('confirmModalTitle').textContent=p.name+' — '+(m+1)+'/'+d+'（'+DW[dow]+'）';
+  var html='';
+  // 人員自行確認（签到）說明
+  html+='<div style="font-size:12px;color:#777;background:#f7f7f5;border-radius:8px;padding:8px 10px;margin-bottom:12px;">人員自簽狀態：';
+  if(at.selfAm)html+='<span class="attn-confirmed" style="margin-right:4px;">上午已自簽</span>';
+  if(at.selfPm)html+='<span class="attn-confirmed">下午已自簽</span>';
+  if(!at.selfAm&&!at.selfPm)html+='<span style="color:#bbb;">尚未自簽</span>';
+  html+='</div>';
+
+  if(day.am&&calcH(day.ams,day.ame)>0){
+    html+='<div class="confirm-section am-sec"><div style="font-size:13px;font-weight:600;color:#085041;margin-bottom:8px;">上午班（排班：'+day.ams+'–'+day.ame+'）</div>';
+    html+='<div class="confirm-row"><span class="confirm-slot-label am">實際</span>';
+    html+='<select id="cf_ams" class="confirm-time-input">'+TIMES.map(function(t){return '<option'+(t===(at.actualAms||day.ams)?' selected':'')+'>'+t+'</option>';}).join('')+'</select>';
+    html+='<span style="color:#aaa;">—</span>';
+    html+='<select id="cf_ame" class="confirm-time-input">'+TIMES.map(function(t){return '<option'+(t===(at.actualAme||day.ame)?' selected':'')+'>'+t+'</option>';}).join('')+'</select>';
+    html+='</div>';
+    html+='<div style="display:flex;gap:8px;margin-top:8px;">';
+    html+='<label style="display:flex;align-items:center;gap:4px;font-size:13px;cursor:pointer;"><input type="radio" name="am_status" value="confirmed" '+(at.amConfirmed?'checked':'')+'>✓ 確認出勤</label>';
+    html+='<label style="display:flex;align-items:center;gap:4px;font-size:13px;cursor:pointer;"><input type="radio" name="am_status" value="absent" '+(at.amAbsent?'checked':'')+'>✗ 缺席</label>';
+    html+='<label style="display:flex;align-items:center;gap:4px;font-size:13px;cursor:pointer;"><input type="radio" name="am_status" value="none" '+(!at.amConfirmed&&!at.amAbsent?'checked':'')+'>— 未定</label>';
+    html+='</div></div>';
+  }
+  if(day.pm&&calcH(day.pms,day.pme)>0){
+    html+='<div class="confirm-section pm-sec"><div style="font-size:13px;font-weight:600;color:#633806;margin-bottom:8px;">下午班（排班：'+day.pms+'–'+day.pme+'）</div>';
+    html+='<div class="confirm-row"><span class="confirm-slot-label pm">實際</span>';
+    html+='<select id="cf_pms" class="confirm-time-input">'+TIMES.map(function(t){return '<option'+(t===(at.actualPms||day.pms)?' selected':'')+'>'+t+'</option>';}).join('')+'</select>';
+    html+='<span style="color:#aaa;">—</span>';
+    html+='<select id="cf_pme" class="confirm-time-input">'+TIMES.map(function(t){return '<option'+(t===(at.actualPme||day.pme)?' selected':'')+'>'+t+'</option>';}).join('')+'</select>';
+    html+='</div>';
+    html+='<div style="display:flex;gap:8px;margin-top:8px;">';
+    html+='<label style="display:flex;align-items:center;gap:4px;font-size:13px;cursor:pointer;"><input type="radio" name="pm_status" value="confirmed" '+(at.pmConfirmed?'checked':'')+'>✓ 確認出勤</label>';
+    html+='<label style="display:flex;align-items:center;gap:4px;font-size:13px;cursor:pointer;"><input type="radio" name="pm_status" value="absent" '+(at.pmAbsent?'checked':'')+'>✗ 缺席</label>';
+    html+='<label style="display:flex;align-items:center;gap:4px;font-size:13px;cursor:pointer;"><input type="radio" name="pm_status" value="none" '+(!at.pmConfirmed&&!at.pmAbsent?'checked':'')+'>— 未定</label>';
+    html+='</div></div>';
+  }
+  document.getElementById('confirmModalBody').innerHTML=html;
+  document.getElementById('confirmOverlay').classList.add('show');
+}
+
+function saveConfirm(){
+  var t=confirmTarget,k=mkey(t.y,t.m);
+  if(!state.attendance[k])state.attendance[k]={};
+  if(!state.attendance[k][t.pid])state.attendance[k][t.pid]={};
+  var at=state.attendance[k][t.pid][t.d]||{};
+  // 實際時間
+  var ams=document.getElementById('cf_ams'),ame=document.getElementById('cf_ame');
+  var pms=document.getElementById('cf_pms'),pme=document.getElementById('cf_pme');
+  if(ams)at.actualAms=ams.value;if(ame)at.actualAme=ame.value;
+  if(pms)at.actualPms=pms.value;if(pme)at.actualPme=pme.value;
+  // 上午狀態
+  var amSt=document.querySelector('input[name="am_status"]:checked');
+  if(amSt){at.amConfirmed=amSt.value==='confirmed';at.amAbsent=amSt.value==='absent';}
+  // 下午狀態
+  var pmSt=document.querySelector('input[name="pm_status"]:checked');
+  if(pmSt){at.pmConfirmed=pmSt.value==='confirmed';at.pmAbsent=pmSt.value==='absent';}
+  state.attendance[k][t.pid][t.d]=at;
+  saveLocal();closeConfirmModal();renderConfirm();renderAdminStats();
+}
+
+// 人員自行簽到（在個人頁面的日期 modal 裡）
+function staffSelfSign(slot){
+  var k=mkey(modalY,modalM);
+  if(!state.attendance[k])state.attendance[k]={};
+  if(!state.attendance[k][modalPid])state.attendance[k][modalPid]={};
+  if(!state.attendance[k][modalPid][modalD])state.attendance[k][modalPid][modalD]={};
+  var at=state.attendance[k][modalPid][modalD];
+  if(slot==='am'){at.selfAm=true;at.amConfirmed=true;at.actualAms=at.actualAms||document.getElementById('m_ams').value;at.actualAme=at.actualAme||document.getElementById('m_ame').value;}
+  if(slot==='pm'){at.selfPm=true;at.pmConfirmed=true;at.actualPms=at.actualPms||document.getElementById('m_pms').value;at.actualPme=at.actualPme||document.getElementById('m_pme').value;}
+  saveLocal();
+  // 重新整理 modal 中的狀態
+  var signBtnAm=document.getElementById('self_sign_am');
+  var signBtnPm=document.getElementById('self_sign_pm');
+  if(signBtnAm&&slot==='am'){signBtnAm.textContent='✓ 已自簽';signBtnAm.disabled=true;signBtnAm.className='btn-green';signBtnAm.style.opacity='1';}
+  if(signBtnPm&&slot==='pm'){signBtnPm.textContent='✓ 已自簽';signBtnPm.disabled=true;signBtnPm.className='btn-green';signBtnPm.style.opacity='1';}
+}
+
+function closeConfirmModal(){document.getElementById('confirmOverlay').classList.remove('show');}
+function confirmOverlayBg(e){if(e.target===document.getElementById('confirmOverlay'))closeConfirmModal();}
+
+// ============================================================
+// Admin render
+// ============================================================
+function renderAdmin(){document.getElementById('adminMonLbl').textContent=vy+'年 '+MONTHS[vm];renderAdminStats();renderAdminOv();renderAdminPeople();renderWeekTemplate();renderPrefGrid();renderConfirm();}
+function switchTab(id,el){document.querySelectorAll('.tsec').forEach(function(s){s.classList.remove('active');});document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('active');});document.getElementById('tab-'+id).classList.add('active');el.classList.add('active');}
+function renderAdminStats(){
+  var met=0,part=0,none2=0,pendingConfirm=0;
+  var k=mkey(vy,vm);
+  state.staff.forEach(function(p){
+    var h=monthHrs(p.id,vy,vm);
+    if(h>=TARGET)met++;else if(h>0)part++;else none2++;
+    // 計算待確認
+    var dim=new Date(vy,vm+1,0).getDate(),pd=getPdata(p.id,vy,vm),attn=getAttn(p.id,vy,vm);
+    for(var d=1;d<=dim;d++){
+      var day=pd[d];if(!day)continue;
+      var at=attn[d]||{};
+      if(day.am&&calcH(day.ams,day.ame)>0&&!at.amConfirmed&&!at.amAbsent)pendingConfirm++;
+      if(day.pm&&calcH(day.pms,day.pme)>0&&!at.pmConfirmed&&!at.pmAbsent)pendingConfirm++;
+    }
+  });
+  document.getElementById('adminStats').innerHTML='<div class="stat"><div class="stat-lbl">總人數</div><div class="stat-val">'+state.staff.length+'</div></div><div class="stat"><div class="stat-lbl">已達標</div><div class="stat-val ok">'+met+'</div></div><div class="stat"><div class="stat-lbl">填報中</div><div class="stat-val warn">'+part+'</div></div><div class="stat"><div class="stat-lbl">待確認班次</div><div class="stat-val '+(pendingConfirm>0?'warn':'ok')+'">'+pendingConfirm+'</div></div>';
+}
+function renderAdminOv(){
+  var el=document.getElementById('adminOv');if(!el)return;
+  var dim=new Date(vy,vm+1,0).getDate(),k=mkey(vy,vm),html='';
+  for(var d=1;d<=dim;d++){
+    var dow=new Date(vy,vm,d).getDay(),isWE=dow===0||dow===6,pr=getPref(d,vy,vm);
+    var amArr=[],pmArr=[];
+    state.staff.forEach(function(p,i){
+      var day=((state.schedule[k]||{})[p.id]||{})[d];if(!day)return;
+      var at=((state.attendance[k]||{})[p.id]||{})[d]||{};
+      if(day.am&&calcH(day.ams,day.ame)>0)amArr.push({p:p,i:i,confirmed:at.amConfirmed,absent:at.amAbsent});
+      if(day.pm&&calcH(day.pms,day.pme)>0)pmArr.push({p:p,i:i,confirmed:at.pmConfirmed,absent:at.pmAbsent});
+    });
+    var amGap=gapLabel(d,'am',vy,vm),pmGap=gapLabel(d,'pm',vy,vm);
+    var amPref=pr.am?'<span class="pref-tag">偏好</span>':'',pmPref=pr.pm?'<span class="pref-tag">偏好</span>':'';
+    html+='<div class="overview-row"><div style="font-size:12px;color:'+(isWE?'#A32D2D':'#777')+';line-height:1.5;padding-top:2px;text-align:center;">'+(vm+1)+'/'+d+'<br>'+DW[dow]+'</div><div class="ov-slots">';
+    html+='<div class="ov-slot-row"><span class="ov-slot-lbl am">上午</span><div class="ov-chips">'+amPref+(amArr.length?amArr.map(function(x){var c=getPersonColor(x.i);var border=x.confirmed?'2px solid #6EE7B7':x.absent?'2px solid #FCA5A5':'none';return '<span style="display:inline-block;background:'+c[0]+';color:'+c[1]+';border-radius:8px;padding:2px 7px;font-size:11px;font-weight:500;border:'+border+';">'+x.p.name+'</span>';}).join(''):'<span style="font-size:11px;color:#bbb;">—</span>')+(amGap?'<span class="gap-pill '+amGap.cls+'">'+amGap.text+'</span>':'')+'</div></div>';
+    html+='<div class="ov-slot-row"><span class="ov-slot-lbl pm">下午</span><div class="ov-chips">'+pmPref+(pmArr.length?pmArr.map(function(x){var c=getPersonColor(x.i);var border=x.confirmed?'2px solid #6EE7B7':x.absent?'2px solid #FCA5A5':'none';return '<span style="display:inline-block;background:'+c[0]+';color:'+c[1]+';border-radius:8px;padding:2px 7px;font-size:11px;font-weight:500;border:'+border+';">'+x.p.name+'</span>';}).join(''):'<span style="font-size:11px;color:#bbb;">—</span>')+(pmGap?'<span class="gap-pill '+pmGap.cls+'">'+pmGap.text+'</span>':'')+'</div></div>';
+    html+='</div></div>';
+  }
+  el.innerHTML=html;
+}
+function renderAdminPeople(){
+  var el=document.getElementById('adminPeople');if(!el)return;var html='';
+  state.staff.forEach(function(p,i){
+    var hrs=monthHrs(p.id,vy,vm),pct=Math.min(100,hrs/TARGET*100),sub=isSubmitted(p.id,vy,vm);
+    var fc=hrs>=TARGET?'#1D9E75':hrs>0?'#BA7517':'#999';
+    var badge=sub?'<span class="badge badge-green">已送出</span>':hrs>=TARGET?'<span class="badge badge-teal">達標</span>':hrs>0?'<span class="badge badge-amber">填報中</span>':'<span class="badge badge-gray">未填報</span>';
+    var c=getPersonColor(i);
+    html+='<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #f0f0ee;"><div style="width:32px;height:32px;border-radius:50%;background:'+c[0]+';color:'+c[1]+';display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;flex-shrink:0;">'+p.name[0]+'</div><div style="flex:1;"><div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;"><span style="font-size:14px;font-weight:600;">'+p.name+'</span>'+badge+'</div><div style="display:flex;align-items:center;gap:8px;"><div class="progress-bar" style="flex:1;"><div class="progress-fill" style="width:'+pct.toFixed(0)+'%;background:'+fc+';"></div></div><span style="font-size:12px;color:#999;">'+hrs.toFixed(1)+'/'+TARGET+'h</span></div></div><button class="btn-red" style="font-size:12px;padding:4px 10px;" onclick="removeStaff(\''+p.id+'\')">移除</button></div>';
+  });
+  el.innerHTML=html||'<p style="font-size:13px;color:#bbb;">尚無人員</p>';
+}
+function renderWeekTemplate(){
+  var el=document.getElementById('weekTemplate');if(!el)return;var html='';
+  for(var i=0;i<7;i++){
+    var t=state.weekTpl[i];
+    html+='<div class="wk-row"><div style="font-size:12px;color:#777;text-align:center;">'+DW[i]+'</div><div style="display:flex;flex-direction:column;gap:4px;"><button class="toggle-btn'+(t.am?' on-am':'')+'" onclick="wkToggle('+i+',\'am\')" style="font-size:12px;padding:6px 0;width:100%;">'+(t.am?'✓ 上午':'上午')+'</button>'+(t.am?'<div style="display:flex;align-items:center;gap:3px;"><span style="font-size:11px;color:#777;">需</span><select onchange="wkN('+i+',\'am\',this.value)" style="font-size:12px;padding:3px;flex:1;">'+[1,2,3].map(function(n){return '<option'+(t.amN===n?' selected':'')+'>'+n+'</option>';}).join('')+'</select><span style="font-size:11px;color:#777;">人</span></div>':'')+'</div><div style="display:flex;flex-direction:column;gap:4px;"><button class="toggle-btn'+(t.pm?' on-pm':'')+'" onclick="wkToggle('+i+',\'pm\')" style="font-size:12px;padding:6px 0;width:100%;">'+(t.pm?'✓ 下午':'下午')+'</button>'+(t.pm?'<div style="display:flex;align-items:center;gap:3px;"><span style="font-size:11px;color:#777;">需</span><select onchange="wkN('+i+',\'pm\',this.value)" style="font-size:12px;padding:3px;flex:1;">'+[1,2,3].map(function(n){return '<option'+(t.pmN===n?' selected':'')+'>'+n+'</option>';}).join('')+'</select><span style="font-size:11px;color:#777;">人</span></div>':'')+'</div></div>';
+  }
+  el.innerHTML=html;
+}
+function wkToggle(i,slot){state.weekTpl[i][slot]=!state.weekTpl[i][slot];renderWeekTemplate();saveLocal();}
+function wkN(i,slot,v){state.weekTpl[i][slot==='am'?'amN':'pmN']=parseInt(v);saveLocal();}
+function applyWeekTemplate(){var dim=new Date(vy,vm+1,0).getDate();for(var d=1;d<=dim;d++){var dow=new Date(vy,vm,d).getDay(),t=state.weekTpl[dow];setPref(d,{am:t.am,amN:t.amN,pm:t.pm,pmN:t.pmN},vy,vm);}renderPrefGrid();saveLocal();alert('已套用');}
+function renderPrefGrid(){
+  var el=document.getElementById('prefGrid');if(!el)return;var dim=new Date(vy,vm+1,0).getDate(),html='';
+  for(var d=1;d<=dim;d++){
+    var dow=new Date(vy,vm,d).getDay(),isWE=dow===0||dow===6,pr=getPref(d,vy,vm);
+    html+='<div class="pref-day-row"><div style="font-size:11px;color:'+(isWE?'#A32D2D':'#777')+';line-height:1.5;text-align:center;">'+(vm+1)+'/'+d+'<br>'+DW[dow]+'</div><div style="display:flex;flex-direction:column;gap:4px;"><button class="toggle-btn'+(pr.am?' on-am':'')+'" onclick="togglePref('+d+',\'am\')" style="font-size:12px;padding:6px 0;width:100%;">'+(pr.am?'✓ 上午':'上午')+'</button>'+(pr.am?'<div style="display:flex;align-items:center;gap:3px;"><span style="font-size:11px;color:#777;">需</span><select id="pamN_'+d+'" onchange="savePrefN('+d+',\'am\')" style="font-size:12px;padding:3px;flex:1;">'+[1,2,3].map(function(n){return '<option value="'+n+'"'+(pr.amN===n?' selected':'')+'>'+n+'</option>';}).join('')+'</select></div>':'')+'</div><div style="display:flex;flex-direction:column;gap:4px;"><button class="toggle-btn'+(pr.pm?' on-pm':'')+'" onclick="togglePref('+d+',\'pm\')" style="font-size:12px;padding:6px 0;width:100%;">'+(pr.pm?'✓ 下午':'下午')+'</button>'+(pr.pm?'<div style="display:flex;align-items:center;gap:3px;"><span style="font-size:11px;color:#777;">需</span><select id="ppmN_'+d+'" onchange="savePrefN('+d+',\'pm\')" style="font-size:12px;padding:3px;flex:1;">'+[1,2,3].map(function(n){return '<option value="'+n+'"'+(pr.pmN===n?' selected':'')+'>'+n+'</option>';}).join('')+'</select></div>':'')+'</div></div>';
+  }
+  el.innerHTML=html;
+}
+function togglePref(d,slot){var pr=getPref(d,vy,vm),u={am:pr.am,amN:pr.amN||1,pm:pr.pm,pmN:pr.pmN||1};u[slot]=!pr[slot];setPref(d,u,vy,vm);renderPrefGrid();saveLocal();}
+function savePrefN(d,slot){var pr=getPref(d,vy,vm),u={am:pr.am,amN:pr.amN||1,pm:pr.pm,pmN:pr.pmN||1};var el=document.getElementById((slot==='am'?'pamN_':'ppmN_')+d);if(el)u[slot==='am'?'amN':'pmN']=parseInt(el.value);setPref(d,u,vy,vm);saveLocal();}
+
+// ============================================================
+// Day Modal（排班填寫 + 人員自簽）
+// ============================================================
 function mkSel(id,val,onch){var h='<select id="'+id+'" onchange="'+onch+'" style="flex:1;font-size:14px;padding:9px 8px;">';TIMES.forEach(function(t){h+='<option'+(t===val?' selected':'')+'>'+t+'</option>';});return h+'</select>';}
 function openDayModal(pid,d,y,m){
   modalPid=pid;modalD=d;modalY=y;modalM=m;
-  var dow=new Date(y,m,d).getDay(),pr=getPref(d,y,m),pd=getPdata(pid,y,m),day=pd[d]||{am:false,ams:'09:00',ame:'12:00',pm:false,pms:'13:00',pme:'16:00'};
+  var dow=new Date(y,m,d).getDay(),pr=getPref(d,y,m),pd=getPdata(pid,y,m);
+  var day=pd[d]||{am:false,ams:'09:00',ame:'12:00',pm:false,pms:'13:00',pme:'16:00'};
+  var at=((state.attendance[mkey(y,m)]||{})[pid]||{})[d]||{};
   document.getElementById('modalTitle').textContent=(m+1)+'/'+d+'（'+DW[dow]+'）';
   refreshModalGap();
   var html='<div class="slot-section'+(pr.am?' pref-border':'')+'">';
-  html+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="checkbox" class="big-checkbox" id="m_am" '+(day.am?'checked':'')+' onchange="mToggle(\'am\')"><span style="font-size:14px;font-weight:500;">上午班</span></label>'+(pr.am?'<span style="font-size:11px;background:#FAEEDA;color:#633806;border:1px solid #FAC775;padding:1px 6px;border-radius:4px;">偏好</span>':'')+'</div>';
-  html+='<div id="m_am_t" style="'+(day.am?'':'opacity:.4;pointer-events:none;')+'"><div class="time-row">'+mkSel('m_ams',day.ams||'09:00','mTime(\'am\',\'s\',this.value)')+'<span style="font-size:14px;color:#aaa;">—</span>'+mkSel('m_ame',day.ame||'12:00','mTime(\'am\',\'e\',this.value)')+'</div></div></div>';
+  html+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="checkbox" class="big-checkbox" id="m_am" '+(day.am?'checked':'')+' onchange="mToggle(\'am\')"><span style="font-size:14px;font-weight:600;">上午班</span></label>'+(pr.am?'<span class="pref-tag">偏好</span>':'')+(at.amConfirmed?'<span class="attn-confirmed">✓ 已確認</span>':at.amAbsent?'<span class="attn-absent">✗ 缺席</span>':'')+'</div>';
+  html+='<div id="m_am_t" style="'+(day.am?'':'opacity:.4;pointer-events:none;')+'"><div class="time-row">'+mkSel('m_ams',day.ams||'09:00','mTime(\'am\',\'s\',this.value)')+'<span style="font-size:14px;color:#bbb;">—</span>'+mkSel('m_ame',day.ame||'12:00','mTime(\'am\',\'e\',this.value)')+'</div>';
+  // 人員自簽按鈕（只有人員本人且今天才能自簽）
+  if(currentUser&&currentUser.role==='staff'&&day.am){
+    var isToday=(y===today.getFullYear()&&m===today.getMonth()&&d===today.getDate());
+    if(at.selfAm){html+='<button class="btn-green" disabled style="width:100%;margin-top:8px;opacity:1;">✓ 已自簽到</button>';}
+    else if(isToday){html+='<button class="btn-teal" id="self_sign_am" onclick="staffSelfSign(\'am\')" style="width:100%;margin-top:8px;">📍 今日自行簽到（上午）</button>';}
+  }
+  html+='</div></div>';
   html+='<div class="slot-section'+(pr.pm?' pref-border':'')+'">';
-  html+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="checkbox" class="big-checkbox" id="m_pm" '+(day.pm?'checked':'')+' onchange="mToggle(\'pm\')"><span style="font-size:14px;font-weight:500;">下午班</span></label>'+(pr.pm?'<span style="font-size:11px;background:#FAEEDA;color:#633806;border:1px solid #FAC775;padding:1px 4px;border-radius:3px;">偏好</span>':'')+'</div>';
-  html+='<div id="m_pm_t" style="'+(day.pm?'':'opacity:.4;pointer-events:none;')+'"><div class="time-row">'+mkSel('m_pms',day.pms||'13:00','mTime(\'pm\',\'s\',this.value)')+'<span style="font-size:14px;color:#aaa;">—</span>'+mkSel('m_pme',day.pme||'16:00','mTime(\'pm\',\'e\',this.value)')+'</div></div></div>';
+  html+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="checkbox" class="big-checkbox" id="m_pm" '+(day.pm?'checked':'')+' onchange="mToggle(\'pm\')"><span style="font-size:14px;font-weight:600;">下午班</span></label>'+(pr.pm?'<span class="pref-tag">偏好</span>':'')+(at.pmConfirmed?'<span class="attn-confirmed">✓ 已確認</span>':at.pmAbsent?'<span class="attn-absent">✗ 缺席</span>':'')+'</div>';
+  html+='<div id="m_pm_t" style="'+(day.pm?'':'opacity:.4;pointer-events:none;')+'"><div class="time-row">'+mkSel('m_pms',day.pms||'13:00','mTime(\'pm\',\'s\',this.value)')+'<span style="font-size:14px;color:#bbb;">—</span>'+mkSel('m_pme',day.pme||'16:00','mTime(\'pm\',\'e\',this.value)')+'</div>';
+  if(currentUser&&currentUser.role==='staff'&&day.pm){
+    var isTodayPm=(y===today.getFullYear()&&m===today.getMonth()&&d===today.getDate());
+    if(at.selfPm){html+='<button class="btn-green" disabled style="width:100%;margin-top:8px;opacity:1;">✓ 已自簽到</button>';}
+    else if(isTodayPm){html+='<button class="btn-teal" id="self_sign_pm" onclick="staffSelfSign(\'pm\')" style="width:100%;margin-top:8px;">📍 今日自行簽到（下午）</button>';}
+  }
+  html+='</div></div>';
   document.getElementById('modalBody').innerHTML=html;
   document.getElementById('dayOverlay').classList.add('show');
 }
@@ -674,8 +1108,8 @@ function mTime(slot,se,val){ensureDay();var k=mkey(modalY,modalM),f=slot==='am'?
 function refreshModalGap(){var amGap=gapLabel(modalD,'am',modalY,modalM),pmGap=gapLabel(modalD,'pm',modalY,modalM);var html='';if(amGap)html+='<div class="modal-gap-pill gap-pill '+amGap.cls+'">上午 '+amGap.text+'</div>';if(pmGap)html+='<div class="modal-gap-pill gap-pill '+pmGap.cls+'">下午 '+pmGap.text+'</div>';var gr=document.getElementById('modalGapRow');gr.innerHTML=html;gr.style.display=html?'flex':'none';}
 function renderStaffRow(d){
   var y=staffY,m=staffM,p=state.staff.find(function(x){return x.id===currentUser.pid;});if(!p)return;
-  var pr=getPref(d,y,m),pd=getPdata(p.id,y,m),day=pd[d]||{};
-  var dh=0;if(day.am)dh+=calcH(day.ams,day.ame);if(day.pm)dh+=calcH(day.pms,day.pme);
+  var pr=getPref(d,y,m),pd=getPdata(p.id,y,m),day=pd[d]||{},at=getAttn(p.id,y,m)[d]||{};
+  var dh=0;if(day.am&&at.amConfirmed)dh+=calcH(at.actualAms||day.ams,at.actualAme||day.ame);if(day.pm&&at.pmConfirmed)dh+=calcH(at.actualPms||day.pms,at.actualPme||day.pme);
   var amGap=gapLabel(d,'am',y,m),pmGap=gapLabel(d,'pm',y,m);
   var rows=document.querySelectorAll('#staffDayList .day-list-row'),dim=new Date(y,m+1,0).getDate();
   for(var i=0;i<dim;i++){
@@ -683,62 +1117,310 @@ function renderStaffRow(d){
       var slots=rows[i].querySelector('.day-slots'),gap=rows[i].querySelector('.day-gap');
       if(slots){
         var sh='';
-        if(day.am&&calcH(day.ams,day.ame)>0)sh+='<div style="display:flex;align-items:center;gap:5px;"><span class="slot-tag am">上午 '+day.ams+'–'+day.ame+'</span>'+(pr.am?'<span style="font-size:10px;background:#FAEEDA;color:#633806;border:1px solid #FAC775;padding:1px 4px;border-radius:3px;">偏好</span>':'')+'</div>';
-        if(day.pm&&calcH(day.pms,day.pme)>0)sh+='<div style="display:flex;align-items:center;gap:5px;"><span class="slot-tag pm">下午 '+day.pms+'–'+day.pme+'</span>'+(pr.pm?'<span style="font-size:10px;background:#FAEEDA;color:#633806;border:1px solid #FAC775;padding:1px 4px;border-radius:3px;">偏好</span>':'')+'</div>';
+        if(day.am&&calcH(day.ams,day.ame)>0){sh+='<div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;"><span class="slot-tag am">上午 '+(at.actualAms||day.ams)+'–'+(at.actualAme||day.ame)+'</span>'+(at.amConfirmed?'<span class="attn-confirmed">✓ 已確認</span>':at.amAbsent?'<span class="attn-absent">✗ 缺席</span>':'')+(pr.am?'<span class="pref-tag">偏好</span>':'')+'</div>';}
+        if(day.pm&&calcH(day.pms,day.pme)>0){sh+='<div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;"><span class="slot-tag pm">下午 '+(at.actualPms||day.pms)+'–'+(at.actualPme||day.pme)+'</span>'+(at.pmConfirmed?'<span class="attn-confirmed">✓ 已確認</span>':at.pmAbsent?'<span class="attn-absent">✗ 缺席</span>':'')+(pr.pm?'<span class="pref-tag">偏好</span>':'')+'</div>';}
         if(!day.am&&!day.pm)sh+='<span class="slot-tag empty">未排班</span>';
-        if(dh>0)sh+='<span style="font-size:11px;color:#888;">共 '+dh.toFixed(1)+'h</span>';
+        if(dh>0)sh+='<span style="font-size:11px;color:#999;">確認 '+dh.toFixed(1)+'h</span>';
         slots.innerHTML=sh;
       }
-      if(gap){
-        var gh='';
-        if(amGap)gh+='<span class="gap-pill '+amGap.cls+'">上 '+amGap.text+'</span>';
-        if(pmGap)gh+='<span class="gap-pill '+pmGap.cls+'">下 '+pmGap.text+'</span>';
-        gap.innerHTML=gh;
-      }
+      if(gap){var gh='';if(amGap)gh+='<span class="gap-pill '+amGap.cls+'">上 '+amGap.text+'</span>';if(pmGap)gh+='<span class="gap-pill '+pmGap.cls+'">下 '+pmGap.text+'</span>';gap.innerHTML=gh;}
     }
   }
 }
 
-function renderAdmin(){document.getElementById('adminMonLbl').textContent=vy+'年 '+MONTHS[vm];renderAdminStats();renderAdminOv();renderAdminPeople();renderWeekTemplate();renderPrefGrid();}
-function switchTab(id,el){document.querySelectorAll('.tsec').forEach(function(s){s.classList.remove('active');});document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('active');});document.getElementById('tab-'+id).classList.add('active');el.classList.add('active');}
-function renderAdminStats(){var met=0,part=0,none2=0;state.staff.forEach(function(p){var h=monthHrs(p.id,vy,vm);if(h>=TARGET)met++;else if(h>0)part++;else none2++;});document.getElementById('adminStats').innerHTML='<div class="stat"><div class="stat-lbl">總人數</div><div class="stat-val">'+state.staff.length+'</div></div><div class="stat"><div class="stat-lbl">已達標</div><div class="stat-val ok">'+met+'</div></div><div class="stat"><div class="stat-lbl">填報中</div><div class="stat-val warn">'+part+'</div></div><div class="stat"><div class="stat-lbl">未填報</div><div class="stat-val">'+none2+'</div></div>';}
-function renderAdminOv(){
-  var el=document.getElementById('adminOv');if(!el)return;
-  var dim=new Date(vy,vm+1,0).getDate(),k=mkey(vy,vm),html='';
-  for(var d=1;d<=dim;d++){
-    var dow=new Date(vy,vm,d).getDay(),isWE=dow===0||dow===6,pr=getPref(d,vy,vm);
-    var amArr=[],pmArr=[];
-    state.staff.forEach(function(p,i){var day=((state.schedule[k]||{})[p.id]||{})[d];if(!day)return;if(day.am&&calcH(day.ams,day.ame)>0)amArr.push({p:p,i:i,s:day.ams,e:day.ame});if(day.pm&&calcH(day.pms,day.pme)>0)pmArr.push({p:p,i:i,s:day.pms,e:day.pme});});
-    var amGap=gapLabel(d,'am',vy,vm),pmGap=gapLabel(d,'pm',vy,vm);
-    var amPref=pr.am?'<span style="font-size:10px;background:#E1F5EE;color:#085041;border:1px solid #5DCAA5;padding:1px 4px;border-radius:3px;margin-right:2px;">偏好</span>':'';
-    var pmPref=pr.pm?'<span style="font-size:10px;background:#FAEEDA;color:#633806;border:1px solid #FAC775;padding:1px 4px;border-radius:3px;margin-right:2px;">偏好</span>':'';
-    html+='<div class="overview-row"><div style="font-size:12px;color:'+(isWE?'#A32D2D':'#666')+';line-height:1.5;padding-top:2px;text-align:center;">'+(vm+1)+'/'+d+'<br>'+DW[dow]+'</div><div class="ov-slots"><div class="ov-slot-row"><span class="ov-slot-lbl am">上午</span><div class="ov-chips">'+amPref+(amArr.length?amArr.map(function(x){return '<span style="display:inline-block;background:'+COLORS[x.i%8][0]+';color:'+COLORS[x.i%8][1]+';border-radius:8px;padding:2px 7px;font-size:11px;font-weight:500;">'+x.p.name+'<span style="font-size:9px;opacity:.7;"> '+x.s+'–'+x.e+'</span></span>';}).join(''):'<span style="font-size:11px;color:#aaa;">—</span>')+(amGap?'<span class="gap-pill '+amGap.cls+'" style="font-size:11px;padding:2px 6px;border-radius:4px;">'+amGap.text+'</span>':'')+'</div></div><div class="ov-slot-row"><span class="ov-slot-lbl pm">下午</span><div class="ov-chips">'+pmPref+(pmArr.length?pmArr.map(function(x){return '<span style="display:inline-block;background:'+COLORS[x.i%8][0]+';color:'+COLORS[x.i%8][1]+';border-radius:8px;padding:2px 7px;font-size:11px;font-weight:500;">'+x.p.name+'<span style="font-size:9px;opacity:.7;"> '+x.s+'–'+x.e+'</span></span>';}).join(''):'<span style="font-size:11px;color:#aaa;">—</span>')+(pmGap?'<span class="gap-pill '+pmGap.cls+'" style="font-size:11px;padding:2px 6px;border-radius:4px;">'+pmGap.text+'</span>':'')+'</div></div></div></div>';
-  }
-  el.innerHTML=html;
-}
-function renderAdminPeople(){var el=document.getElementById('adminPeople');if(!el)return;var html='';state.staff.forEach(function(p,i){var hrs=monthHrs(p.id,vy,vm),pct=Math.min(100,hrs/TARGET*100),sub=isSubmitted(p.id,vy,vm);var fc=hrs>=TARGET?'#1D9E75':hrs>0?'#BA7517':'#888780';var badge=sub?'<span class="badge badge-green">已送出</span>':hrs>=TARGET?'<span class="badge badge-teal">達標未送</span>':hrs>0?'<span class="badge badge-amber">填報中</span>':'<span class="badge badge-gray">未填報</span>';html+='<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #f0f0f0;"><div style="width:32px;height:32px;border-radius:50%;background:'+COLORS[i%8][0]+';color:'+COLORS[i%8][1]+';display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:500;flex-shrink:0;">'+p.name[0]+'</div><div style="flex:1;"><div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;"><span style="font-size:14px;font-weight:500;">'+p.name+'</span>'+badge+'</div><div style="display:flex;align-items:center;gap:8px;"><div class="progress-bar" style="flex:1;"><div class="progress-fill" style="width:'+pct.toFixed(0)+'%;background:'+fc+';"></div></div><span style="font-size:12px;color:#888;">'+hrs.toFixed(1)+'/'+TARGET+'h</span></div></div><button class="btn-red" style="font-size:12px;padding:4px 10px;" onclick="removeStaff(\''+p.id+'\')">移除</button></div>';});el.innerHTML=html||'<p style="font-size:13px;color:#aaa;">尚無人員，請先在 Airtable 「人員名單」表格新增，或使用上方新增按鈕</p>';}
-function renderWeekTemplate(){var el=document.getElementById('weekTemplate');if(!el)return;var html='';for(var i=0;i<7;i++){var t=state.weekTpl[i];html+='<div class="wk-row"><div style="font-size:12px;color:#666;text-align:center;">'+DW[i]+'</div><div style="display:flex;flex-direction:column;gap:4px;"><button class="toggle-btn'+(t.am?' on-am':'')+'" onclick="wkToggle('+i+',\'am\')" style="font-size:12px;padding:6px 0;width:100%;">'+(t.am?'&#10003; 上午':'上午')+'</button>'+(t.am?'<div style="display:flex;align-items:center;gap:3px;"><span style="font-size:11px;color:#666;">需</span><select onchange="wkN('+i+',\'am\',this.value)" style="font-size:12px;padding:3px;flex:1;">'+[1,2,3].map(function(n){return '<option'+(t.amN===n?' selected':'')+'>'+n+'</option>';}).join('')+'</select><span style="font-size:11px;color:#666;">人</span></div>':'')+'</div><div style="display:flex;flex-direction:column;gap:4px;"><button class="toggle-btn'+(t.pm?' on-pm':'')+'" onclick="wkToggle('+i+',\'pm\')" style="font-size:12px;padding:6px 0;width:100%;">'+(t.pm?'&#10003; 下午':'下午')+'</button>'+(t.pm?'<div style="display:flex;align-items:center;gap:3px;"><span style="font-size:11px;color:#666;">需</span><select onchange="wkN('+i+',\'pm\',this.value)" style="font-size:12px;padding:3px;flex:1;">'+[1,2,3].map(function(n){return '<option'+(t.pmN===n?' selected':'')+'>'+n+'</option>';}).join('')+'</select><span style="font-size:11px;color:#666;">人</span></div>':'')+'</div></div>';}el.innerHTML=html;}
-function wkToggle(i,slot){state.weekTpl[i][slot]=!state.weekTpl[i][slot];renderWeekTemplate();saveLocal();}
-function wkN(i,slot,v){state.weekTpl[i][slot==='am'?'amN':'pmN']=parseInt(v);saveLocal();}
-function applyWeekTemplate(){var dim=new Date(vy,vm+1,0).getDate();for(var d=1;d<=dim;d++){var dow=new Date(vy,vm,d).getDay(),t=state.weekTpl[dow];setPref(d,{am:t.am,amN:t.amN,pm:t.pm,pmN:t.pmN},vy,vm);}renderPrefGrid();saveLocal();alert('已套用每週模板到 '+vy+' 年 '+MONTHS[vm]);}
-function renderPrefGrid(){var el=document.getElementById('prefGrid');if(!el)return;var dim=new Date(vy,vm+1,0).getDate(),html='';for(var d=1;d<=dim;d++){var dow=new Date(vy,vm,d).getDay(),isWE=dow===0||dow===6,pr=getPref(d,vy,vm);html+='<div class="pref-day-row"><div style="font-size:11px;color:'+(isWE?'#A32D2D':'#666')+';line-height:1.5;text-align:center;">'+(vm+1)+'/'+d+'<br>'+DW[dow]+'</div><div style="display:flex;flex-direction:column;gap:4px;"><button id="pam_'+d+'" class="toggle-btn'+(pr.am?' on-am':'')+'" onclick="togglePref('+d+',\'am\')" style="font-size:12px;padding:6px 0;width:100%;">'+(pr.am?'&#10003; 上午':'上午')+'</button>'+(pr.am?'<div style="display:flex;align-items:center;gap:3px;"><span style="font-size:11px;color:#666;">需</span><select id="pamN_'+d+'" onchange="savePrefN('+d+',\'am\')" style="font-size:12px;padding:3px;flex:1;">'+[1,2,3].map(function(n){return '<option value="'+n+'"'+(pr.amN===n?' selected':'')+'>'+n+' 人</option>';}).join('')+'</select></div>':'')+'</div><div style="display:flex;flex-direction:column;gap:4px;"><button id="ppm_'+d+'" class="toggle-btn'+(pr.pm?' on-pm':'')+'" onclick="togglePref('+d+',\'pm\')" style="font-size:12px;padding:6px 0;width:100%;">'+(pr.pm?'&#10003; 下午':'下午')+'</button>'+(pr.pm?'<div style="display:flex;align-items:center;gap:3px;"><span style="font-size:11px;color:#666;">需</span><select id="ppmN_'+d+'" onchange="savePrefN('+d+',\'pm\')" style="font-size:12px;padding:3px;flex:1;">'+[1,2,3].map(function(n){return '<option value="'+n+'"'+(pr.pmN===n?' selected':'')+'>'+n+' 人</option>';}).join('')+'</select></div>':'')+'</div></div>';}el.innerHTML=html;}
-function togglePref(d,slot){var pr=getPref(d,vy,vm),u={am:pr.am,amN:pr.amN||1,pm:pr.pm,pmN:pr.pmN||1};u[slot]=!pr[slot];setPref(d,u,vy,vm);renderPrefGrid();saveLocal();}
-function savePrefN(d,slot){var pr=getPref(d,vy,vm),u={am:pr.am,amN:pr.amN||1,pm:pr.pm,pmN:pr.pmN||1};var el=document.getElementById((slot==='am'?'pamN_':'ppmN_')+d);if(el)u[slot==='am'?'amN':'pmN']=parseInt(el.value);setPref(d,u,vy,vm);saveLocal();}
-
+// ============================================================
+// 列印：給護理長的預排班表（完整月，左右並排六欄等寬，一張A4）
+// ============================================================
 function doPrint(){
-  var dim=new Date(vy,vm+1,0).getDate(),k=mkey(vy,vm),rows='';
-  for(var d=1;d<=dim;d++){
-    var dow=new Date(vy,vm,d).getDay(),isWE=dow===0||dow===6,pr=getPref(d,vy,vm),amL=[],pmL=[];
-    state.staff.forEach(function(p){var day=((state.schedule[k]||{})[p.id]||{})[d];if(!day)return;if(day.am&&calcH(day.ams,day.ame)>0)amL.push(p.name+'('+day.ams+'–'+day.ame+')');if(day.pm&&calcH(day.pms,day.pme)>0)pmL.push(p.name+'('+day.pms+'–'+day.pme+')');});
-    var amGap=gapLabel(d,'am',vy,vm),pmGap=gapLabel(d,'pm',vy,vm);
-    var aGH=amGap?'<span style="font-size:9px;background:'+(amGap.cls==='gap-full'?'#E1F5EE':'#FAEEDA')+';color:'+(amGap.cls==='gap-full'?'#085041':'#633806')+';padding:0 4px;border-radius:2px;margin-left:2px;">'+amGap.text+'</span>':'';
-    var pGH=pmGap?'<span style="font-size:9px;background:'+(pmGap.cls==='gap-full'?'#E1F5EE':'#FAEEDA')+';color:'+(pmGap.cls==='gap-full'?'#085041':'#633806')+';padding:0 4px;border-radius:2px;margin-left:2px;">'+pmGap.text+'</span>':'';
-    rows+='<tr style="background:'+(isWE?'#f8f4ef':'#fff')+'"><td style="font-weight:700;text-align:center;white-space:nowrap;color:'+(dow===0?'#c0392b':dow===6?'#185FA5':'#333')+';border-right:2px solid #ddd;">'+(vm+1)+'/'+d+'<br><span style="font-size:10px;font-weight:400;color:#888;">'+DW[dow]+'</span></td><td style="border-right:1px solid #eee;">'+(pr.am?'<span style="font-size:9px;background:#E1F5EE;color:#085041;padding:0 4px;border-radius:2px;margin-right:2px;">偏好</span>':'')+(amL.length?amL.map(function(n){return '<span style="display:inline-block;background:#d4f5e6;color:#085041;border-radius:3px;padding:2px 6px;font-size:11px;margin:1px;">'+n+'</span>';}).join(''):'<span style="color:#bbb;font-size:11px;">—</span>')+aGH+'</td><td>'+(pr.pm?'<span style="font-size:9px;background:#FAEEDA;color:#633806;padding:0 4px;border-radius:2px;margin-right:2px;">偏好</span>':'')+(pmL.length?pmL.map(function(n){return '<span style="display:inline-block;background:#fde8c3;color:#633806;border-radius:3px;padding:2px 6px;font-size:11px;margin:1px;">'+n+'</span>';}).join(''):'<span style="color:#bbb;font-size:11px;">—</span>')+pGH+'</td></tr>';
+  var dim=new Date(vy,vm+1,0).getDate(),k=mkey(vy,vm);
+  var PC=[
+    ['#DBEAFE','#1e40af'],['#D1FAE5','#065f46'],['#FCE7F3','#831843'],
+    ['#EDE9FE','#4c1d95'],['#FEF3C7','#78350f'],['#FFE4E6','#881337'],
+    ['#DCFCE7','#14532d'],['#F0F9FF','#0c4a6e']
+  ];
+  var dayNames=['日','一','二','三','四','五','六'];
+
+  function slotHtml(arr){
+    if(!arr.length)return '<span style="color:#ccc;font-size:7pt;">—</span>';
+    return arr.map(function(p){
+      var c=PC[p.i%PC.length];
+      return '<div style="white-space:nowrap;margin-bottom:1px;">'+
+        '<span style="background:'+c[0]+';color:'+c[1]+';border-radius:3px;padding:0 4px;font-size:7.5pt;font-weight:700;">'+p.name+'</span>'+
+        '<span style="font-size:7pt;color:#444;margin-left:2px;">'+p.s+'–'+p.e+'</span>'+
+      '</div>';
+    }).join('');
   }
-  var sr='';state.staff.forEach(function(p){var h=monthHrs(p.id,vy,vm),ok=h>=TARGET,sub=isSubmitted(p.id,vy,vm);sr+='<tr><td>'+p.name+'</td><td>'+h.toFixed(1)+' h</td><td style="color:'+(ok?'#0F6E56':'#A32D2D')+'">'+(ok?'已達標':'尚缺 '+(TARGET-h).toFixed(1)+'h')+'</td><td>'+(sub?'✓ 已同步':'—')+'</td></tr>';});
+
+  function dayData(d){
+    var dow=new Date(vy,vm,d).getDay();
+    var isWE=dow===0||dow===6,isSun=dow===0,isSat=dow===6;
+    var dateColor=isSun?'#b91c1c':isSat?'#1d4ed8':'#333';
+    var rowBg=isWE?'#fdf4f4':'#fff';
+    var amArr=[],pmArr=[];
+    state.staff.forEach(function(p,i){
+      var day=((state.schedule[k]||{})[p.id]||{})[d];if(!day)return;
+      if(day.am&&calcH(day.ams,day.ame)>0)amArr.push({name:p.name,s:day.ams,e:day.ame,i:i});
+      if(day.pm&&calcH(day.pms,day.pme)>0)pmArr.push({name:p.name,s:day.pms,e:day.pme,i:i});
+    });
+    return {dateColor:dateColor,rowBg:rowBg,isWE:isWE,amArr:amArr,pmArr:pmArr,
+            dateHtml:d+'<br><span style="font-size:6pt;font-weight:400;">'+dayNames[dow]+'</span>'};
+  }
+
+  // 六欄等寬：每欄 = 100%/6
+  // 日期欄窄一點用 class 控制
+  var CELL='border:0.5px solid #ddd;padding:2px 4px;vertical-align:top;';
+  var DATE_CELL=CELL+'text-align:center;';
+  var SEP='border-left:2px solid #999;';
+
+  function rowHtml(dL,dR){
+    var L=dayData(dL);
+    var html='<tr>';
+    // 左組
+    html+='<td style="'+DATE_CELL+'background:'+L.rowBg+';color:'+L.dateColor+';font-weight:'+(L.isWE?700:500)+';white-space:nowrap;font-size:8pt;">'+L.dateHtml+'</td>';
+    html+='<td style="'+CELL+'background:'+L.rowBg+';">'+slotHtml(L.amArr)+'</td>';
+    html+='<td style="'+CELL+'background:'+L.rowBg+';border-right:2px solid #999;">'+slotHtml(L.pmArr)+'</td>';
+    // 右組
+    if(dR<=dim){
+      var R=dayData(dR);
+      html+='<td style="'+DATE_CELL+SEP+'background:'+R.rowBg+';color:'+R.dateColor+';font-weight:'+(R.isWE?700:500)+';white-space:nowrap;font-size:8pt;">'+R.dateHtml+'</td>';
+      html+='<td style="'+CELL+'background:'+R.rowBg+';">'+slotHtml(R.amArr)+'</td>';
+      html+='<td style="'+CELL+'background:'+R.rowBg+';">'+slotHtml(R.pmArr)+'</td>';
+    } else {
+      html+='<td colspan="3" style="background:#fafafa;border:0.5px solid #eee;"></td>';
+    }
+    html+='</tr>';
+    return html;
+  }
+
+  var half=Math.ceil(dim/2);
+  var rows='';
+  for(var r=0;r<half;r++) rows+=rowHtml(r+1,r+1+half);
+
+  var legend='';
+  state.staff.forEach(function(p,i){
+    var c=PC[i%PC.length];
+    legend+='<span style="background:'+c[0]+';color:'+c[1]+';border-radius:3px;padding:1px 7px;font-size:7.5pt;font-weight:700;margin-right:4px;">'+p.name+'</span>';
+  });
+
   var w=window.open('','_blank');
-  w.document.write('<!DOCTYPE html><html><head><meta charset="utf-8"><title>'+vy+'年'+(vm+1)+'月班表</title><style>*{box-sizing:border-box;margin:0;padding:0;}body{font-family:Arial,sans-serif;padding:20px;font-size:13px;}h1{font-size:20px;font-weight:700;margin-bottom:4px;}.sub{font-size:11px;color:#888;margin-bottom:12px;}.sh{font-size:12px;font-weight:700;background:#333;color:#fff;padding:5px 10px;margin-bottom:0;}table{width:100%;border-collapse:collapse;margin-bottom:14px;}th{background:#555;color:#fff;padding:7px 10px;font-size:12px;text-align:left;}td{padding:6px 8px;border-bottom:0.5px solid #e0e0e0;vertical-align:middle;}.ft{font-size:10px;color:#aaa;border-top:1px solid #eee;padding-top:8px;margin-top:8px;display:flex;justify-content:space-between;}@media print{body{padding:8px;}@page{margin:.8cm;size:A4;}}</style></head><body><h1>'+vy+' 年 '+MONTHS[vm]+' 班表</h1><div class="sub">共 '+state.staff.length+' 位人員　目標：'+TARGET+'h／人</div><div class="sh">每日上下午出班人員</div><table><thead><tr><th style="width:50px;">日期</th><th style="width:50%;">上午班</th><th>下午班</th></tr></thead><tbody>'+rows+'</tbody></table><div class="sh">人員工時統計</div><table><thead><tr><th>姓名</th><th>本月總工時</th><th>狀態</th><th>Airtable</th></tr></thead><tbody>'+sr+'</tbody></table><div class="ft"><span>'+vy+' 年 '+MONTHS[vm]+'　共 '+dim+' 天</span><span>列印：'+new Date().toLocaleString('zh-TW')+'</span></div><scr'+'ipt>window.onload=function(){window.print()};<\/script></body></html>');
+  w.document.write(
+    '<!DOCTYPE html><html><head><meta charset="utf-8">'+
+    '<title>'+vy+'年'+(vm+1)+'月排班表</title>'+
+    '<style>'+
+      '*{box-sizing:border-box;margin:0;padding:0;}'+
+      'body{font-family:"Noto Sans TC",Arial,sans-serif;background:#fff;}'+
+      '.page{width:190mm;margin:0 auto;padding:5mm;}'+
+      'h1{font-size:11.5pt;font-weight:700;margin-bottom:1.5mm;}'+
+      '.meta{font-size:7pt;color:#888;margin-bottom:2mm;display:flex;justify-content:space-between;}'+
+      'table{width:100%;border-collapse:collapse;table-layout:fixed;}'+
+      'col.c-date{width:6.5%;}col.c-slot{width:14.5%;}col.c-sep{width:6.5%;}'+
+      'thead th{background:#444;color:#fff;font-size:8pt;padding:3px 4px;text-align:center;border:0.5px solid #555;}'+
+      'thead th.sep-h{background:#333;border-left:2px solid #999;}'+
+      '.legend{margin-top:2mm;font-size:7pt;color:#666;}'+
+      '@media print{body{margin:0;}@page{size:A4 portrait;margin:5mm;}.page{width:100%;padding:0;}}'+
+    '</style></head><body>'+
+    '<div class="page">'+
+      '<h1>'+vy+' 年 '+(vm+1)+'月　預排班表</h1>'+
+      '<div class="meta">'+
+        '<span>'+state.staff.length+' 位人員　共 '+dim+' 天</span>'+
+        '<span>'+new Date().toLocaleDateString('zh-TW')+'</span>'+
+      '</div>'+
+      '<table>'+
+        '<colgroup>'+
+          '<col class="c-date"><col class="c-slot"><col class="c-slot">'+
+          '<col class="c-sep"><col class="c-slot"><col class="c-slot">'+
+        '</colgroup>'+
+        '<thead><tr>'+
+          '<th>日期</th><th>上午</th><th>下午</th>'+
+          '<th class="sep-h">日期</th><th>上午</th><th>下午</th>'+
+        '</tr></thead>'+
+        '<tbody>'+rows+'</tbody>'+
+      '</table>'+
+      '<div class="legend">人員：'+legend+'</div>'+
+    '</div>'+
+    '<scr'+'ipt>window.onload=function(){window.print()};<\/script>'+
+    '</body></html>'
+  );
   w.document.close();
+}
+
+// ============================================================
+// Word 簽到表：只列已確認出勤（含補班已確認）
+// ============================================================
+function showWordExport(){
+  var sel=document.getElementById('wordPersonSel');
+  sel.innerHTML='<option value="all">全部人員（分頁）</option>';
+  state.staff.forEach(function(p){var o=document.createElement('option');o.value=p.id;o.textContent=p.name;sel.appendChild(o);});
+  document.getElementById('wordPreviewOverlay').classList.add('show');
+  refreshWordPreview();
+}
+function closeWordPreview(){document.getElementById('wordPreviewOverlay').classList.remove('show');}
+function wordOverlayBgClick(e){if(e.target===document.getElementById('wordPreviewOverlay'))closeWordPreview();}
+
+function getConfirmedRows(pid,mode){
+  // 取得日期範圍
+  var startY=vy,startM=vm,days=[];
+  if(mode==='attendance'){
+    // 本月21日 ~ 下月20日
+    var dim1=new Date(startY,startM+1,0).getDate();
+    for(var d=21;d<=dim1;d++)days.push({y:startY,m:startM,d:d});
+    var ny=startM===11?startY+1:startY,nm=startM===11?0:startM+1;
+    for(var d2=1;d2<=20;d2++)days.push({y:ny,m:nm,d:d2});
+  } else {
+    var dim=new Date(startY,startM+1,0).getDate();
+    for(var d3=1;d3<=dim;d3++)days.push({y:startY,m:startM,d:d3});
+  }
+  var rows=[];
+  days.forEach(function(item){
+    var k=mkey(item.y,item.m);
+    var day=((state.schedule[k]||{})[pid]||{})[item.d];
+    var at=((state.attendance[k]||{})[pid]||{})[item.d]||{};
+    // 上午已確認
+    if(day&&day.am&&at.amConfirmed&&calcH(at.actualAms||day.ams,at.actualAme||day.ame)>0){
+      rows.push({y:item.y,m:item.m,d:item.d,slot:'am',s:at.actualAms||day.ams,e:at.actualAme||day.ame,isMakeup:false});
+    }
+    // 下午已確認
+    if(day&&day.pm&&at.pmConfirmed&&calcH(at.actualPms||day.pms,at.actualPme||day.pme)>0){
+      rows.push({y:item.y,m:item.m,d:item.d,slot:'pm',s:at.actualPms||day.pms,e:at.actualPme||day.pme,isMakeup:false});
+    }
+  });
+  // 補班已確認（篩選日期範圍內）
+  var rangeStart=days[0],rangeEnd=days[days.length-1];
+  getMakeup(pid).forEach(function(mk){
+    if(!mk.confirmed)return;
+    var d=new Date(mk.date),dy=d.getFullYear(),dm=d.getMonth(),dd=d.getDate();
+    var inRange=(dy>rangeStart.y||(dy===rangeStart.y&&(dm>rangeStart.m||(dm===rangeStart.m&&dd>=rangeStart.d))))&&
+                (dy<rangeEnd.y||(dy===rangeEnd.y&&(dm<rangeEnd.m||(dm===rangeEnd.m&&dd<=rangeEnd.d))));
+    if(!inRange)return;
+    if(mk.slot==='am'||mk.slot==='both')rows.push({y:dy,m:dm,d:dd,slot:'am',s:mk.ams,e:mk.ame,isMakeup:true,note:mk.note});
+    if(mk.slot==='pm'||mk.slot==='both')rows.push({y:dy,m:dm,d:dd,slot:'pm',s:mk.pms,e:mk.pme,isMakeup:true,note:mk.note});
+  });
+  // 依日期排序，合併同一天
+  rows.sort(function(a,b){return (a.y*10000+a.m*100+a.d)-(b.y*10000+b.m*100+b.d)||(a.slot==='am'?-1:1);});
+  // 合併同一天的上下午為一列
+  var merged=[];
+  rows.forEach(function(r){
+    var last=merged[merged.length-1];
+    if(last&&last.y===r.y&&last.m===r.m&&last.d===r.d&&!last.pmSlot&&r.slot==='pm'){
+      last.pmSlot=true;last.pms=r.s;last.pme=r.e;last.pmMakeup=r.isMakeup;
+    } else {
+      var entry={y:r.y,m:r.m,d:r.d,isMakeup:r.isMakeup};
+      if(r.slot==='am'){entry.ams=r.s;entry.ame=r.e;entry.amSlot=true;entry.amMakeup=r.isMakeup;}
+      else{entry.pms=r.s;entry.pme=r.e;entry.pmSlot=true;entry.pmMakeup=r.isMakeup;}
+      merged.push(entry);
+    }
+  });
+  return merged;
+}
+
+function buildAttendanceHTML(pid,mode){
+  var p=state.staff.find(function(x){return x.id===pid;});if(!p)return '';
+  var rows=getConfirmedRows(pid,mode);
+  var modeLabel=mode==='attendance'?
+    vy+'年'+(vm+1)+'月21日 ～ '+(vm+2>12?vy+1:vy)+'年'+(((vm+1)%12)+1)+'月20日':
+    vy+'年'+(vm+1)+'月（完整月）';
+  if(!rows.length){
+    return '<div style="padding:1rem;text-align:center;color:#aaa;font-size:13px;">'+p.name+'：本期無已確認出勤紀錄</div>';
+  }
+  var tableRows='',totalHrs=0;
+  rows.forEach(function(r){
+    var dow=new Date(r.y,r.m,r.d).getDay(),isWE=dow===0||dow===6;
+    var dateLabel=(r.m+1)+'/'+r.d+' '+['日','一','二','三','四','五','六'][dow];
+    var amH=r.ams&&r.ame?calcH(r.ams,r.ame):0;
+    var pmH=r.pms&&r.pme?calcH(r.pms,r.pme):0;
+    var dh=amH+pmH;totalHrs+=dh;
+    var mkNote=(r.amMakeup||r.pmMakeup)?'（補）':'';
+    tableRows+='<tr style="background:'+(isWE?'#fafafa':'#fff')+';color:'+(isWE?'#b91c1c':'#222')+';">';
+    tableRows+='<td style="text-align:center;white-space:nowrap;font-weight:'+(isWE?'600':'400')+';">'+dateLabel+mkNote+'</td>';
+    tableRows+='<td style="text-align:center;">'+(r.ams||'')+'</td>';
+    tableRows+='<td style="text-align:center;">'+(r.ame||'')+'</td>';
+    tableRows+='<td style="text-align:center;">'+(r.pms||'')+'</td>';
+    tableRows+='<td style="text-align:center;">'+(r.pme||'')+'</td>';
+    tableRows+='<td style="text-align:center;">'+dh.toFixed(1)+'</td>';
+    tableRows+='<td></td><td></td></tr>';
+  });
+  return '<div style="page-break-after:always;font-family:標楷體,serif;font-size:12px;">'+
+    '<p style="text-align:right;font-size:10px;">(附件四)</p>'+
+    '<h2 style="text-align:center;font-size:16px;font-weight:bold;text-decoration:underline;margin-bottom:10px;">外派／出勤簽到表</h2>'+
+    '<div style="font-size:12px;margin-bottom:6px;line-height:2;"><b>申請人姓名：</b><u style="padding:0 40px;">'+p.name+'</u>　<b>期間：</b>'+modeLabel+'</div>'+
+    '<div style="font-size:12px;margin-bottom:6px;line-height:2;"><b>身分別：</b>□臨床研究人員　□博士後研究員　□研究助理</div>'+
+    '<div style="font-size:12px;margin-bottom:8px;line-height:2;"><b>類別：</b>□專任　□兼任　　<b>所屬部門：</b><u style="padding:0 60px;"></u></div>'+
+    '<table style="width:100%;border-collapse:collapse;font-size:11px;margin-bottom:10px;">'+
+    '<thead><tr style="background:#e8e8e8;"><th style="border:1px solid #333;padding:4px;width:70px;">日期</th><th style="border:1px solid #333;padding:4px;">上午簽到</th><th style="border:1px solid #333;padding:4px;">上午簽退</th><th style="border:1px solid #333;padding:4px;">下午簽到</th><th style="border:1px solid #333;padding:4px;">下午簽退</th><th style="border:1px solid #333;padding:4px;width:50px;">時數</th><th style="border:1px solid #333;padding:4px;">工作內容</th><th style="border:1px solid #333;padding:4px;">負責人簽名</th></tr></thead>'+
+    '<tbody>'+tableRows+
+    '<tr style="background:#f0f0f0;font-weight:bold;"><td colspan="5" style="border:1px solid #333;padding:4px;text-align:right;">當月出勤時數總計</td><td style="border:1px solid #333;padding:4px;text-align:center;">'+totalHrs.toFixed(1)+'h</td><td colspan="2" style="border:1px solid #333;"></td></tr>'+
+    '</tbody></table>'+
+    '<div style="margin-top:16px;font-size:12px;"><b>計畫主持人簽名：</b><u style="padding:0 80px;"></u>　　<b>日期：</b><u style="padding:0 60px;"></u></div>'+
+    '<div style="margin-top:8px;font-size:10px;line-height:1.8;color:#555;">• 每月考勤週期結束（每月20號結束後，26日前），請將此表送交院區考勤存檔<br>• （補）標記表示該日為補班日期</div>'+
+    '</div>';
+}
+
+function refreshWordPreview(){
+  var personSel=document.getElementById('wordPersonSel').value;
+  var mode=document.getElementById('wordModeSel').value;
+  document.getElementById('wordPreviewSubtitle').textContent=vy+'年'+(vm+1)+'月　'+(mode==='attendance'?'考勤版（21~20）':'護理長版（完整月）')+' ／ 僅顯示已確認出勤';
+  var html='';
+  if(personSel==='all'){state.staff.forEach(function(p){html+=buildAttendanceHTML(p.id,mode);});}
+  else{html=buildAttendanceHTML(personSel,mode);}
+  document.getElementById('wordPreviewBody').innerHTML=html||'<p style="color:#aaa;text-align:center;padding:2rem;">尚無已確認的出勤資料</p>';
+}
+
+function downloadWord(){
+  var personSel=document.getElementById('wordPersonSel').value,mode=document.getElementById('wordModeSel').value;
+  var html='';
+  if(personSel==='all')state.staff.forEach(function(p){html+=buildAttendanceHTML(p.id,mode);});
+  else html=buildAttendanceHTML(personSel,mode);
+  if(!html){alert('尚無已確認的出勤資料');return;}
+  var fullHtml='<!DOCTYPE html><html><head><meta charset="utf-8"><style>body{font-family:標楷體,Arial,sans-serif;font-size:12pt;margin:2cm;}h2{text-align:center;font-size:16pt;font-weight:bold;text-decoration:underline;margin-bottom:10pt;}table{width:100%;border-collapse:collapse;font-size:10pt;margin-bottom:10pt;}th,td{border:1px solid #333;padding:4pt 5pt;text-align:center;vertical-align:middle;}th{background:#f0f0f0;font-weight:bold;}@media print{body{margin:1cm;}@page{size:A4;margin:1cm;}}</style></head><body>'+html+'</body></html>';
+  var blob=new Blob([fullHtml],{type:'application/vnd.ms-word;charset=utf-8'});
+  var url=URL.createObjectURL(blob);
+  var a=document.createElement('a');a.href=url;
+  a.download=vy+'年'+(vm+1)+'月_外派出勤簽到表_'+(mode==='attendance'?'考勤版':'護理長版')+'.doc';
+  document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
+}
+
+// ============================================================
+// Google 行事曆
+// ============================================================
+function gcalAuth(){
+  var clientId=document.getElementById('gcal_client_id').value.trim(),calId=document.getElementById('gcal_id').value.trim();
+  if(!clientId||!calId){document.getElementById('gcalAuthStatus').innerHTML='<div class="at-status err">請填入行事曆 ID 與 Client ID</div>';return;}
+  var params=new URLSearchParams({client_id:clientId,redirect_uri:window.location.origin+window.location.pathname,response_type:'token',scope:'https://www.googleapis.com/auth/calendar.events',state:'gcal_auth'});
+  var popup=window.open('https://accounts.google.com/o/oauth2/v2/auth?'+params.toString(),'gcal_auth','width=500,height=600');
+  var interval=setInterval(function(){
+    try{
+      if(!popup||popup.closed){clearInterval(interval);return;}
+      var hash=popup.location.hash;
+      if(hash&&hash.includes('access_token')){
+        clearInterval(interval);popup.close();
+        var m=hash.match(/access_token=([^&]+)/);
+        if(m){gcalState.accessToken=m[1];fetch('https://www.googleapis.com/oauth2/v1/userinfo',{headers:{Authorization:'Bearer '+gcalState.accessToken}}).then(function(r){return r.json();}).then(function(info){gcalState.userEmail=info.email||'已連線';document.getElementById('gcalConnectedUser').textContent='已連線：'+gcalState.userEmail;document.getElementById('gcalSyncSection').style.display='block';document.getElementById('gcalAuthStatus').innerHTML='';});}
+      }
+    }catch(e){}
+  },500);
+}
+function gcalDisconnect(){gcalState.accessToken=null;gcalState.userEmail=null;document.getElementById('gcalSyncSection').style.display='none';}
+async function syncToGCal(){
+  if(!gcalState.accessToken){alert('請先授權');return;}
+  var calId=document.getElementById('gcal_id').value.trim();
+  var statusEl=document.getElementById('gcalSyncStatus');
+  statusEl.innerHTML='<div class="at-status loading">同步中…</div>';
+  var dim=new Date(vy,vm+1,0).getDate(),k=mkey(vy,vm),created=0;
+  try{
+    var timeMin=vy+'-'+pad(vm+1)+'-01T00:00:00Z',timeMax=vy+'-'+pad(vm+1)+'-'+pad(dim)+'T23:59:59Z';
+    var evRes=await fetch('https://www.googleapis.com/calendar/v3/calendars/'+encodeURIComponent(calId)+'/events?timeMin='+timeMin+'&timeMax='+timeMax+'&maxResults=500',{headers:{Authorization:'Bearer '+gcalState.accessToken}});
+    if(evRes.ok){var evData=await evRes.json();for(var ev of (evData.items||[]).filter(function(e){return e.summary&&(e.summary.includes('上午班')||e.summary.includes('下午班'));}))await fetch('https://www.googleapis.com/calendar/v3/calendars/'+encodeURIComponent(calId)+'/events/'+ev.id,{method:'DELETE',headers:{Authorization:'Bearer '+gcalState.accessToken}});}
+    for(var d=1;d<=dim;d++){
+      var dateStr=vy+'-'+pad(vm+1)+'-'+pad(d);
+      for(var p of state.staff){
+        var day=((state.schedule[k]||{})[p.id]||{})[d];if(!day)continue;
+        var at=((state.attendance[k]||{})[p.id]||{})[d]||{};
+        if(day.am&&at.amConfirmed){await fetch('https://www.googleapis.com/calendar/v3/calendars/'+encodeURIComponent(calId)+'/events',{method:'POST',headers:{Authorization:'Bearer '+gcalState.accessToken,'Content-Type':'application/json'},body:JSON.stringify({summary:'['+p.name+'] 上午班',start:{dateTime:dateStr+'T'+(at.actualAms||day.ams)+':00',timeZone:'Asia/Taipei'},end:{dateTime:dateStr+'T'+(at.actualAme||day.ame)+':00',timeZone:'Asia/Taipei'},colorId:'2'})});created++;}
+        if(day.pm&&at.pmConfirmed){await fetch('https://www.googleapis.com/calendar/v3/calendars/'+encodeURIComponent(calId)+'/events',{method:'POST',headers:{Authorization:'Bearer '+gcalState.accessToken,'Content-Type':'application/json'},body:JSON.stringify({summary:'['+p.name+'] 下午班',start:{dateTime:dateStr+'T'+(at.actualPms||day.pms)+':00',timeZone:'Asia/Taipei'},end:{dateTime:dateStr+'T'+(at.actualPme||day.pme)+':00',timeZone:'Asia/Taipei'},colorId:'5'})});created++;}
+      }
+    }
+    statusEl.innerHTML='<div class="at-status ok">✅ 同步完成，建立 '+created+' 個事件（已確認出勤）</div>';
+  }catch(e){statusEl.innerHTML='<div class="at-status err">失敗：'+e.message+'</div>';}
 }
 
 init();
