@@ -329,6 +329,14 @@ input:focus,select:focus{box-shadow:0 0 0 2px #85B7EB;}
           <span>✅</span><span style="font-size:13px;color:#27500A;" id="gcalConnectedUser">已連線</span>
           <button class="btn-red" style="margin-left:auto;font-size:11px;padding:3px 8px;" onclick="gcalDisconnect()">中斷</button>
         </div>
+        <div style="display:flex;gap:8px;margin-bottom:10px;">
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;flex:1;background:#f7f7f5;border-radius:8px;padding:8px 10px;">
+            <input type="radio" name="gcal_mode" value="scheduled" checked> 已排班（預排）
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;flex:1;background:#f7f7f5;border-radius:8px;padding:8px 10px;">
+            <input type="radio" name="gcal_mode" value="confirmed"> 僅已確認出勤
+          </label>
+        </div>
         <button class="btn-teal" style="width:100%;padding:11px;font-size:14px;" onclick="syncToGCal()">📤 同步本月班表到 Google 行事曆</button>
         <div id="gcalSyncStatus" style="margin-top:8px;"></div>
       </div>
@@ -1403,23 +1411,53 @@ function gcalDisconnect(){gcalState.accessToken=null;gcalState.userEmail=null;do
 async function syncToGCal(){
   if(!gcalState.accessToken){alert('請先授權');return;}
   var calId=document.getElementById('gcal_id').value.trim();
+  var modeEl=document.querySelector('input[name="gcal_mode"]:checked');
+  var mode=modeEl?modeEl.value:'scheduled'; // 'scheduled' or 'confirmed'
   var statusEl=document.getElementById('gcalSyncStatus');
   statusEl.innerHTML='<div class="at-status loading">同步中…</div>';
   var dim=new Date(vy,vm+1,0).getDate(),k=mkey(vy,vm),created=0;
   try{
+    // 先刪除本月既有班次事件
     var timeMin=vy+'-'+pad(vm+1)+'-01T00:00:00Z',timeMax=vy+'-'+pad(vm+1)+'-'+pad(dim)+'T23:59:59Z';
     var evRes=await fetch('https://www.googleapis.com/calendar/v3/calendars/'+encodeURIComponent(calId)+'/events?timeMin='+timeMin+'&timeMax='+timeMax+'&maxResults=500',{headers:{Authorization:'Bearer '+gcalState.accessToken}});
-    if(evRes.ok){var evData=await evRes.json();for(var ev of (evData.items||[]).filter(function(e){return e.summary&&(e.summary.includes('上午班')||e.summary.includes('下午班'));}))await fetch('https://www.googleapis.com/calendar/v3/calendars/'+encodeURIComponent(calId)+'/events/'+ev.id,{method:'DELETE',headers:{Authorization:'Bearer '+gcalState.accessToken}});}
+    if(evRes.ok){
+      var evData=await evRes.json();
+      for(var ev of (evData.items||[]).filter(function(e){return e.summary&&(e.summary.includes('上午班')||e.summary.includes('下午班'));})){
+        await fetch('https://www.googleapis.com/calendar/v3/calendars/'+encodeURIComponent(calId)+'/events/'+ev.id,{method:'DELETE',headers:{Authorization:'Bearer '+gcalState.accessToken}});
+      }
+    }
+    // 同步班次
     for(var d=1;d<=dim;d++){
       var dateStr=vy+'-'+pad(vm+1)+'-'+pad(d);
       for(var p of state.staff){
         var day=((state.schedule[k]||{})[p.id]||{})[d];if(!day)continue;
         var at=((state.attendance[k]||{})[p.id]||{})[d]||{};
-        if(day.am&&at.amConfirmed){await fetch('https://www.googleapis.com/calendar/v3/calendars/'+encodeURIComponent(calId)+'/events',{method:'POST',headers:{Authorization:'Bearer '+gcalState.accessToken,'Content-Type':'application/json'},body:JSON.stringify({summary:'['+p.name+'] 上午班',start:{dateTime:dateStr+'T'+(at.actualAms||day.ams)+':00',timeZone:'Asia/Taipei'},end:{dateTime:dateStr+'T'+(at.actualAme||day.ame)+':00',timeZone:'Asia/Taipei'},colorId:'2'})});created++;}
-        if(day.pm&&at.pmConfirmed){await fetch('https://www.googleapis.com/calendar/v3/calendars/'+encodeURIComponent(calId)+'/events',{method:'POST',headers:{Authorization:'Bearer '+gcalState.accessToken,'Content-Type':'application/json'},body:JSON.stringify({summary:'['+p.name+'] 下午班',start:{dateTime:dateStr+'T'+(at.actualPms||day.pms)+':00',timeZone:'Asia/Taipei'},end:{dateTime:dateStr+'T'+(at.actualPme||day.pme)+':00',timeZone:'Asia/Taipei'},colorId:'5'})});created++;}
+        var syncAm=day.am&&calcH(day.ams,day.ame)>0&&(mode==='scheduled'||at.amConfirmed);
+        var syncPm=day.pm&&calcH(day.pms,day.pme)>0&&(mode==='scheduled'||at.pmConfirmed);
+        // 上午
+        if(syncAm){
+          var ams=mode==='confirmed'?(at.actualAms||day.ams):day.ams;
+          var ame=mode==='confirmed'?(at.actualAme||day.ame):day.ame;
+          var amLabel=mode==='scheduled'?'[排] '+p.name+' 上午班':'['+p.name+'] 上午班';
+          await fetch('https://www.googleapis.com/calendar/v3/calendars/'+encodeURIComponent(calId)+'/events',{
+            method:'POST',headers:{Authorization:'Bearer '+gcalState.accessToken,'Content-Type':'application/json'},
+            body:JSON.stringify({summary:amLabel,start:{dateTime:dateStr+'T'+ams+':00',timeZone:'Asia/Taipei'},end:{dateTime:dateStr+'T'+ame+':00',timeZone:'Asia/Taipei'},colorId:'2'})
+          });created++;
+        }
+        // 下午
+        if(syncPm){
+          var pms=mode==='confirmed'?(at.actualPms||day.pms):day.pms;
+          var pme=mode==='confirmed'?(at.actualPme||day.pme):day.pme;
+          var pmLabel=mode==='scheduled'?'[排] '+p.name+' 下午班':'['+p.name+'] 下午班';
+          await fetch('https://www.googleapis.com/calendar/v3/calendars/'+encodeURIComponent(calId)+'/events',{
+            method:'POST',headers:{Authorization:'Bearer '+gcalState.accessToken,'Content-Type':'application/json'},
+            body:JSON.stringify({summary:pmLabel,start:{dateTime:dateStr+'T'+pms+':00',timeZone:'Asia/Taipei'},end:{dateTime:dateStr+'T'+pme+':00',timeZone:'Asia/Taipei'},colorId:'5'})
+          });created++;
+        }
       }
     }
-    statusEl.innerHTML='<div class="at-status ok">✅ 同步完成，建立 '+created+' 個事件（已確認出勤）</div>';
+    var modeLabel=mode==='scheduled'?'預排班（含未確認）':'已確認出勤';
+    statusEl.innerHTML='<div class="at-status ok">✅ 同步完成，建立 '+created+' 個事件（'+modeLabel+'）</div>';
   }catch(e){statusEl.innerHTML='<div class="at-status err">失敗：'+e.message+'</div>';}
 }
 
