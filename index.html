@@ -255,6 +255,11 @@ input:focus,select:focus{box-shadow:0 0 0 2px var(--blue-border);}
       <button class="btn-blue" style="width:100%;padding:11px;font-size:15px;" onclick="doSetup()">連線並啟動</button>
       <div id="setupErr" style="margin-top:8px;"></div>
     </div>
+    <div class="card" style="margin:1rem 0 0;text-align:center;background:var(--am-bg);border-color:var(--am-border);">
+      <div style="font-size:12px;color:var(--am-text);margin-bottom:8px;font-weight:600;">🎬 還沒有 Airtable？</div>
+      <div style="font-size:11px;color:var(--am-text);margin-bottom:10px;">用範例資料試用完整功能，所有操作只在瀏覽器本機模擬，不會連線到任何外部服務</div>
+      <button class="btn-teal" style="width:100%;" onclick="startDemo()">使用範例資料試用</button>
+    </div>
   </div>
 </div>
 
@@ -266,6 +271,7 @@ input:focus,select:focus{box-shadow:0 0 0 2px var(--blue-border);}
         <div style="font-size:24px;font-weight:700;margin-bottom:4px;">排班填報系統</div>
         <div style="font-size:13px;color:var(--muted);">v5</div>
       </div>
+      <div id="demoCredBanner" style="display:none;background:var(--amber-bg);border:1px solid var(--amber-border);border-radius:var(--radius);padding:.75rem 1rem;margin-bottom:1rem;font-size:12px;color:var(--amber-text);line-height:1.8;"></div>
       <div class="card" style="margin:0;">
         <div class="field-row"><label>身份</label>
           <select id="loginRole" style="width:100%;"><option value="">-- 請選擇 --</option><option value="admin">管理者</option><optgroup id="staffOpts" label="── 人員 ──"></optgroup></select>
@@ -295,8 +301,8 @@ input:focus,select:focus{box-shadow:0 0 0 2px var(--blue-border);}
   <div class="topbar">
     <h2>本月排班總覽</h2>
     <div class="view-toggle no-print">
-      <button id="ov-view-week" onclick="setOvView('week')" class="active">週</button>
-      <button id="ov-view-month" onclick="setOvView('month')">月</button>
+      <button id="ov-view-week" onclick="setOvView('week')">週</button>
+      <button id="ov-view-month" onclick="setOvView('month')" class="active">月</button>
     </div>
     <div style="display:flex;align-items:center;gap:4px;">
       <button onclick="prevM_ov()">‹</button>
@@ -327,8 +333,8 @@ input:focus,select:focus{box-shadow:0 0 0 2px var(--blue-border);}
   <div class="topbar">
     <h2 id="staffTitle"></h2>
     <div class="view-toggle no-print">
-      <button id="st-view-week" onclick="setStaffView('week')" class="active">週</button>
-      <button id="st-view-month" onclick="setStaffView('month')">月</button>
+      <button id="st-view-week" onclick="setStaffView('week')">週</button>
+      <button id="st-view-month" onclick="setStaffView('month')" class="active">月</button>
     </div>
     <div style="display:flex;align-items:center;gap:4px;">
       <button onclick="prevM_staff()">‹</button>
@@ -378,8 +384,8 @@ input:focus,select:focus{box-shadow:0 0 0 2px var(--blue-border);}
   <div class="topbar">
     <h2>管理者</h2>
     <div class="view-toggle no-print">
-      <button id="ad-view-week" onclick="setAdminView('week')" class="active">週</button>
-      <button id="ad-view-month" onclick="setAdminView('month')">月</button>
+      <button id="ad-view-week" onclick="setAdminView('week')">週</button>
+      <button id="ad-view-month" onclick="setAdminView('month')" class="active">月</button>
     </div>
     <div style="display:flex;align-items:center;gap:4px;">
       <button onclick="prevM()">‹</button>
@@ -616,6 +622,41 @@ input:focus,select:focus{box-shadow:0 0 0 2px var(--blue-border);}
   </div>
 </div>
 
+<!-- PROFILE MODAL (簽到表個人資料) -->
+<div id="profileOverlay" class="overlay" onclick="profileOverlayBg(event)">
+  <div class="modal-box">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem;">
+      <div class="modal-title">📋 簽到表資料 — <span id="profileModalName"></span></div>
+      <button onclick="closeProfileModal()" style="font-size:18px;padding:2px 8px;line-height:1;">✕</button>
+    </div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:10px;">這些資料用於列印「外派/出勤簽到表」，同一單位的人員通常大多欄位一致，可直接沿用預設值。</div>
+    <div class="field-row"><label>身分證字號</label><input type="text" id="prof_idNumber" placeholder="A123456789" style="width:100%;"></div>
+    <div class="field-row"><label>身分別</label>
+      <select id="prof_roleType" style="width:100%;">
+        <option value="臨床研究人員">臨床研究人員</option>
+        <option value="博士後研究員">博士後研究員</option>
+        <option value="研究助理">研究助理</option>
+      </select>
+    </div>
+    <div class="field-row"><label>類別</label>
+      <select id="prof_employType" style="width:100%;">
+        <option value="專任">專任</option>
+        <option value="兼任">兼任</option>
+      </select>
+    </div>
+    <div class="field-row"><label>聯絡電話</label><input type="text" id="prof_phone" placeholder="分機或電話" style="width:100%;"></div>
+    <div style="height:1px;background:var(--border);margin:10px 0;"></div>
+    <div class="field-row"><label>所屬部門</label><input type="text" id="prof_dept" style="width:100%;"></div>
+    <div class="field-row"><label>部門代號</label><input type="text" id="prof_deptCode" style="width:100%;"></div>
+    <div class="field-row"><label>外派/出勤之單位/地點</label><input type="text" id="prof_unit" style="width:100%;"></div>
+    <div class="field-row"><label>外派事由/出勤工作內容</label><input type="text" id="prof_workContent" style="width:100%;"></div>
+    <div class="field-row"><label>執行計畫編號</label><input type="text" id="prof_projectCode" style="width:100%;"></div>
+    <div class="field-row"><label>外派單位負責人</label><input type="text" id="prof_supervisor" style="width:100%;"></div>
+    <div id="profileMsg" style="margin-top:8px;"></div>
+    <button class="btn-teal" style="width:100%;padding:11px;font-size:14px;margin-top:.5rem;" onclick="saveProfileModal()">儲存</button>
+  </div>
+</div>
+
 <!-- SWAP MODAL (換班) -->
 <div id="swapOverlay" class="overlay" onclick="swapOverlayBg(event)">
   <div class="modal-box">
@@ -706,10 +747,10 @@ var currentUser=null,modalPid,modalD,modalY,modalM;
 var confirmTarget={pid:null,d:null,y:null,m:null};
 
 // ★ 管理者主控密碼雜湊 — 部署前請用 await hashPwd('你的主控密碼') 算出並貼在這裡
-var ADMIN_MASTER_HASH='5994471abb01112afcc18159f6cc74b4f511b99806da59b3caf5a9c173cacfc5';
+var ADMIN_MASTER_HASH='';
 
 // 視圖狀態
-var ovView='week',staffView='week',adminView='week';
+var ovView='month',staffView='month',adminView='month';
 var ovWeekStart=null,staffWeekStart=null,adminWeekStart=null;
 var IS_MOBILE=window.innerWidth<480;
 
@@ -726,6 +767,65 @@ var state={
 var AT={token:'',base:'',dailyTable:'每日班表',hrsTable:'人員工時',staffTable:'人員名單',attnTable:'出勤確認表',checkinTable:'簽到紀錄表'};
 var gcalState={accessToken:null,refreshToken:null,expiresAt:0,userEmail:null,codeVerifier:null,calId:null};
 var autoSyncSettings={enabled:false,lastSync:null,lastFingerprint:null};
+
+// ============================================================
+// 示範模式（DEMO_MODE）— 攔截對 api.airtable.com 的請求，改成讀寫瀏覽器記憶體中的假資料庫，
+// 讓整套系統可以在完全沒有 Airtable 帳號的情況下操作、體驗
+// ============================================================
+var DEMO_MODE=false;
+var _realFetch=window.fetch.bind(window);
+var demoDB={};
+function demoTable(name){if(!demoDB[name])demoDB[name]=[];return demoDB[name];}
+function demoId(){return 'demo_'+Date.now().toString(36)+Math.random().toString(36).slice(2,8);}
+function evalDemoFormula(formula,fields){
+  var m;
+  var findMatch=formula.match(/^FIND\("(.+)",\{唯一鍵\}\)=1$/);
+  if(findMatch)return (fields['唯一鍵']||'').indexOf(findMatch[1])>=0;
+  var eqRe=/\{([^}]+)\}="([^"]*)"/g;
+  while(m=eqRe.exec(formula)){if(String(fields[m[1]]||'')!==m[2])return false;}
+  var afterRe=/IS_AFTER\(\{([^}]+)\},"([^"]+)"\)/g;
+  while(m=afterRe.exec(formula)){if(!(String(fields[m[1]]||'')>m[2]))return false;}
+  var beforeRe=/IS_BEFORE\(\{([^}]+)\},"([^"]+)"\)/g;
+  while(m=beforeRe.exec(formula)){if(!(String(fields[m[1]]||'')<m[2]))return false;}
+  var orMatch=formula.match(/OR\(([^)]+)\)/);
+  if(orMatch){
+    var anyTrue=orMatch[1].split(',').some(function(p){var pm=p.match(/\{([^}]+)\}=1/);return pm?!!fields[pm[1]]:false;});
+    if(!anyTrue)return false;
+  }
+  return true;
+}
+function demoFetchInterceptor(url,opts){
+  opts=opts||{};
+  var u;
+  try{u=new URL(url,window.location.href);}catch(e){return _realFetch(url,opts);}
+  if(u.hostname!=='api.airtable.com')return _realFetch(url,opts);
+  var parts=u.pathname.split('/').filter(Boolean); // ['v0', base, table, recordId?]
+  var table=decodeURIComponent(parts[2]||'');
+  var recordId=parts[3]?decodeURIComponent(parts[3]):null;
+  var t=demoTable(table);
+  var method=(opts.method||'GET').toUpperCase();
+  var bodyObj=opts.body?JSON.parse(opts.body):null;
+  var respBody;
+  if(method==='GET'){
+    var formula=u.searchParams.get('filterByFormula');
+    var maxRecords=u.searchParams.get('maxRecords');
+    var filtered=formula?t.filter(function(r){return evalDemoFormula(formula,r.fields);}):t.slice();
+    if(maxRecords)filtered=filtered.slice(0,parseInt(maxRecords));
+    respBody={records:filtered};
+  }else if(method==='POST'){
+    var created=bodyObj.records.map(function(r){var rec={id:demoId(),fields:Object.assign({},r.fields)};t.push(rec);return rec;});
+    respBody={records:created};
+  }else if(method==='PATCH'){
+    bodyObj.records.forEach(function(r){var existing=t.find(function(x){return x.id===r.id;});if(existing)Object.assign(existing.fields,r.fields);});
+    respBody={records:bodyObj.records};
+  }else if(method==='DELETE'){
+    if(recordId)demoDB[table]=t.filter(function(x){return x.id!==recordId;});
+    respBody={deleted:true,id:recordId};
+  }else{
+    respBody={records:[]};
+  }
+  return Promise.resolve(new Response(JSON.stringify(respBody),{status:200,headers:{'Content-Type':'application/json'}}));
+}
 
 function pad(n){return n<10?'0'+n:''+n;}
 function mkey(y,m){return y+'-'+pad(m+1);}
@@ -821,6 +921,53 @@ async function resetStaffPwd(pid){
     p.pwdHash=h;
     alert(p.name+' 的密碼已重設完成');
   }catch(e){alert('重設失敗：'+e.message);}
+}
+
+// ============================================================
+// 人員簽到表資料（外派/出勤簽到表所需欄位）
+// ============================================================
+var profileTargetPid=null;
+function openProfileModal(pid){
+  var p=state.staff.find(function(x){return x.id===pid;});if(!p)return;
+  profileTargetPid=pid;
+  document.getElementById('profileModalName').textContent=p.name;
+  document.getElementById('prof_idNumber').value=p.idNumber||'';
+  document.getElementById('prof_roleType').value=p.roleType||'研究助理';
+  document.getElementById('prof_employType').value=p.employType||'兼任';
+  document.getElementById('prof_phone').value=p.phone||'';
+  document.getElementById('prof_dept').value=p.dept||'醫研部';
+  document.getElementById('prof_deptCode').value=p.deptCode||'8S00S';
+  document.getElementById('prof_unit').value=p.unit||'急診室';
+  document.getElementById('prof_workContent').value=p.workContent||'協助急診現場庶務(推床、病人採購等)';
+  document.getElementById('prof_projectCode').value=p.projectCode||'';
+  document.getElementById('prof_supervisor').value=p.supervisor||'';
+  document.getElementById('profileMsg').innerHTML='';
+  document.getElementById('profileOverlay').classList.add('show');
+}
+function closeProfileModal(){document.getElementById('profileOverlay').classList.remove('show');}
+function profileOverlayBg(e){if(e.target===document.getElementById('profileOverlay'))closeProfileModal();}
+async function saveProfileModal(){
+  if(!profileTargetPid)return;
+  var profile={
+    idNumber:document.getElementById('prof_idNumber').value.trim(),
+    roleType:document.getElementById('prof_roleType').value,
+    employType:document.getElementById('prof_employType').value,
+    phone:document.getElementById('prof_phone').value.trim(),
+    dept:document.getElementById('prof_dept').value.trim(),
+    deptCode:document.getElementById('prof_deptCode').value.trim(),
+    unit:document.getElementById('prof_unit').value.trim(),
+    workContent:document.getElementById('prof_workContent').value.trim(),
+    projectCode:document.getElementById('prof_projectCode').value.trim(),
+    supervisor:document.getElementById('prof_supervisor').value.trim()
+  };
+  var msgEl=document.getElementById('profileMsg');
+  msgEl.innerHTML='<div class="at-status loading">儲存中…</div>';
+  try{
+    await updateStaffProfile(profileTargetPid,profile);
+    msgEl.innerHTML='<div class="at-status ok">✓ 已儲存</div>';
+    renderAdminPeople();
+    setTimeout(closeProfileModal,700);
+  }catch(e){msgEl.innerHTML='<div class="at-status err">儲存失敗：'+e.message+'</div>';}
 }
 
 // ============================================================
@@ -1049,11 +1196,36 @@ async function syncScheduleFromAT(y,m){
 }
 async function loadStaffFromAirtable(){
   var records=await atGetAll(AT.staffTable);
-  state.staff=records.map(function(r,i){return{id:r.id,atId:r.id,name:r.fields['姓名']||'',pwdHash:r.fields['密碼雜湊']||'',idx:i};});
+  state.staff=records.map(function(r,i){
+    var f=r.fields;
+    return{
+      id:r.id,atId:r.id,name:f['姓名']||'',pwdHash:f['密碼雜湊']||'',idx:i,
+      idNumber:f['身分證字號']||'',
+      roleType:f['身分別']||'研究助理',
+      employType:f['類別']||'兼任',
+      phone:f['聯絡電話']||'',
+      dept:f['所屬部門']||'醫研部',
+      deptCode:f['部門代號']||'8S00S',
+      unit:f['外派單位地點']||'急診室',
+      workContent:f['工作內容']||'協助急診現場庶務(推床、病人採購等)',
+      projectCode:f['執行計畫編號']||'',
+      supervisor:f['外派單位負責人']||''
+    };
+  });
   refreshStaffOpts();refreshConfirmPersonSel();
 }
-async function syncStaffToAirtable(name,pwdHash){return (await atFetch('POST',AT.staffTable,{records:[{fields:{'姓名':name,'密碼雜湊':pwdHash||''}}]})).records[0];}
+async function syncStaffToAirtable(name,pwdHash){return (await atFetch('POST',AT.staffTable,{records:[{fields:{'姓名':name,'密碼雜湊':pwdHash||'','身分別':'研究助理','類別':'兼任','所屬部門':'醫研部','部門代號':'8S00S','外派單位地點':'急診室','工作內容':'協助急診現場庶務(推床、病人採購等)'}}]})).records[0];}
 async function deleteStaffFromAirtable(atId){await fetch('https://api.airtable.com/v0/'+AT.base+'/'+encodeURIComponent(AT.staffTable)+'/'+atId,{method:'DELETE',headers:{Authorization:'Bearer '+AT.token}});}
+async function updateStaffProfile(pid,profile){
+  var p=state.staff.find(function(x){return x.id===pid;});if(!p)return;
+  var fields={
+    '身分證字號':profile.idNumber,'身分別':profile.roleType,'類別':profile.employType,'聯絡電話':profile.phone,
+    '所屬部門':profile.dept,'部門代號':profile.deptCode,'外派單位地點':profile.unit,'工作內容':profile.workContent,
+    '執行計畫編號':profile.projectCode,'外派單位負責人':profile.supervisor
+  };
+  await atFetch('PATCH',AT.staffTable,{records:[{id:p.atId,fields:fields}]});
+  Object.assign(p,profile);
+}
 async function upsertHrsRecord(fields,key,table){
   var tbl=table||AT.hrsTable;
   var ex=await atGetAll(tbl,'FIND("'+key+'",{唯一鍵})=1');
@@ -1083,7 +1255,98 @@ async function pushAttendanceToAT(pid,d,y,m){
 // ============================================================
 // Setup / Login / Nav
 // ============================================================
+async function startDemo(){
+  DEMO_MODE=true;
+  window.fetch=demoFetchInterceptor;
+  demoDB={};
+  AT={token:'DEMO',base:'DEMO',dailyTable:'每日班表',hrsTable:'人員工時',staffTable:'人員名單',attnTable:'出勤確認表',checkinTable:'簽到紀錄表'};
+
+  var adminPwd='admin',staffPwd='12345';
+  ADMIN_MASTER_HASH=await hashPwd(adminPwd);
+
+  var demoPeople=[
+    {name:'陳塏嬛',roleType:'研究助理',employType:'兼任',phone:'407-8498',dept:'醫研部',deptCode:'8S00S',unit:'急診室',workContent:'協助急診現場庶務(推床、病人採購等)',projectCode:'PARPG8Q0021',supervisor:'吳冠漢'},
+    {name:'林小明',roleType:'研究助理',employType:'兼任',phone:'407-8498',dept:'醫研部',deptCode:'8S00S',unit:'急診室',workContent:'協助急診現場庶務(推床、病人採購等)',projectCode:'PARPG8Q0021',supervisor:'吳冠漢'},
+    {name:'王美玲',roleType:'臨床研究人員',employType:'專任',phone:'407-8498',dept:'醫研部',deptCode:'8S00S',unit:'急診室',workContent:'協助急診現場庶務(推床、病人採購等)',projectCode:'PARPG8Q0021',supervisor:'吳冠漢'}
+  ];
+  var pwdHash=await hashPwd(staffPwd);
+  state.staff=[];
+  for(var i=0;i<demoPeople.length;i++){
+    var dp=demoPeople[i];
+    var id=demoId();
+    var fields={
+      '姓名':dp.name,'密碼雜湊':pwdHash,'身分證字號':'','身分別':dp.roleType,'類別':dp.employType,'聯絡電話':dp.phone,
+      '所屬部門':dp.dept,'部門代號':dp.deptCode,'外派單位地點':dp.unit,'工作內容':dp.workContent,'執行計畫編號':dp.projectCode,'外派單位負責人':dp.supervisor
+    };
+    demoTable(AT.staffTable).push({id:id,fields:fields});
+    state.staff.push({id:id,atId:id,name:dp.name,pwdHash:pwdHash,idNumber:'',roleType:dp.roleType,employType:dp.employType,phone:dp.phone,dept:dp.dept,deptCode:dp.deptCode,unit:dp.unit,workContent:dp.workContent,projectCode:dp.projectCode,supervisor:dp.supervisor});
+  }
+
+  // 幫每個人排本月 1 號到今天的班（上午9-12、下午13-16，週末跳過），並模擬不同的確認狀態
+  state.schedule={};state.attendance={};state.submitted={};state.pref={};
+  var y=today.getFullYear(),m=today.getMonth(),k=mkey(y,m);
+  state.schedule[k]={};state.attendance[k]={};
+  var monthLabel=y+'年'+(m+1)+'月';
+  var dailyTbl=demoTable(AT.dailyTable),attnTbl=demoTable(AT.attnTable);
+
+  state.staff.forEach(function(p,pi){
+    state.schedule[k][p.id]={};state.attendance[k][p.id]={};
+    var lastDay=today.getDate();
+    for(var d=1;d<=lastDay;d++){
+      var dow=new Date(y,m,d).getDay();
+      if(dow===0||dow===6)continue; // 週末不排
+      if(pi===2&&d%3!==0)continue; // 第三位人員排比較少班，模擬填報中
+      var day={am:true,ams:'09:00',ame:'12:00',pm:true,pms:'13:00',pme:'16:00'};
+      // 模擬幾天補班
+      if(pi===1&&d===lastDay-2){day={am:true,ams:'14:00',ame:'18:00',pm:false,pms:'13:00',pme:'16:00',isMakeup:true,note:'原班次因故調整，本日補班'};}
+      state.schedule[k][p.id][d]=day;
+      var dateStr=y+'-'+pad(m+1)+'-'+pad(d);
+      dailyTbl.push({id:demoId(),fields:{'姓名':p.name,'月份':monthLabel,'日期':dateStr,'上午開始':day.am?day.ams:'','上午結束':day.am?day.ame:'','下午開始':day.pm?day.pms:'','下午結束':day.pm?day.pme:'','當日工時':(day.am?calcH(day.ams,day.ame):0)+(day.pm?calcH(day.pms,day.pme):0),'是否補班':!!day.isMakeup,'備註':day.note||'','唯一鍵':p.name+'_'+monthLabel+'_'+pad(d)}});
+      // 前面的日子模擬已確認出勤，最近3天模擬尚未確認（待管理者處理）
+      var isRecent=(lastDay-d)<3;
+      if(!isRecent){
+        var at={};
+        if(day.am){at.amConfirmed=true;at.actualAms=day.ams;at.actualAme=day.ame;}
+        if(day.pm){at.pmConfirmed=true;at.actualPms=day.pms;at.actualPme=day.pme;}
+        state.attendance[k][p.id][d]=at;
+        attnTbl.push({id:demoId(),fields:{'姓名':p.name,'日期':dateStr,'上午確認':!!at.amConfirmed,'上午缺席':false,'下午確認':!!at.pmConfirmed,'下午缺席':false,'實際上午簽到':at.actualAms||'','實際上午簽退':at.actualAme||'','實際下午簽到':at.actualPms||'','實際下午簽退':at.actualPme||'','是否補班':!!day.isMakeup,'原因':day.note||'','唯一鍵':p.name+'_'+dateStr}});
+      }
+    }
+    state.submitted[p.id+'-'+k]=true;
+  });
+
+  // 也把上個月 21 號到本月 20 號補一些已確認資料，方便直接體驗「考勤版簽到表」列印
+  var prevM=m===0?11:m-1,prevY=m===0?y-1:y,prevK=mkey(prevY,prevM);
+  if(!state.schedule[prevK])state.schedule[prevK]={};
+  if(!state.attendance[prevK])state.attendance[prevK]={};
+  var p0=state.staff[0];
+  state.schedule[prevK][p0.id]={};state.attendance[prevK][p0.id]={};
+  var dimPrev=new Date(prevY,prevM+1,0).getDate();
+  for(var d2=21;d2<=dimPrev;d2++){
+    var dow2=new Date(prevY,prevM,d2).getDay();if(dow2===0||dow2===6)continue;
+    var day2={am:true,ams:'09:00',ame:'12:00',pm:true,pms:'13:00',pme:'16:00'};
+    state.schedule[prevK][p0.id][d2]=day2;
+    var dateStr2=prevY+'-'+pad(prevM+1)+'-'+pad(d2);
+    var at2={amConfirmed:true,actualAms:day2.ams,actualAme:day2.ame,pmConfirmed:true,actualPms:day2.pms,actualPme:day2.pme};
+    state.attendance[prevK][p0.id][d2]=at2;
+    attnTbl.push({id:demoId(),fields:{'姓名':p0.name,'日期':dateStr2,'上午確認':true,'上午缺席':false,'下午確認':true,'下午缺席':false,'實際上午簽到':day2.ams,'實際上午簽退':day2.ame,'實際下午簽到':day2.pms,'實際下午簽退':day2.pme,'是否補班':false,'原因':'','唯一鍵':p0.name+'_'+dateStr2}});
+  }
+
+  refreshStaffOpts();refreshConfirmPersonSel();
+  saveLocal();
+  vy=y;vm=m;ovy=y;ovm=m;staffY=y;staffM=m;
+  showScreen('scr-login');
+  var banner=document.getElementById('demoCredBanner');
+  banner.style.display='block';
+  banner.innerHTML='🎬 <b>示範模式</b>（僅在本機模擬，重新整理頁面即會清空）<br>管理者密碼：<b>'+adminPwd+'</b><br>人員密碼（全部人員通用）：<b>'+staffPwd+'</b><br>示範人員：'+demoPeople.map(function(x){return x.name;}).join('、');
+}
+
 async function doSetup(){
+  if(DEMO_MODE){
+    DEMO_MODE=false;window.fetch=_realFetch;demoDB={};
+    state.staff=[];state.schedule={};state.attendance={};state.submitted={};state.pref={};
+    localStorage.removeItem('at_config');localStorage.removeItem('at_state');
+  }
   var token=document.getElementById('setup_token').value.trim(),base=document.getElementById('setup_base').value.trim();
   var daily=document.getElementById('setup_daily').value.trim()||'每日班表',hrs=document.getElementById('setup_hrs').value.trim()||'人員工時',staff=document.getElementById('setup_staff').value.trim()||'人員名單';
   var attn=document.getElementById('setup_attn').value.trim()||'出勤確認表',checkin=document.getElementById('setup_checkin').value.trim()||'簽到紀錄表';
@@ -1948,7 +2211,7 @@ function renderAdminPeople(){
     var fc=schedHrs>=TARGET?'#1D9E75':schedHrs>0?'#BA7517':'#999';
     var badge=sub?'<span class="badge badge-green">已送出</span>':schedHrs>=TARGET?'<span class="badge badge-teal">已排達標</span>':schedHrs>0?'<span class="badge badge-amber">填報中</span>':'<span class="badge badge-gray">未填報</span>';
     var c=getPersonColor(i);
-    html+='<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #f0f0ee;"><div style="width:32px;height:32px;border-radius:50%;background:'+c[0]+';color:'+c[1]+';display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0;">'+p.name[0]+'</div><div style="flex:1;"><div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;"><span style="font-size:14px;font-weight:700;">'+p.name+'</span>'+badge+'</div><div style="display:flex;align-items:center;gap:8px;"><div class="progress-bar" style="flex:1;"><div class="progress-fill" style="width:'+pct.toFixed(0)+'%;background:'+fc+';"></div></div><span style="font-size:12px;color:var(--muted);white-space:nowrap;">已排 '+schedHrs.toFixed(1)+'/'+TARGET+'h</span></div><div style="font-size:11px;color:#999;margin-top:2px;">已確認出勤：'+confHrs.toFixed(1)+'h</div></div><button class="btn-blue" style="font-size:12px;padding:4px 10px;" onclick="resetStaffPwd(\''+p.id+'\')">重設密碼</button><button class="btn-red" style="font-size:12px;padding:4px 10px;" onclick="removeStaff(\''+p.id+'\')">移除</button></div>';
+    html+='<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #f0f0ee;flex-wrap:wrap;"><div style="width:32px;height:32px;border-radius:50%;background:'+c[0]+';color:'+c[1]+';display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0;">'+p.name[0]+'</div><div style="flex:1;min-width:140px;"><div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;"><span style="font-size:14px;font-weight:700;">'+p.name+'</span>'+badge+'</div><div style="display:flex;align-items:center;gap:8px;"><div class="progress-bar" style="flex:1;"><div class="progress-fill" style="width:'+pct.toFixed(0)+'%;background:'+fc+';"></div></div><span style="font-size:12px;color:var(--muted);white-space:nowrap;">已排 '+schedHrs.toFixed(1)+'/'+TARGET+'h</span></div><div style="font-size:11px;color:#999;margin-top:2px;">已確認出勤：'+confHrs.toFixed(1)+'h'+(p.idNumber?'':' · <span style="color:#BA7517;">尚未填寫簽到表資料</span>')+'</div></div><div style="display:flex;gap:6px;flex-wrap:wrap;"><button class="btn-teal" style="font-size:12px;padding:4px 10px;" onclick="openProfileModal(\''+p.id+'\')">📋 簽到表資料</button><button class="btn-blue" style="font-size:12px;padding:4px 10px;" onclick="resetStaffPwd(\''+p.id+'\')">重設密碼</button><button class="btn-red" style="font-size:12px;padding:4px 10px;" onclick="removeStaff(\''+p.id+'\')">移除</button></div></div>';
   });
   el.innerHTML=html||'<p style="font-size:13px;color:#bbb;">尚無人員</p>';
 }
@@ -2038,17 +2301,26 @@ function showSubmitStatus(type,msg){var cls='at-status '+(type==='ok'?'ok':type=
 // ============================================================
 // 列印
 // ============================================================
-function doPrint(){
-  var dim=new Date(vy,vm+1,0).getDate(),k=mkey(vy,vm);
+function buildMonthlyScheduleBodyHTML(y,m){
+  var dim=new Date(y,m+1,0).getDate(),k=mkey(y,m);
   var PC=PERSON_COLORS,dayNames=['日','一','二','三','四','五','六'];
   function slotHtml(arr){if(!arr.length)return '<span style="color:#ccc;font-size:7pt;">—</span>';return arr.map(function(p){var c=PC[p.i%PC.length];return '<div style="white-space:nowrap;margin-bottom:1px;"><span style="background:'+c[0]+';color:'+c[1]+';border-radius:3px;padding:0 4px;font-size:7.5pt;font-weight:700;">'+p.name+'</span><span style="font-size:7pt;color:#444;margin-left:2px;">'+p.s+'–'+p.e+'</span></div>';}).join('');}
-  function dayData(d){var dow=new Date(vy,vm,d).getDay(),isWE=dow===0||dow===6,isSun=dow===0;var dateColor=isSun?'#b91c1c':dow===6?'#1d4ed8':'#333';var rowBg=isWE?'#fdf4f4':'#fff';var amArr=[],pmArr=[];state.staff.forEach(function(p,i){var day=((state.schedule[k]||{})[p.id]||{})[d];if(!day)return;if(day.am&&calcH(day.ams,day.ame)>0)amArr.push({name:p.name,s:day.ams,e:day.ame,i:i});if(day.pm&&calcH(day.pms,day.pme)>0)pmArr.push({name:p.name,s:day.pms,e:day.pme,i:i});});return{dateColor:dateColor,rowBg:rowBg,isWE:isWE,amArr:amArr,pmArr:pmArr,dateHtml:d+'<br><span style="font-size:6pt;font-weight:400;">'+dayNames[dow]+'</span>'};}
+  function dayData(d){var dow=new Date(y,m,d).getDay(),isWE=dow===0||dow===6,isSun=dow===0;var dateColor=isSun?'#b91c1c':dow===6?'#1d4ed8':'#333';var rowBg=isWE?'#fdf4f4':'#fff';var amArr=[],pmArr=[];state.staff.forEach(function(p,i){var day=((state.schedule[k]||{})[p.id]||{})[d];if(!day)return;if(day.am&&calcH(day.ams,day.ame)>0)amArr.push({name:p.name,s:day.ams,e:day.ame,i:i});if(day.pm&&calcH(day.pms,day.pme)>0)pmArr.push({name:p.name,s:day.pms,e:day.pme,i:i});});return{dateColor:dateColor,rowBg:rowBg,isWE:isWE,amArr:amArr,pmArr:pmArr,dateHtml:d+'<br><span style="font-size:6pt;font-weight:400;">'+dayNames[dow]+'</span>'};}
   var CELL='border:0.5px solid #ddd;padding:2px 4px;vertical-align:top;';var DATE_CELL=CELL+'text-align:center;';var SEP='border-left:2px solid #999;';
   function rowHtml(dL,dR){var L=dayData(dL);var html='<tr>';html+='<td style="'+DATE_CELL+'background:'+L.rowBg+';color:'+L.dateColor+';font-weight:'+(L.isWE?700:500)+';white-space:nowrap;font-size:8pt;">'+L.dateHtml+'</td>';html+='<td style="'+CELL+'background:'+L.rowBg+';">'+slotHtml(L.amArr)+'</td>';html+='<td style="'+CELL+'background:'+L.rowBg+';border-right:2px solid #999;">'+slotHtml(L.pmArr)+'</td>';if(dR<=dim){var R=dayData(dR);html+='<td style="'+DATE_CELL+SEP+'background:'+R.rowBg+';color:'+R.dateColor+';font-weight:'+(R.isWE?700:500)+';white-space:nowrap;font-size:8pt;">'+R.dateHtml+'</td>';html+='<td style="'+CELL+'background:'+R.rowBg+';">'+slotHtml(R.amArr)+'</td>';html+='<td style="'+CELL+'background:'+R.rowBg+';">'+slotHtml(R.pmArr)+'</td>';}else{html+='<td colspan="3" style="background:#fafafa;border:0.5px solid #eee;"></td>';}html+='</tr>';return html;}
   var half=Math.ceil(dim/2),rows='';for(var r=0;r<half;r++)rows+=rowHtml(r+1,r+1+half);
   var legend='';state.staff.forEach(function(p,i){var c=PC[i%PC.length];legend+='<span style="background:'+c[0]+';color:'+c[1]+';border-radius:3px;padding:1px 7px;font-size:7.5pt;font-weight:700;margin-right:4px;">'+p.name+'</span>';});
+  return '<h1 style="font-size:11.5pt;font-weight:700;margin-bottom:1.5mm;">'+y+' 年 '+(m+1)+'月　預排班表</h1>'+
+    '<div style="font-size:7pt;color:#888;margin-bottom:2mm;display:flex;justify-content:space-between;"><span>'+state.staff.length+' 位人員　共 '+dim+' 天</span><span>'+new Date().toLocaleDateString('zh-TW')+'</span></div>'+
+    '<table style="width:100%;border-collapse:collapse;table-layout:fixed;"><colgroup><col style="width:6.5%;"><col style="width:14.5%;"><col style="width:14.5%;"><col style="width:6.5%;"><col style="width:14.5%;"><col style="width:14.5%;"></colgroup>'+
+    '<thead><tr><th style="background:#444;color:#fff;font-size:8pt;padding:3px 4px;text-align:center;border:0.5px solid #555;">日期</th><th style="background:#444;color:#fff;font-size:8pt;padding:3px 4px;text-align:center;border:0.5px solid #555;">上午</th><th style="background:#444;color:#fff;font-size:8pt;padding:3px 4px;text-align:center;border:0.5px solid #555;">下午</th><th style="background:#333;color:#fff;font-size:8pt;padding:3px 4px;text-align:center;border:0.5px solid #555;border-left:2px solid #999;">日期</th><th style="background:#444;color:#fff;font-size:8pt;padding:3px 4px;text-align:center;border:0.5px solid #555;">上午</th><th style="background:#444;color:#fff;font-size:8pt;padding:3px 4px;text-align:center;border:0.5px solid #555;">下午</th></tr></thead>'+
+    '<tbody>'+rows+'</tbody></table>'+
+    '<div style="margin-top:2mm;font-size:7pt;color:#666;">人員：'+legend+'</div>';
+}
+function doPrint(){
+  var bodyHtml=buildMonthlyScheduleBodyHTML(vy,vm);
   var w=window.open('','_blank');
-  w.document.write('<!DOCTYPE html><html><head><meta charset="utf-8"><title>'+vy+'年'+(vm+1)+'月排班表</title><style>*{box-sizing:border-box;margin:0;padding:0;}body{font-family:"Noto Sans TC",Arial,sans-serif;background:#fff;}.page{width:190mm;margin:0 auto;padding:5mm;}h1{font-size:11.5pt;font-weight:700;margin-bottom:1.5mm;}.meta{font-size:7pt;color:#888;margin-bottom:2mm;display:flex;justify-content:space-between;}table{width:100%;border-collapse:collapse;table-layout:fixed;}col.c-date{width:6.5%;}col.c-slot{width:14.5%;}col.c-sep{width:6.5%;}thead th{background:#444;color:#fff;font-size:8pt;padding:3px 4px;text-align:center;border:0.5px solid #555;}thead th.sep-h{background:#333;border-left:2px solid #999;}.legend{margin-top:2mm;font-size:7pt;color:#666;}@media print{body{margin:0;}@page{size:A4 portrait;margin:5mm;}.page{width:100%;padding:0;}}</style></head><body><div class="page"><h1>'+vy+' 年 '+(vm+1)+'月　預排班表</h1><div class="meta"><span>'+state.staff.length+' 位人員　共 '+dim+' 天</span><span>'+new Date().toLocaleDateString('zh-TW')+'</span></div><table><colgroup><col class="c-date"><col class="c-slot"><col class="c-slot"><col class="c-sep"><col class="c-slot"><col class="c-slot"></colgroup><thead><tr><th>日期</th><th>上午</th><th>下午</th><th class="sep-h">日期</th><th>上午</th><th>下午</th></tr></thead><tbody>'+rows+'</tbody></table><div class="legend">人員：'+legend+'</div></div><scr'+'ipt>window.onload=function(){window.print()};<\/script></body></html>');
+  w.document.write('<!DOCTYPE html><html><head><meta charset="utf-8"><title>'+vy+'年'+(vm+1)+'月排班表</title><style>*{box-sizing:border-box;margin:0;padding:0;}body{font-family:"Noto Sans TC",Arial,sans-serif;background:#fff;}.page{width:190mm;margin:0 auto;padding:5mm;}@media print{body{margin:0;}@page{size:A4 portrait;margin:5mm;}.page{width:100%;padding:0;}}</style></head><body><div class="page">'+bodyHtml+'</div><scr'+'ipt>window.onload=function(){window.print()};<\/script></body></html>');
   w.document.close();
 }
 
@@ -2100,47 +2372,108 @@ function buildRowsFromATRecords(records){
   return rows.filter(function(r){return (r.amOn&&r.ams&&r.ame)||(r.pmOn&&r.pms&&r.pme);});
 }
 
+function checkboxLine(options,selected){
+  return options.map(function(o){return (o===selected?'■':'□')+o;}).join('　');
+}
+
 async function buildAttendanceHTML(personName,mode){
+  var person=state.staff.find(function(x){return x.name===personName;})||{name:personName};
   var range=getAttendanceRange(mode);
   var records=await fetchConfirmedFromAT(personName,range);
   var modeLabel=mode==='attendance'?vy+'年'+(vm+1)+'月21日 ～ '+(vm+2>12?vy+1:vy)+'年'+(((vm+1)%12)+1)+'月20日':vy+'年'+(vm+1)+'月（完整月）';
   if(!records.length)return '<div style="padding:1rem;text-align:center;color:#aaa;font-size:13px;">'+personName+'：本期無已確認出勤紀錄</div>';
   var rows=buildRowsFromATRecords(records);
   var tableRows='',totalHrs=0;
+  var unit=person.unit||'',workContent=person.workContent||'',projectCode=person.projectCode||'',supervisor=person.supervisor||'';
   rows.forEach(function(r){
     var dow=new Date(r.y,r.m,r.d).getDay(),isWE=dow===0||dow===6;
     var dateLabel=(r.m+1)+'/'+r.d+' '+['日','一','二','三','四','五','六'][dow];
     var amH=(r.amOn&&r.ams&&r.ame)?calcH(r.ams,r.ame):0,pmH=(r.pmOn&&r.pms&&r.pme)?calcH(r.pms,r.pme):0,dh=amH+pmH;totalHrs+=dh;
     var mkNote=r.isMakeup?'（補）':'';
+    // 合併上午/下午為單一簽到-簽退：簽到取最早有出席的時段開始時間，簽退取最晚有出席的時段結束時間
+    var signIn=r.amOn&&r.ams?r.ams:(r.pmOn&&r.pms?r.pms:'');
+    var signOut=r.pmOn&&r.pme?r.pme:(r.amOn&&r.ame?r.ame:'');
     tableRows+='<tr style="background:'+(isWE?'#fafafa':'#fff')+';color:'+(isWE?'#b91c1c':'#222')+';">';
     tableRows+='<td style="text-align:center;white-space:nowrap;font-weight:'+(isWE?'600':'400')+';">'+dateLabel+mkNote+'</td>';
-    tableRows+='<td style="text-align:center;">'+(r.amOn?r.ams:'')+'</td><td style="text-align:center;">'+(r.amOn?r.ame:'')+'</td>';
-    tableRows+='<td style="text-align:center;">'+(r.pmOn?r.pms:'')+'</td><td style="text-align:center;">'+(r.pmOn?r.pme:'')+'</td>';
-    tableRows+='<td style="text-align:center;">'+dh.toFixed(1)+'</td><td></td><td></td></tr>';
+    tableRows+='<td style="text-align:center;">'+signIn+'</td><td style="text-align:center;">'+signOut+'</td>';
+    tableRows+='<td style="text-align:center;">'+dh.toFixed(1)+'</td>';
+    tableRows+='<td style="text-align:center;">'+unit+'</td><td style="text-align:center;">'+workContent+'</td><td style="text-align:center;">'+projectCode+'</td><td style="text-align:center;">'+supervisor+'</td>';
+    tableRows+='</tr>';
   });
-  return '<div style="page-break-after:always;font-family:標楷體,serif;font-size:12px;"><p style="text-align:right;font-size:10px;">(附件四)</p><h2 style="text-align:center;font-size:16px;font-weight:bold;text-decoration:underline;margin-bottom:10px;">外派／出勤簽到表</h2><div style="font-size:12px;margin-bottom:6px;line-height:2;"><b>申請人姓名：</b><u style="padding:0 40px;">'+personName+'</u>　<b>期間：</b>'+modeLabel+'</div><div style="font-size:12px;margin-bottom:6px;line-height:2;"><b>身分別：</b>□臨床研究人員　□博士後研究員　□研究助理</div><div style="font-size:12px;margin-bottom:8px;line-height:2;"><b>類別：</b>□專任　□兼任　　<b>所屬部門：</b><u style="padding:0 60px;"></u></div><table style="width:100%;border-collapse:collapse;font-size:11px;margin-bottom:10px;"><thead><tr style="background:#e8e8e8;"><th style="border:1px solid #333;padding:4px;width:70px;">日期</th><th style="border:1px solid #333;padding:4px;">上午簽到</th><th style="border:1px solid #333;padding:4px;">上午簽退</th><th style="border:1px solid #333;padding:4px;">下午簽到</th><th style="border:1px solid #333;padding:4px;">下午簽退</th><th style="border:1px solid #333;padding:4px;width:50px;">時數</th><th style="border:1px solid #333;padding:4px;">工作內容</th><th style="border:1px solid #333;padding:4px;">負責人簽名</th></tr></thead><tbody>'+tableRows+'<tr style="background:#f0f0f0;font-weight:bold;"><td colspan="5" style="border:1px solid #333;padding:4px;text-align:right;">當月出勤時數總計</td><td style="border:1px solid #333;padding:4px;text-align:center;">'+totalHrs.toFixed(1)+'h</td><td colspan="2" style="border:1px solid #333;"></td></tr></tbody></table><div style="margin-top:16px;font-size:12px;"><b>計畫主持人簽名：</b><u style="padding:0 80px;"></u>　　<b>日期：</b><u style="padding:0 60px;"></u></div><div style="margin-top:8px;font-size:10px;line-height:1.8;color:#555;">• 每月考勤週期結束（每月20號結束後，26日前），請將此表送交院區考勤存檔<br>• （補）標記表示該日為補班日期<br>• 本表資料直接讀取自 Airtable 出勤確認表，僅列出已確認之出勤紀錄</div></div>';
+  return '<div style="page-break-after:always;font-family:標楷體,serif;font-size:12px;">'+
+    '<p style="text-align:right;font-size:10px;">(附件四)</p>'+
+    '<h2 style="text-align:center;font-size:16px;font-weight:bold;text-decoration:underline;margin-bottom:10px;">外派/出勤簽到表</h2>'+
+    '<div style="font-size:12px;margin-bottom:4px;line-height:2;"><b>申請人姓名：</b><u style="padding:0 40px;">'+personName+'</u>　<b>期間：</b>'+modeLabel+'</div>'+
+    '<div style="font-size:12px;margin-bottom:4px;line-height:2;"><b>身分別：</b>□臨床研究人員　□博士後研究員　□研究助理</div>'+
+    '<div style="font-size:12px;margin-bottom:4px;line-height:2;"><b>類別：</b>□專任　□兼任</div>'+
+    '<div style="font-size:12px;margin-bottom:4px;line-height:2;"><b>身分證字號：</b><u style="padding:0 60px;"></u>　<b>所屬部門：</b><u style="padding:0 40px;"></u>（代號：<u style="padding:0 40px;"></u>）</div>'+
+    '<div style="font-size:12px;margin-bottom:8px;line-height:2;"><b>聯絡電話：</b><u style="padding:0 80px;"></u></div>'+
+    '<table style="width:100%;border-collapse:collapse;font-size:10px;margin-bottom:10px;">'+
+      '<thead><tr style="background:#e8e8e8;">'+
+        '<th style="border:1px solid #333;padding:4px;width:60px;">日期</th>'+
+        '<th style="border:1px solid #333;padding:4px;">簽到時間</th>'+
+        '<th style="border:1px solid #333;padding:4px;">簽退時間</th>'+
+        '<th style="border:1px solid #333;padding:4px;width:40px;">出勤時數</th>'+
+        '<th style="border:1px solid #333;padding:4px;">外派/出勤之單位/地點</th>'+
+        '<th style="border:1px solid #333;padding:4px;">外派事由/出勤工作內容</th>'+
+        '<th style="border:1px solid #333;padding:4px;">執行計畫編號</th>'+
+        '<th style="border:1px solid #333;padding:4px;">外派單位負責人</th>'+
+      '</tr></thead><tbody>'+tableRows+
+      '<tr style="background:#f0f0f0;font-weight:bold;"><td colspan="3" style="border:1px solid #333;padding:4px;text-align:right;">當月出勤時數總計</td><td style="border:1px solid #333;padding:4px;text-align:center;">'+totalHrs.toFixed(1)+'h</td><td colspan="4" style="border:1px solid #333;"></td></tr>'+
+    '</tbody></table>'+
+    '<div style="margin-top:16px;font-size:12px;"><b>計畫主持人簽名：</b><u style="padding:0 80px;"></u></div>'+
+    '<div style="margin-top:8px;font-size:10px;line-height:1.8;color:#555;">'+
+      '1. 每月考勤週期結束(每月20號結束後，26日前)，請將此表送交院區考勤存檔<br>'+
+      '2. 如為連續外派之專任研究助理，需由外派單位負責人簽名確認出勤時數，並配合調整前考勤統計表列印後於每月26日上午12時前送達考勤部門辦理。<br>'+
+      (rows.some(function(r){return r.isMakeup;})?'• （補）標記表示該日為補班日期<br>':'')+
+      '• 本表資料直接讀取自 Airtable 出勤確認表，僅列出已確認之出勤紀錄'+
+    '</div></div>';
 }
 async function showWordExport(){
   document.getElementById('wordPreviewOverlay').classList.add('show');
-  document.getElementById('wordPreviewBody').innerHTML='<div class="loading-screen" style="min-height:100px;"><div class="spinner"></div><div style="font-size:12px;color:var(--muted);">讀取 Airtable 資料中…</div></div>';
+  document.getElementById('wordPreviewBody').innerHTML='<div class="loading-screen" style="min-height:100px;"><div class="spinner"></div><div style="font-size:12px;color:var(--muted);">讀取中…</div></div>';
   var mode=document.getElementById('wordModeSel').value;
-  var names=await loadAttendancePeriodStaffList(mode);
   var sel=document.getElementById('wordPersonSel');
-  sel.innerHTML='<option value="all">全部人員（本期有資料者，分頁）</option>';
-  names.forEach(function(n){var o=document.createElement('option');o.value=n;o.textContent=n;sel.appendChild(o);});
+  if(mode==='full'){
+    sel.style.display='none';
+  }else{
+    sel.style.display='';
+    var names=await loadAttendancePeriodStaffList(mode);
+    sel.innerHTML='<option value="all">全部人員（本期有資料者，分頁）</option>';
+    names.forEach(function(n){var o=document.createElement('option');o.value=n;o.textContent=n;sel.appendChild(o);});
+    sel.dataset.mode=mode;
+  }
   refreshWordPreview();
 }
 function closeWordPreview(){document.getElementById('wordPreviewOverlay').classList.remove('show');}
 function wordOverlayBgClick(e){if(e.target===document.getElementById('wordPreviewOverlay'))closeWordPreview();}
 
 var _lastWordHtmlCache='';
+var _lastWordMode='attendance';
 async function refreshWordPreview(){
   var personSel=document.getElementById('wordPersonSel').value,mode=document.getElementById('wordModeSel').value;
-  document.getElementById('wordPreviewSubtitle').textContent=vy+'年'+(vm+1)+'月　'+(mode==='attendance'?'考勤版（21~20）':'護理長版（完整月）')+' ／ 僅顯示已確認出勤（來源：Airtable）';
+  _lastWordMode=mode;
+  var sel=document.getElementById('wordPersonSel');
+  sel.style.display=mode==='full'?'none':'';
+  if(mode==='full'){
+    document.getElementById('wordPreviewSubtitle').textContent=vy+'年'+(vm+1)+'月　護理長版（完整月）／ 全體人員預排班總覽';
+    document.getElementById('wordPreviewBody').innerHTML='<div class="loading-screen" style="min-height:100px;"><div class="spinner"></div><div style="font-size:12px;color:var(--muted);">產生中…</div></div>';
+    var html='<div style="font-family:\'Noto Sans TC\',Arial,sans-serif;padding:4mm;">'+buildMonthlyScheduleBodyHTML(vy,vm)+'</div>';
+    _lastWordHtmlCache=html;
+    document.getElementById('wordPreviewBody').innerHTML=html;
+    return;
+  }
+  document.getElementById('wordPreviewSubtitle').textContent=vy+'年'+(vm+1)+'月　考勤版（21~20）／ 僅顯示已確認出勤（來源：Airtable）';
   document.getElementById('wordPreviewBody').innerHTML='<div class="loading-screen" style="min-height:100px;"><div class="spinner"></div><div style="font-size:12px;color:var(--muted);">讀取中…</div></div>';
+  var names=await loadAttendancePeriodStaffList(mode);
+  if(sel.options.length<=1||sel.dataset.mode!==mode){
+    sel.innerHTML='<option value="all">全部人員（本期有資料者，分頁）</option>';
+    names.forEach(function(n){var o=document.createElement('option');o.value=n;o.textContent=n;sel.appendChild(o);});
+    sel.dataset.mode=mode;
+    personSel=sel.value;
+  }
   var html='';
   if(personSel==='all'){
-    var names=await loadAttendancePeriodStaffList(mode);
     for(var i=0;i<names.length;i++)html+=await buildAttendanceHTML(names[i],mode);
   }else{
     html=await buildAttendanceHTML(personSel,mode);
@@ -2150,11 +2483,16 @@ async function refreshWordPreview(){
 }
 function downloadWord(){
   var html=_lastWordHtmlCache;
-  if(!html){alert('尚無已確認的出勤資料');return;}
-  var mode=document.getElementById('wordModeSel').value;
-  var fullHtml='<!DOCTYPE html><html><head><meta charset="utf-8"><style>body{font-family:標楷體,Arial,sans-serif;font-size:12pt;margin:2cm;}h2{text-align:center;font-size:16pt;font-weight:bold;text-decoration:underline;margin-bottom:10pt;}table{width:100%;border-collapse:collapse;font-size:10pt;margin-bottom:10pt;}th,td{border:1px solid #333;padding:4pt 5pt;text-align:center;vertical-align:middle;}th{background:#f0f0f0;font-weight:bold;}@media print{body{margin:1cm;}@page{size:A4;margin:1cm;}}</style></head><body>'+html+'</body></html>';
+  if(!html){alert('尚無可下載的內容');return;}
+  var mode=_lastWordMode;
+  var fullHtml;
+  if(mode==='full'){
+    fullHtml='<!DOCTYPE html><html><head><meta charset="utf-8"><style>body{font-family:"Noto Sans TC",Arial,sans-serif;font-size:11pt;margin:1.5cm;}table{border-collapse:collapse;}th,td{vertical-align:middle;}@media print{body{margin:1cm;}@page{size:A4 landscape;margin:1cm;}}</style></head><body>'+html+'</body></html>';
+  }else{
+    fullHtml='<!DOCTYPE html><html><head><meta charset="utf-8"><style>body{font-family:標楷體,Arial,sans-serif;font-size:12pt;margin:2cm;}h2{text-align:center;font-size:16pt;font-weight:bold;text-decoration:underline;margin-bottom:10pt;}table{width:100%;border-collapse:collapse;font-size:10pt;margin-bottom:10pt;}th,td{border:1px solid #333;padding:4pt 5pt;text-align:center;vertical-align:middle;}th{background:#f0f0f0;font-weight:bold;}@media print{body{margin:1cm;}@page{size:A4;margin:1cm;}}</style></head><body>'+html+'</body></html>';
+  }
   var blob=new Blob([fullHtml],{type:'application/vnd.ms-word;charset=utf-8'});
-  var url=URL.createObjectURL(blob);var a=document.createElement('a');a.href=url;a.download=vy+'年'+(vm+1)+'月_外派出勤簽到表_'+(mode==='attendance'?'考勤版':'護理長版')+'.doc';
+  var url=URL.createObjectURL(blob);var a=document.createElement('a');a.href=url;a.download=vy+'年'+(vm+1)+'月_'+(mode==='full'?'護理長版預排班表':'外派出勤簽到表_考勤版')+'.doc';
   document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
 }
 
