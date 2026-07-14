@@ -724,7 +724,7 @@ var state={
   checkinRecords:[] // [{pid,name,date,slot,time,code}]
 };
 var AT={token:'',base:'',dailyTable:'每日班表',hrsTable:'人員工時',staffTable:'人員名單',attnTable:'出勤確認表',checkinTable:'簽到紀錄表'};
-var gcalState={accessToken:null,refreshToken:null,expiresAt:0,userEmail:null,codeVerifier:null};
+var gcalState={accessToken:null,refreshToken:null,expiresAt:0,userEmail:null,codeVerifier:null,calId:null};
 var autoSyncSettings={enabled:false,lastSync:null,lastFingerprint:null};
 
 function pad(n){return n<10?'0'+n:''+n;}
@@ -790,7 +790,7 @@ function saveLocal(){
     localStorage.setItem('at_config',JSON.stringify(AT));
     localStorage.setItem('at_state',JSON.stringify({pref:state.pref,submitted:state.submitted,weekTpl:state.weekTpl,schedule:state.schedule,attendance:state.attendance,checkinCodes:state.checkinCodes,checkinRecords:state.checkinRecords}));
     localStorage.setItem('autoSync',JSON.stringify(autoSyncSettings));
-    localStorage.setItem('gcal_state',JSON.stringify({refreshToken:gcalState.refreshToken,userEmail:gcalState.userEmail}));
+    localStorage.setItem('gcal_state',JSON.stringify({refreshToken:gcalState.refreshToken,userEmail:gcalState.userEmail,calId:gcalState.calId}));
   }catch(e){}
 }
 function loadLocal(){
@@ -799,7 +799,7 @@ function loadLocal(){
     var s=localStorage.getItem('at_state');
     if(s){var d=JSON.parse(s);state.pref=d.pref||{};state.submitted=d.submitted||{};state.weekTpl=d.weekTpl||state.weekTpl;state.schedule=d.schedule||{};state.attendance=d.attendance||{};state.checkinCodes=d.checkinCodes||{};state.checkinRecords=d.checkinRecords||[];}
     var a=localStorage.getItem('autoSync');if(a)autoSyncSettings=Object.assign(autoSyncSettings,JSON.parse(a));
-    var g=localStorage.getItem('gcal_state');if(g){var gd=JSON.parse(g);gcalState.refreshToken=gd.refreshToken||null;gcalState.userEmail=gd.userEmail||null;}
+    var g=localStorage.getItem('gcal_state');if(g){var gd=JSON.parse(g);gcalState.refreshToken=gd.refreshToken||null;gcalState.userEmail=gd.userEmail||null;gcalState.calId=gd.calId||null;}
   }catch(e){}
 }
 
@@ -1000,7 +1000,7 @@ async function autoSyncIfNeeded(){
   saveLocal();loadAutoSyncUI();
 }
 async function manualSync(){
-  var calId=document.getElementById('gcal_id').value.trim();
+  var calId=getCalId();
   await ensureGCalToken();
   if(!gcalState.accessToken||!calId){alert('請先連線 Google 行事曆');return;}
   await syncToGCal();
@@ -1132,7 +1132,12 @@ async function doLogin(){
 }
 function goLogin(){currentUser=null;document.getElementById('loginRole').value='';document.getElementById('loginPwd').value='';showScreen('scr-login');}
 function showScreen(id){document.querySelectorAll('.screen').forEach(function(s){s.classList.remove('active');});document.getElementById(id).classList.add('active');}
-function showAdmin(){showScreen('scr-admin');renderAdmin();renderCheckinCodeDisplay();loadAutoSyncUI();}
+function showAdmin(){
+  showScreen('scr-admin');renderAdmin();renderCheckinCodeDisplay();loadAutoSyncUI();
+  var calIdEl=document.getElementById('gcal_id');if(calIdEl&&!calIdEl.value&&gcalState.calId)calIdEl.value=gcalState.calId;
+  var clientIdEl=document.getElementById('gcal_client_id');if(clientIdEl&&!clientIdEl.value){var savedClient=localStorage.getItem('gcal_client_id');if(savedClient)clientIdEl.value=savedClient;}
+  if(gcalState.userEmail){var sec=document.getElementById('gcalSyncSection');if(sec)sec.style.display='block';var u=document.getElementById('gcalConnectedUser');if(u)u.textContent='已連線：'+gcalState.userEmail;}
+}
 function goToOv(){showScreen('scr-overview');renderOv();}
 function refreshStaffOpts(){
   var og=document.getElementById('staffOpts');if(!og)return;og.innerHTML='';
@@ -1477,14 +1482,18 @@ async function doShiftSwap(){
   pushAttendanceToAT(pid,from.d,from.y,from.m);
 
   await ensureGCalToken();
-  if(gcalState.accessToken){
+  var gcalNote='';
+  if(gcalState.accessToken&&getCalId()){
     try{
       await syncSingleDayToGCal(pid,from.d,from.y,from.m);
       await syncSingleDayToGCal(pid,td,ty,tm);
-    }catch(e){console.error('換班月曆同步失敗:',e);}
+      gcalNote='並同步月曆';
+    }catch(e){gcalNote='（⚠️ 月曆同步失敗：'+e.message+'）';}
+  }else if(gcalState.refreshToken){
+    gcalNote='（⚠️ 月曆授權已失效，未同步，請重新連線）';
   }
 
-  msgEl.innerHTML='<div class="at-status ok">✓ 換班完成，已更新排班'+(gcalState.accessToken?'並同步月曆':'')+'</div>';
+  msgEl.innerHTML='<div class="at-status ok">✓ 換班完成，已更新排班'+gcalNote+'</div>';
   setTimeout(function(){closeSwapModal();renderStaff();},1200);
 }
 
@@ -1669,7 +1678,7 @@ function saveConfirm(){
   state.attendance[k][t.pid][t.d]=at;
   saveLocal();closeConfirmModal();renderConfirm();renderAdminStats();
   pushAttendanceToAT(t.pid,t.d,t.y,t.m);
-  ensureGCalToken().then(function(){if(gcalState.accessToken)syncSingleDayToGCal(t.pid,t.d,t.y,t.m);});
+  syncSingleDayToGCalSafe(t.pid,t.d,t.y,t.m);
 }
 function closeConfirmModal(){document.getElementById('confirmOverlay').classList.remove('show');}
 function confirmOverlayBg(e){if(e.target===document.getElementById('confirmOverlay'))closeConfirmModal();}
@@ -1795,9 +1804,13 @@ function mToggle(slot){ensureDay();var k=mkey(modalY,modalM),checked=document.ge
   var day=state.schedule[k][modalPid][modalD];
   var delBtn=document.getElementById('modalDeleteBtn');
   if(delBtn&&currentUser&&currentUser.role==='admin')delBtn.style.display=(day.am||day.pm)?'':'none';
+  saveLocal();
+  syncSingleDayToGCalSafe(modalPid,modalD,modalY,modalM);
   if(resetConfirmIfNeeded(slot)){openDayModalInner();showTimeChangedHint();}
 }
 function mTime(slot,se,val){ensureDay();var k=mkey(modalY,modalM),f=slot==='am'?(se==='s'?'ams':'ame'):(se==='s'?'pms':'pme');state.schedule[k][modalPid][modalD][f]=val;var day=state.schedule[k][modalPid][modalD],fs=slot==='am'?'ams':'pms',fe=slot==='am'?'ame':'pme';if(t2n(day[fs])>=t2n(day[fe])){var idx=TIMES.indexOf(val);if(se==='s')day[fe]=TIMES[Math.min(idx+2,TIMES.length-1)];else day[fs]=TIMES[Math.max(idx-2,0)];}refreshModalGap();
+  saveLocal();
+  syncSingleDayToGCalSafe(modalPid,modalD,modalY,modalM);
   if(resetConfirmIfNeeded(slot)){openDayModalInner();showTimeChangedHint();}
 }
 function refreshModalGap(){var amGap=gapLabel(modalD,'am',modalY,modalM),pmGap=gapLabel(modalD,'pm',modalY,modalM);var html='';if(amGap)html+='<div class="modal-gap-pill gap-pill '+amGap.cls+'">上午 '+amGap.text+'</div>';if(pmGap)html+='<div class="modal-gap-pill gap-pill '+pmGap.cls+'">下午 '+pmGap.text+'</div>';var gr=document.getElementById('modalGapRow');gr.innerHTML=html;gr.style.display=html?'flex':'none';}
@@ -1811,7 +1824,10 @@ function deleteCurrentDaySchedule(){
   if(state.attendance[k]&&state.attendance[k][modalPid]){
     delete state.attendance[k][modalPid][modalD];
   }
-  saveLocal();closeModal();
+  saveLocal();
+  pushAttendanceToAT(modalPid,modalD,modalY,modalM);
+  syncSingleDayToGCalSafe(modalPid,modalD,modalY,modalM);
+  closeModal();
 }
 
 // 管理者快速確認/缺席 — 上午下午各自獨立，且已確認的也能重新調整（不關閉視窗，重繪讓管理者連續操作）
@@ -1825,7 +1841,7 @@ function quickConfirm(slot){
   if(slot==='pm'){at.pmConfirmed=true;at.pmAbsent=false;}
   saveLocal();openDayModalInner();
   pushAttendanceToAT(modalPid,modalD,modalY,modalM);
-  ensureGCalToken().then(function(){if(gcalState.accessToken)syncSingleDayToGCal(modalPid,modalD,modalY,modalM);});
+  syncSingleDayToGCalSafe(modalPid,modalD,modalY,modalM);
 }
 function quickAbsent(slot){
   var k=mkey(modalY,modalM);
@@ -1837,7 +1853,7 @@ function quickAbsent(slot){
   if(slot==='pm'){at.pmAbsent=true;at.pmConfirmed=false;}
   saveLocal();openDayModalInner();
   pushAttendanceToAT(modalPid,modalD,modalY,modalM);
-  ensureGCalToken().then(function(){if(gcalState.accessToken)syncSingleDayToGCal(modalPid,modalD,modalY,modalM);});
+  syncSingleDayToGCalSafe(modalPid,modalD,modalY,modalM);
 }
 
 // 人員自簽
@@ -2154,6 +2170,7 @@ async function pkceChallenge(verifier){
 function gcalAuth(){
   var clientId=document.getElementById('gcal_client_id').value.trim(),calId=document.getElementById('gcal_id').value.trim();
   if(!clientId||!calId){document.getElementById('gcalAuthStatus').innerHTML='<div class="at-status err">請填入行事曆 ID 與 Client ID</div>';return;}
+  gcalState.calId=calId;saveLocal();
   localStorage.setItem('gcal_client_id',clientId);
   var verifier=randStr(64);
   gcalState.codeVerifier=verifier;
@@ -2243,7 +2260,7 @@ function gcalDisconnect(){
 async function syncToGCal(){
   await ensureGCalToken();
   if(!gcalState.accessToken){alert('請先授權');return;}
-  var calId=document.getElementById('gcal_id').value.trim();
+  var calId=getCalId();
   var modeEl=document.querySelector('input[name="gcal_mode"]:checked'),mode=modeEl?modeEl.value:'scheduled';
   var statusEl=document.getElementById('gcalSyncStatus');statusEl.innerHTML='<div class="at-status loading">同步中…</div>';
   var dim=new Date(vy,vm+1,0).getDate(),k=mkey(vy,vm),created=0;
@@ -2284,10 +2301,18 @@ async function syncToGCal(){
 }
 
 // 單日換班同步：只處理該人該天，避免整月重建
+function getCalId(){
+  var el=document.getElementById('gcal_id');
+  var v=el?el.value.trim():'';
+  if(v){gcalState.calId=v;saveLocal();return v;}
+  if(gcalState.calId){if(el)el.value=gcalState.calId;return gcalState.calId;}
+  return '';
+}
+
 async function syncSingleDayToGCal(pid,d,y,m){
   await ensureGCalToken();
   if(!gcalState.accessToken)return;
-  var calId=document.getElementById('gcal_id')?document.getElementById('gcal_id').value.trim():'';if(!calId)return;
+  var calId=getCalId();if(!calId)return;
   var p=state.staff.find(function(x){return x.id===pid;});if(!p)return;
   var dateStr=y+'-'+pad(m+1)+'-'+pad(d);
   var timeMin=dateStr+'T00:00:00Z',timeMax=dateStr+'T23:59:59Z';
@@ -2306,6 +2331,42 @@ async function syncSingleDayToGCal(pid,d,y,m){
   }
   if(day.pm&&calcH(day.pms,day.pme)>0){
     await fetch('https://www.googleapis.com/calendar/v3/calendars/'+encodeURIComponent(calId)+'/events',{method:'POST',headers:{Authorization:'Bearer '+gcalState.accessToken,'Content-Type':'application/json'},body:JSON.stringify({summary:'[排] '+p.name+' 下午班',description:descText,start:{dateTime:dateStr+'T'+day.pms+':00',timeZone:'Asia/Taipei'},end:{dateTime:dateStr+'T'+day.pme+':00',timeZone:'Asia/Taipei'},colorId:'5'})});
+  }
+}
+
+// ============================================================
+// 月曆同步狀態提示（toast）— 靜默失敗會讓管理者以為已同步，實際上沒有，這裡改為明確告知
+// ============================================================
+function showGcalToast(msg,isErr){
+  var box=document.getElementById('gcalToast');
+  if(!box){
+    box=document.createElement('div');
+    box.id='gcalToast';
+    box.style.cssText='position:fixed;left:50%;bottom:20px;transform:translateX(-50%);z-index:2000;max-width:90%;padding:10px 16px;border-radius:10px;font-size:12px;box-shadow:0 4px 16px rgba(0,0,0,.15);transition:opacity .3s;';
+    document.body.appendChild(box);
+  }
+  box.textContent=msg;
+  box.style.background=isErr?'#FCEBEB':'#EAF3DE';
+  box.style.color=isErr?'#791F1F':'#27500A';
+  box.style.border='1px solid '+(isErr?'#F09595':'#97C459');
+  box.style.opacity='1';
+  clearTimeout(box._hideTimer);
+  box._hideTimer=setTimeout(function(){box.style.opacity='0';},4000);
+}
+// 安全同步包裝：失敗或未連線時明確提示，而不是靜默略過
+async function syncSingleDayToGCalSafe(pid,d,y,m){
+  await ensureGCalToken();
+  if(!gcalState.accessToken){
+    if(gcalState.refreshToken)showGcalToast('⚠️ 月曆授權已失效，這筆變更未同步，請重新連線 Google 行事曆',true);
+    else showGcalToast('ℹ️ 尚未連線 Google 行事曆，此筆變更未同步到月曆',false);
+    return;
+  }
+  if(!getCalId()){showGcalToast('⚠️ 尚未設定行事曆 ID，此筆變更未同步到月曆',true);return;}
+  try{
+    await syncSingleDayToGCal(pid,d,y,m);
+    showGcalToast('✓ 已同步到月曆',false);
+  }catch(e){
+    showGcalToast('⚠️ 月曆同步失敗：'+e.message,true);
   }
 }
 
