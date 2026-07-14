@@ -706,7 +706,7 @@ var currentUser=null,modalPid,modalD,modalY,modalM;
 var confirmTarget={pid:null,d:null,y:null,m:null};
 
 // ★ 管理者主控密碼雜湊 — 部署前請用 await hashPwd('你的主控密碼') 算出並貼在這裡
-var ADMIN_MASTER_HASH='258c2d6e1ca3f773b1650d646079761d22fa458ad6a05e6a43992af194d495d0';
+var ADMIN_MASTER_HASH='';
 
 // 視圖狀態
 var ovView='week',staffView='week',adminView='week';
@@ -1890,7 +1890,7 @@ function renderAdminStats(){
   var met=0,part=0,none2=0,pendingConfirm=0;
   var k=mkey(vy,vm);
   state.staff.forEach(function(p){
-    var h=monthHrs(p.id,vy,vm);
+    var h=scheduledHrs(p.id,vy,vm);
     if(h>=TARGET)met++;else if(h>0)part++;else none2++;
     var dim=new Date(vy,vm+1,0).getDate(),pd=getPdata(p.id,vy,vm),attn=getAttn(p.id,vy,vm);
     for(var d=1;d<=dim;d++){
@@ -1900,7 +1900,7 @@ function renderAdminStats(){
       if(day.pm&&calcH(day.pms,day.pme)>0&&!at.pmConfirmed&&!at.pmAbsent)pendingConfirm++;
     }
   });
-  document.getElementById('adminStats').innerHTML='<div class="stat"><div class="stat-lbl">總人數</div><div class="stat-val">'+state.staff.length+'</div></div><div class="stat"><div class="stat-lbl">已達標</div><div class="stat-val ok">'+met+'</div></div><div class="stat"><div class="stat-lbl">填報中</div><div class="stat-val warn">'+part+'</div></div><div class="stat"><div class="stat-lbl">待確認班次</div><div class="stat-val '+(pendingConfirm>0?'warn':'ok')+'">'+pendingConfirm+'</div></div>';
+  document.getElementById('adminStats').innerHTML='<div class="stat"><div class="stat-lbl">總人數</div><div class="stat-val">'+state.staff.length+'</div></div><div class="stat"><div class="stat-lbl">已排達標</div><div class="stat-val ok">'+met+'</div></div><div class="stat"><div class="stat-lbl">填報中</div><div class="stat-val warn">'+part+'</div></div><div class="stat"><div class="stat-lbl">待確認班次</div><div class="stat-val '+(pendingConfirm>0?'warn':'ok')+'">'+pendingConfirm+'</div></div>';
 }
 
 function renderAdminOv(){
@@ -1942,11 +1942,13 @@ function buildMonthAdminHtml(y,m){
 function renderAdminPeople(){
   var el=document.getElementById('adminPeople');if(!el)return;var html='';
   state.staff.forEach(function(p,i){
-    var hrs=monthHrs(p.id,vy,vm),pct=Math.min(100,hrs/TARGET*100),sub=isSubmitted(p.id,vy,vm);
-    var fc=hrs>=TARGET?'#1D9E75':hrs>0?'#BA7517':'#999';
-    var badge=sub?'<span class="badge badge-green">已送出</span>':hrs>=TARGET?'<span class="badge badge-teal">達標</span>':hrs>0?'<span class="badge badge-amber">填報中</span>':'<span class="badge badge-gray">未填報</span>';
+    var schedHrs=scheduledHrs(p.id,vy,vm);
+    var confHrs=monthHrs(p.id,vy,vm);
+    var pct=Math.min(100,schedHrs/TARGET*100),sub=isSubmitted(p.id,vy,vm);
+    var fc=schedHrs>=TARGET?'#1D9E75':schedHrs>0?'#BA7517':'#999';
+    var badge=sub?'<span class="badge badge-green">已送出</span>':schedHrs>=TARGET?'<span class="badge badge-teal">已排達標</span>':schedHrs>0?'<span class="badge badge-amber">填報中</span>':'<span class="badge badge-gray">未填報</span>';
     var c=getPersonColor(i);
-    html+='<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #f0f0ee;"><div style="width:32px;height:32px;border-radius:50%;background:'+c[0]+';color:'+c[1]+';display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0;">'+p.name[0]+'</div><div style="flex:1;"><div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;"><span style="font-size:14px;font-weight:700;">'+p.name+'</span>'+badge+'</div><div style="display:flex;align-items:center;gap:8px;"><div class="progress-bar" style="flex:1;"><div class="progress-fill" style="width:'+pct.toFixed(0)+'%;background:'+fc+';"></div></div><span style="font-size:12px;color:var(--muted);">'+hrs.toFixed(1)+'/'+TARGET+'h</span></div></div><button class="btn-blue" style="font-size:12px;padding:4px 10px;" onclick="resetStaffPwd(\''+p.id+'\')">重設密碼</button><button class="btn-red" style="font-size:12px;padding:4px 10px;" onclick="removeStaff(\''+p.id+'\')">移除</button></div>';
+    html+='<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #f0f0ee;"><div style="width:32px;height:32px;border-radius:50%;background:'+c[0]+';color:'+c[1]+';display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0;">'+p.name[0]+'</div><div style="flex:1;"><div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;"><span style="font-size:14px;font-weight:700;">'+p.name+'</span>'+badge+'</div><div style="display:flex;align-items:center;gap:8px;"><div class="progress-bar" style="flex:1;"><div class="progress-fill" style="width:'+pct.toFixed(0)+'%;background:'+fc+';"></div></div><span style="font-size:12px;color:var(--muted);white-space:nowrap;">已排 '+schedHrs.toFixed(1)+'/'+TARGET+'h</span></div><div style="font-size:11px;color:#999;margin-top:2px;">已確認出勤：'+confHrs.toFixed(1)+'h</div></div><button class="btn-blue" style="font-size:12px;padding:4px 10px;" onclick="resetStaffPwd(\''+p.id+'\')">重設密碼</button><button class="btn-red" style="font-size:12px;padding:4px 10px;" onclick="removeStaff(\''+p.id+'\')">移除</button></div>';
   });
   el.innerHTML=html||'<p style="font-size:13px;color:#bbb;">尚無人員</p>';
 }
