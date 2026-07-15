@@ -1695,15 +1695,21 @@ function openSwapModal(){
   });
   if(!opts.length){sel.innerHTML='<option value="">目前無未來排班可換</option>';}
 
-  var timeSelS=document.getElementById('swap_to_s'),timeSelE=document.getElementById('swap_to_e');
-  timeSelS.innerHTML='';timeSelE.innerHTML='';
-  TIMES.forEach(function(t){
-    var o1=document.createElement('option');o1.value=t;o1.textContent=t;timeSelS.appendChild(o1);
-    var o2=document.createElement('option');o2.value=t;o2.textContent=t;timeSelE.appendChild(o2);
-  });
-  timeSelS.value='09:00';timeSelE.value='12:00';
-  document.getElementById('swap_to_date').value='';
-  document.getElementById('swapMsg').innerHTML='';
+var timeSelS=document.getElementById('swap_to_s'),timeSelE=document.getElementById('swap_to_e');
+timeSelS.innerHTML='';timeSelE.innerHTML='';
+TIMES.forEach(function(t){
+  var o1=document.createElement('option');o1.value=t;o1.textContent=t;timeSelS.appendChild(o1);
+  var o2=document.createElement('option');o2.value=t;o2.textContent=t;timeSelE.appendChild(o2);
+});
+var slotSel=document.getElementById('swap_to_slot');
+function applySwapSlotDefaults(){
+  if(slotSel.value==='pm'){timeSelS.value='13:00';timeSelE.value='16:00';}
+  else{timeSelS.value='09:00';timeSelE.value='12:00';}
+}
+slotSel.onchange=applySwapSlotDefaults;
+applySwapSlotDefaults();
+document.getElementById('swap_to_date').value='';
+document.getElementById('swapMsg').innerHTML='';
   document.getElementById('swapOverlay').classList.add('show');
 }
 function closeSwapModal(){document.getElementById('swapOverlay').classList.remove('show');}
