@@ -428,11 +428,10 @@ input:focus,select:focus{box-shadow:0 0 0 2px var(--blue-border);}
 
   <div class="tabs">
     <button class="tab active" onclick="switchTab('overview',this)">每日總覽</button>
-    <button class="tab" onclick="switchTab('confirm',this)">✅ 確認出勤</button>
+    <button class="tab" onclick="switchTab('confirm',this)">✅ 出勤與簽到管理</button>
     <button class="tab" onclick="switchTab('people',this)">人員管理</button>
     <button class="tab" onclick="switchTab('pref',this)">偏好時段</button>
     <button class="tab" onclick="switchTab('gcal',this)">行事曆</button>
-    <button class="tab" onclick="switchTab('checkin',this)">📍 簽到管理</button>
   </div>
 
   <div id="tab-overview" class="tsec active">
@@ -446,6 +445,23 @@ input:focus,select:focus{box-shadow:0 0 0 2px var(--blue-border);}
   </div>
 
   <div id="tab-confirm" class="tsec">
+    <div class="card" style="padding:.75rem 1rem;">
+      <div style="font-size:15px;font-weight:700;margin-bottom:4px;">📍 簽到碼管理</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:16px;">每日產生一組6位簽到碼，人員可用此碼自行報到，或管理者手動確認。同步月曆時，簽到碼會寫入當日事件的備註欄，管理者用手機月曆點開就能看到，不用另外開系統。</div>
+
+      <div class="checkin-card">
+        <div style="font-size:13px;font-weight:700;color:var(--muted);margin-bottom:4px;">今日簽到碼</div>
+        <div class="checkin-code" id="bigCheckinCode">——</div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:12px;" id="checkinCodeDate"></div>
+        <div style="display:flex;gap:8px;justify-content:center;">
+          <button class="btn-blue" onclick="refreshCheckinCode()">🔄 換新碼</button>
+          <button class="btn-green" onclick="copyCheckinCode()">📋 複製碼</button>
+        </div>
+      </div>
+
+      <div style="font-size:13px;font-weight:700;margin-bottom:8px;">今日簽到紀錄</div>
+      <div id="checkinRecords"></div>
+    </div>
     <div class="card" style="padding:.75rem 1rem;">
       <div style="font-size:13px;font-weight:700;margin-bottom:4px;">確認出勤狀態</div>
       <div style="font-size:12px;color:var(--muted);margin-bottom:12px;">管理者可分別確認上午／下午出勤，已確認的狀態仍可再次修正。亦可直接在週視圖上修改或刪除排班。<br><span style="background:#D1FAE5;color:#065f46;padding:1px 5px;border-radius:3px;font-size:11px;">✓ 已確認</span> 才會列入簽到表，並同步寫入 Airtable 出勤確認表。</div>
@@ -538,27 +554,6 @@ input:focus,select:focus{box-shadow:0 0 0 2px var(--blue-border);}
         <button class="btn-teal" style="width:100%;padding:11px;font-size:14px;" onclick="syncToGCal()">📤 同步本月班表到 Google 行事曆</button>
         <div id="gcalSyncStatus" style="margin-top:8px;"></div>
       </div>
-    </div>
-  </div>
-
-  <!-- 簽到管理 tab -->
-  <div id="tab-checkin" class="tsec">
-    <div class="card" style="padding:.75rem 1rem;">
-      <div style="font-size:15px;font-weight:700;margin-bottom:4px;">📍 簽到碼管理</div>
-      <div style="font-size:12px;color:var(--muted);margin-bottom:16px;">每日產生一組6位簽到碼，人員可用此碼自行報到，或管理者手動確認。同步月曆時，簽到碼會寫入當日事件的備註欄，管理者用手機月曆點開就能看到，不用另外開系統。</div>
-
-      <div class="checkin-card">
-        <div style="font-size:13px;font-weight:700;color:var(--muted);margin-bottom:4px;">今日簽到碼</div>
-        <div class="checkin-code" id="bigCheckinCode">——</div>
-        <div style="font-size:12px;color:var(--muted);margin-bottom:12px;" id="checkinCodeDate"></div>
-        <div style="display:flex;gap:8px;justify-content:center;">
-          <button class="btn-blue" onclick="refreshCheckinCode()">🔄 換新碼</button>
-          <button class="btn-green" onclick="copyCheckinCode()">📋 複製碼</button>
-        </div>
-      </div>
-
-      <div style="font-size:13px;font-weight:700;margin-bottom:8px;">今日簽到紀錄</div>
-      <div id="checkinRecords"></div>
     </div>
   </div>
 
@@ -1233,6 +1228,53 @@ function getChangeLogFor(pid,y,m,d){
   return state.changeLog.filter(function(e){return e.pid===pid&&e.dateStr===dateStr;}).sort(function(a,b){return a.changedAt<b.changedAt?-1:1;});
 }
 
+// 讓 Airtable 同步失敗不再是靜默的 console.error——跳個小提示，讓管理者知道這筆沒寫進去
+function showATSyncToast(msg,isErr){
+  var box=document.getElementById('atSyncToast');
+  if(!box){
+    box=document.createElement('div');
+    box.id='atSyncToast';
+    box.style.cssText='position:fixed;left:50%;bottom:64px;transform:translateX(-50%);z-index:2000;max-width:90%;padding:9px 15px;border-radius:10px;font-size:12px;box-shadow:0 4px 16px rgba(0,0,0,.15);transition:opacity .3s;';
+    document.body.appendChild(box);
+  }
+  box.textContent=msg;
+  box.style.background=isErr?'#FCEBEB':'#EAF3DE';
+  box.style.color=isErr?'#791F1F':'#27500A';
+  box.style.border='1px solid '+(isErr?'#F09595':'#97C459');
+  box.style.opacity='1';
+  clearTimeout(box._hideTimer);
+  box._hideTimer=setTimeout(function(){box.style.opacity='0';},4000);
+}
+
+// 每日班表：把單一人員單一天的排班即時同步到 Airtable（不管是人員自己排、還是管理者在「每日總覽」直接編輯，都會即時寫入）
+async function pushDailyScheduleToAT(pid,y,m,d){
+  var p=state.staff.find(function(x){return x.id===pid;});if(!p)return;
+  var day=((state.schedule[mkey(y,m)]||{})[pid]||{})[d];
+  var monthLabel=y+'年'+(m+1)+'月';
+  var dateStr=y+'-'+pad(m+1)+'-'+pad(d);
+  var key=p.name+'_'+monthLabel+'_'+pad(d);
+  try{
+    if(!day||(!day.am&&!day.pm)){
+      // 這天已經沒有排班了，把 Airtable 對應紀錄刪掉，避免留下過期資料
+      var ex=await atGetAll(AT.dailyTable,'FIND("'+key+'",{唯一鍵})=1');
+      for(var i=0;i<ex.length;i++){
+        await fetch('https://api.airtable.com/v0/'+AT.base+'/'+encodeURIComponent(AT.dailyTable)+'/'+ex[i].id,{method:'DELETE',headers:{Authorization:'Bearer '+AT.token}});
+      }
+      return;
+    }
+    var dh=(day.am?calcH(day.ams,day.ame):0)+(day.pm?calcH(day.pms,day.pme):0);
+    await upsertHrsRecord({
+      '姓名':p.name,'月份':monthLabel,'日期':dateStr,
+      '上午開始':day.am?day.ams:'','上午結束':day.am?day.ame:'',
+      '下午開始':day.pm?day.pms:'','下午結束':day.pm?day.pme:'',
+      '當日工時':parseFloat(dh.toFixed(2))
+    },key,AT.dailyTable);
+  }catch(e){
+    console.error('每日班表同步失敗:',e);
+    showATSyncToast('⚠️ 排班同步到 Airtable 失敗：'+e.message,true);
+  }
+}
+
 // 出勤確認表：寫回單一人員單一天的確認狀態（是否補班／原因直接讀該天排班本身的標記，不再需要獨立補班表）
 async function pushAttendanceToAT(pid,d,y,m){
   var p=state.staff.find(function(x){return x.id===pid;});if(!p)return;
@@ -1248,7 +1290,7 @@ async function pushAttendanceToAT(pid,d,y,m){
       '實際上午簽到':at.actualAms||'','實際上午簽退':at.actualAme||'',
       '實際下午簽到':at.actualPms||'','實際下午簽退':at.actualPme||''
     },key,AT.attnTable);
-  }catch(e){console.error('出勤確認同步失敗:',e);}
+  }catch(e){console.error('出勤確認同步失敗:',e);showATSyncToast('⚠️ 出勤確認同步到 Airtable 失敗：'+e.message,true);}
 }
 
 // ============================================================
@@ -1730,6 +1772,8 @@ async function doShiftSwap(){
   msgEl.innerHTML='<div class="at-status loading">處理中…</div>';
 
   var fromK=mkey(from.y,from.m);
+  var fromAt=((state.attendance[fromK]||{})[pid]||{})[from.d]||{};
+  var fromWasConfirmed=from.slot==='am'?!!fromAt.amConfirmed:!!fromAt.pmConfirmed;
   var fromBeforeDay=(state.schedule[fromK]&&state.schedule[fromK][pid]&&state.schedule[fromK][pid][from.d])?JSON.parse(JSON.stringify(state.schedule[fromK][pid][from.d])):null;
   if(state.schedule[fromK]&&state.schedule[fromK][pid]&&state.schedule[fromK][pid][from.d]){
     state.schedule[fromK][pid][from.d][from.slot]=false;
@@ -1752,7 +1796,9 @@ async function doShiftSwap(){
   saveLocal();
   logScheduleChange(pid,from.y,from.m,from.d,fromBeforeDay,fromAfterDay,'換班（取消原班）');
   logScheduleChange(pid,ty,tm,td,toBeforeDay,newDay,'換班（新增班次）');
-  pushAttendanceToAT(pid,from.d,from.y,from.m);
+  pushDailyScheduleToAT(pid,from.y,from.m,from.d);
+  pushDailyScheduleToAT(pid,ty,tm,td);
+  if(!fromWasConfirmed)pushAttendanceToAT(pid,from.d,from.y,from.m); // 已確認過的不覆寫，保留出勤確認表歷史紀錄
 
   await ensureGCalToken();
   var gcalNote='';
@@ -2020,6 +2066,7 @@ function mToggle(slot){
   if(delBtn&&currentUser&&currentUser.role==='admin')delBtn.style.display=(day.am||day.pm)?'':'none';
   saveLocal();
   logScheduleChange(modalPid,modalY,modalM,modalD,beforeDay,day,'排班修改');
+  pushDailyScheduleToAT(modalPid,modalY,modalM,modalD);
   syncSingleDayToGCalSafe(modalPid,modalD,modalY,modalM);
   if(resetConfirmIfNeeded(slot)){openDayModalInner();showTimeChangedHint();}
 }
@@ -2034,14 +2081,19 @@ function mTime(slot,se,val){
   refreshModalGap();
   saveLocal();
   logScheduleChange(modalPid,modalY,modalM,modalD,beforeDay,day,'排班修改');
+  pushDailyScheduleToAT(modalPid,modalY,modalM,modalD);
   syncSingleDayToGCalSafe(modalPid,modalD,modalY,modalM);
   if(resetConfirmIfNeeded(slot)){openDayModalInner();showTimeChangedHint();}
 }
 function refreshModalGap(){var amGap=gapLabel(modalD,'am',modalY,modalM),pmGap=gapLabel(modalD,'pm',modalY,modalM);var html='';if(amGap)html+='<div class="modal-gap-pill gap-pill '+amGap.cls+'">上午 '+amGap.text+'</div>';if(pmGap)html+='<div class="modal-gap-pill gap-pill '+pmGap.cls+'">下午 '+pmGap.text+'</div>';var gr=document.getElementById('modalGapRow');gr.innerHTML=html;gr.style.display=html?'flex':'none';}
 
 function deleteCurrentDaySchedule(){
-  if(!confirm('確認刪除 '+(modalM+1)+'/'+modalD+' 的排班？'))return;
   var k=mkey(modalY,modalM);
+  var at=((state.attendance[k]||{})[modalPid]||{})[modalD]||{};
+  var wasConfirmed=!!(at.amConfirmed||at.pmConfirmed);
+  var confirmMsg='確認刪除 '+(modalM+1)+'/'+modalD+' 的排班？';
+  if(wasConfirmed)confirmMsg+='\n\n⚠️ 此班次已有確認出勤紀錄，刪除排班不會移除 Airtable 出勤確認表中既有的歷史紀錄（避免覆寫掉已核實的資料）。';
+  if(!confirm(confirmMsg))return;
   var beforeDay=((state.schedule[k]||{})[modalPid]||{})[modalD]?JSON.parse(JSON.stringify(state.schedule[k][modalPid][modalD])):null;
   if(state.schedule[k]&&state.schedule[k][modalPid]){
     delete state.schedule[k][modalPid][modalD];
@@ -2051,7 +2103,10 @@ function deleteCurrentDaySchedule(){
   }
   saveLocal();
   logScheduleChange(modalPid,modalY,modalM,modalD,beforeDay,null,'刪除排班');
-  pushAttendanceToAT(modalPid,modalD,modalY,modalM);
+  pushDailyScheduleToAT(modalPid,modalY,modalM,modalD); // 排班沒了，每日班表對應紀錄要刪除
+  if(!wasConfirmed){
+    pushAttendanceToAT(modalPid,modalD,modalY,modalM); // 沒確認過，安全清空出勤確認表對應紀錄
+  } // 已確認過的，保留 Airtable 出勤確認表既有紀錄，不覆寫
   syncSingleDayToGCalSafe(modalPid,modalD,modalY,modalM);
   closeModal();
 }
