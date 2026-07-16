@@ -411,6 +411,15 @@ input:focus,select:focus{box-shadow:0 0 0 2px var(--blue-border);}
     <button style="font-size:11px;margin-top:6px;" onclick="document.getElementById('reminderAdviceBanner').style.display='none'">知道了，不再顯示</button>
   </div>
 
+  <!-- 本月異動摘要 -->
+  <div id="monthChangeBanner" class="card" style="padding:.75rem 1rem;background:var(--blue-bg);border-color:var(--blue-border);display:none;cursor:pointer;" onclick="toggleMonthChangeDetail()">
+    <div style="display:flex;align-items:center;justify-content:space-between;">
+      <div style="font-size:13px;color:var(--blue-text);font-weight:600;" id="monthChangeSummaryText"></div>
+      <span style="font-size:11px;color:var(--blue-text);" id="monthChangeToggleLabel">點開查看 ▾</span>
+    </div>
+    <div id="monthChangeDetail" style="display:none;margin-top:8px;"></div>
+  </div>
+
   <div class="stat-grid" id="adminStats"></div>
 
   <!-- 簽到碼顯示 -->
@@ -2026,7 +2035,66 @@ function refreshAdminAllViews(){
   renderAdminStats();
   renderAdminPeople();
   renderConfirm();
+  renderMonthlyChangeSummary();
 }
+
+// 本月異動摘要：只要目前檢視的月份有任何送出後的修改紀錄，就在畫面最上方顯示
+function renderChangeSummaryFromEntries(entries,monthLabel,syncing){
+  var banner=document.getElementById('monthChangeBanner');if(!banner)return;
+  if(!entries.length){
+    if(syncing){banner.style.display='none';} // 本機沒有就先不顯示，等 Airtable 版本回來再決定
+    return;
+  }
+  banner.style.display='block';
+  document.getElementById('monthChangeSummaryText').textContent='🔄 '+monthLabel+' 有 '+entries.length+' 筆排班異動（送出後修改）'+(syncing?'　（同步中…）':'');
+  var detail=document.getElementById('monthChangeDetail');
+  var html='';
+  entries.forEach(function(e){
+    var t=new Date(e.changedAt);
+    var tLabel=isNaN(t.getTime())?e.changedAt:((t.getMonth()+1)+'/'+t.getDate()+' '+pad(t.getHours())+':'+pad(t.getMinutes()));
+    html+='<div style="font-size:11px;color:#0C447C;padding:5px 0;border-bottom:1px solid #cfe0f5;">';
+    html+='<span style="font-weight:700;">'+tLabel+'</span>　'+e.name+'　'+e.dateStr+'　'+e.changeType+'（'+(e.changedBy||'—')+'）<br>';
+    html+='<span style="color:#5a86ab;">修改前：</span>'+e.before+'　→　<span style="color:#5a86ab;">修改後：</span>'+e.after;
+    html+='</div>';
+  });
+  detail.innerHTML=html;
+}
+async function renderMonthlyChangeSummary(){
+  var banner=document.getElementById('monthChangeBanner');if(!banner)return;
+  var targetY=vy,targetM=vm;
+  var monthLabel=targetY+'年'+(targetM+1)+'月';
+
+  // 先用本機資料立即顯示，不用等網路
+  var localEntries=state.changeLog.filter(function(e){return e.y===targetY&&e.m===targetM;}).sort(function(a,b){return a.changedAt<b.changedAt?1:-1;});
+  renderChangeSummaryFromEntries(localEntries,monthLabel,true);
+
+  // 再從 Airtable 撈取，取得跨裝置的完整清單（其他人在別台裝置做的異動也看得到）
+  try{
+    var dim=new Date(targetY,targetM+1,0).getDate();
+    var start=targetY+'-'+pad(targetM+1)+'-01';
+    var end=targetY+'-'+pad(targetM+1)+'-'+pad(dim);
+    var formula='AND(IS_AFTER({日期},"'+addOneDay(start)+'"),IS_BEFORE({日期},"'+subOneDay(end)+'"))';
+    var recs=await atGetAll(AT.changeLogTable,formula);
+    if(targetY!==vy||targetM!==vm)return; // 使用者已經切到別的月份，這次結果就不要顯示了
+    var entries=recs.map(function(r){
+      var f=r.fields;
+      return{name:f['姓名']||'',dateStr:f['日期']||'',changeType:f['異動類型']||'',before:f['異動前']||'',after:f['異動後']||'',changedAt:f['異動時間']||'',changedBy:f['操作者']||''};
+    });
+    entries.sort(function(a,b){return a.changedAt<b.changedAt?1:-1;});
+    renderChangeSummaryFromEntries(entries,monthLabel,false);
+  }catch(e){
+    console.error('讀取異動紀錄失敗:',e);
+    // 讀取失敗就維持顯示本機資料，不要把畫面清空
+  }
+}
+function toggleMonthChangeDetail(){
+  var detail=document.getElementById('monthChangeDetail');
+  var label=document.getElementById('monthChangeToggleLabel');
+  var showing=detail.style.display!=='none';
+  detail.style.display=showing?'none':'block';
+  label.textContent=showing?'點開查看 ▾':'收合 ▴';
+}
+
 function closeModal(){
   document.getElementById('dayOverlay').classList.remove('show');
   if(currentUser&&currentUser.role==='staff'){renderStaff();saveLocal();}
@@ -2169,7 +2237,7 @@ function staffSelfSign(slot){
 // ============================================================
 // Admin render
 // ============================================================
-function renderAdmin(){document.getElementById('adminMonLbl').textContent=vy+'年 '+MONTHS[vm];checkMonthlyReminder();renderAdminStats();renderAdminOv();renderAdminPeople();renderWeekTemplate();renderPrefGrid();renderConfirm();renderCheckinCodeDisplay();renderCheckinTab();loadAutoSyncUI();}
+function renderAdmin(){document.getElementById('adminMonLbl').textContent=vy+'年 '+MONTHS[vm];checkMonthlyReminder();renderAdminStats();renderAdminOv();renderAdminPeople();renderWeekTemplate();renderPrefGrid();renderConfirm();renderCheckinCodeDisplay();renderCheckinTab();loadAutoSyncUI();renderMonthlyChangeSummary();}
 function switchTab(id,el){document.querySelectorAll('.tsec').forEach(function(s){s.classList.remove('active');});document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('active');});document.getElementById('tab-'+id).classList.add('active');el.classList.add('active');}
 
 function renderAdminStats(){
@@ -2551,18 +2619,23 @@ function gcalAuth(){
       state:'gcal_auth'
     });
     var popup=window.open('https://accounts.google.com/o/oauth2/v2/auth?'+params.toString(),'gcal_auth','width=500,height=600');
-    var interval=setInterval(function(){
-      try{
-        if(!popup||popup.closed){clearInterval(interval);return;}
-        var href=popup.location.href;
-        if(href.indexOf('code=')>=0){
-          clearInterval(interval);
-          var url=new URL(href);
-          var code=url.searchParams.get('code');
-          popup.close();
-          exchangeCodeForToken(code,clientId);
-        }
-      }catch(e){}
+    var handled=false;
+    function onMessage(e){
+      if(e.origin!==window.location.origin)return;
+      if(!e.data||e.data.type!=='gcal_oauth_code')return;
+      if(handled)return;
+      handled=true;
+      window.removeEventListener('message',onMessage);
+      clearInterval(closedCheck);
+      exchangeCodeForToken(e.data.code,clientId);
+    }
+    window.addEventListener('message',onMessage);
+    // 如果使用者自己把彈窗關掉（沒有完成授權），清掉監聽，避免留著沒用的 listener
+    var closedCheck=setInterval(function(){
+      if(!popup||popup.closed){
+        clearInterval(closedCheck);
+        if(!handled)window.removeEventListener('message',onMessage);
+      }
     },500);
   });
 }
@@ -2733,11 +2806,22 @@ async function syncSingleDayToGCalSafe(pid,d,y,m){
   }
 }
 
-// 頁面載入時，若網址帶有 OAuth code（PKCE 回跳非彈窗情境）也一併處理
+// 頁面載入時處理 OAuth 回跳：
+// - 如果這是彈出視窗（有 window.opener），代表這是授權彈窗被導回來，直接把授權碼回傳給主視窗、自己關閉，
+//   絕不在彈窗裡渲染完整系統畫面（避免使用者看到「又跳回排班系統頁面」的錯覺）
+// - 如果不是彈出視窗（例如没有用 popup、直接整頁導回），才在原頁面直接處理 exchange
+var SKIP_MAIN_INIT=false;
 (function handleRedirectCode(){
   var url=new URL(window.location.href);
   var code=url.searchParams.get('code');
   if(code&&url.searchParams.get('state')==='gcal_auth'){
+    if(window.opener){
+      SKIP_MAIN_INIT=true;
+      try{window.opener.postMessage({type:'gcal_oauth_code',code:code},window.location.origin);}catch(e){}
+      document.body.innerHTML='<div style="padding:2rem;text-align:center;font-family:sans-serif;color:#666;">授權完成，視窗即將自動關閉…</div>';
+      setTimeout(function(){window.close();},300);
+      return;
+    }
     var clientId=localStorage.getItem('gcal_client_id');
     gcalState.codeVerifier=localStorage.getItem('gcal_pkce_verifier');
     if(clientId)exchangeCodeForToken(code,clientId);
@@ -2745,7 +2829,7 @@ async function syncSingleDayToGCalSafe(pid,d,y,m){
   }
 })();
 
-init();
+if(!SKIP_MAIN_INIT)init();
 </script>
 </body>
 </html>
