@@ -428,7 +428,7 @@ input:focus,select:focus{box-shadow:0 0 0 2px var(--blue-border);}
   <div class="tabs">
     <button class="tab active" onclick="switchTab('overview',this)">每日總覽</button>
     <button class="tab" onclick="switchTab('people',this)">人員管理</button>
-    <button class="tab" onclick="switchTab('confirm',this)">✅ 出勤與簽到管理</button>
+    <button class="tab" onclick="switchTab('confirm',this)">出勤與簽到管理</button>
     <button class="tab" onclick="switchTab('pref',this)">偏好時段</button>
     <button class="tab" onclick="switchTab('gcal',this)">行事曆</button>
   </div>
@@ -1999,18 +1999,8 @@ function openDayModalInner(){
     else if(isTodayPm)html+='<button class="btn-teal" id="self_sign_pm" onclick="staffSelfSign(\'pm\')" style="width:100%;margin-top:8px;">📍 今日自行簽到（下午）</button>';
   }
   html+='</div></div>';
-  // 管理者附加「分開確認出勤」快捷按鈕，且可反覆修正
-  if(isAdmin){
-    html+='<div style="display:flex;gap:6px;margin-top:.5rem;flex-wrap:wrap;">';
-    if(day.am){
-      html+='<button class="btn-teal" style="flex:1;font-size:11px;padding:7px 4px;min-width:60px;" onclick="quickConfirm(\'am\')">✓上午</button>';
-      html+='<button class="btn-red" style="flex:1;font-size:11px;padding:7px 4px;min-width:60px;" onclick="quickAbsent(\'am\')">✗上午</button>';
-    }
-    if(day.pm){
-      html+='<button class="btn-teal" style="flex:1;font-size:11px;padding:7px 4px;min-width:60px;" onclick="quickConfirm(\'pm\')">✓下午</button>';
-      html+='<button class="btn-red" style="flex:1;font-size:11px;padding:7px 4px;min-width:60px;" onclick="quickAbsent(\'pm\')">✗下午</button>';
-    }
-    html+='</div>';
+  if(isAdmin&&(day.am||day.pm)){
+    html+='<div style="font-size:11px;color:var(--muted);background:#f7f7f5;border-radius:8px;padding:6px 10px;margin-top:.5rem;">💡 確認出勤請至「出勤與簽到管理」分頁處理</div>';
   }
   if(isAdmin){
     var logEntries=getChangeLogFor(pid,y,m,d);
