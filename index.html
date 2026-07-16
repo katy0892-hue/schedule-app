@@ -634,21 +634,26 @@ input:focus,select:focus{box-shadow:0 0 0 2px var(--blue-border);}
       <div class="modal-title">🔄 換班</div>
       <button onclick="closeSwapModal()" style="font-size:18px;padding:2px 8px;line-height:1;">✕</button>
     </div>
-    <div style="font-size:12px;color:var(--muted);margin-bottom:10px;">選擇要取消的原班次。原班次會保留在排班表上並用刪除線標示，新排的班次會標註「(新)」，方便雙方都看得出異動紀錄。</div>
-    <div class="field-row"><label>原本的班（將取消）</label>
-      <select id="swap_from" style="width:100%;"></select>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:10px;">原班次會保留在排班表上並用刪除線標示，新排的班次會標註「(新)」，方便雙方都看得出異動紀錄。</div>
+    <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;">
+      <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;flex:1;min-width:90px;background:#f7f7f5;border-radius:8px;padding:8px 6px;">
+        <input type="radio" name="swap_action" value="cancel" checked onchange="toggleSwapAction()"> 僅取消
+      </label>
+      <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;flex:1;min-width:90px;background:#f7f7f5;border-radius:8px;padding:8px 6px;">
+        <input type="radio" name="swap_action" value="swap" onchange="toggleSwapAction()"> 換到其他天/時段
+      </label>
+      <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;flex:1;min-width:90px;background:#f7f7f5;border-radius:8px;padding:8px 6px;">
+        <input type="radio" name="swap_action" value="add" onchange="toggleSwapAction()"> 新增班表
+      </label>
     </div>
-    <div style="height:1px;background:var(--border);margin:12px 0;"></div>
-    <div style="display:flex;gap:8px;margin-bottom:12px;">
-      <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;flex:1;background:#f7f7f5;border-radius:8px;padding:8px 10px;">
-        <input type="radio" name="swap_action" value="cancel" checked onchange="toggleSwapAction()"> 僅取消，不補新班次
-      </label>
-      <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;flex:1;background:#f7f7f5;border-radius:8px;padding:8px 10px;">
-        <input type="radio" name="swap_action" value="swap" onchange="toggleSwapAction()"> 換到其他天／時段
-      </label>
+    <div id="swapFromField">
+      <div class="field-row"><label>原本的班（將取消）</label>
+        <select id="swap_from" style="width:100%;"></select>
+      </div>
+      <div style="height:1px;background:var(--border);margin:12px 0;"></div>
     </div>
     <div id="swapToFields" style="display:none;">
-      <div class="field-row"><label>換成這天（將新增）</label><input type="date" id="swap_to_date" style="width:100%;"></div>
+      <div class="field-row"><label id="swapToDateLabel">換成這天（將新增）</label><input type="date" id="swap_to_date" style="width:100%;"></div>
       <div class="field-row"><label>時段</label>
         <select id="swap_to_slot" style="width:100%;"><option value="am">上午</option><option value="pm">下午</option></select>
       </div>
@@ -657,7 +662,7 @@ input:focus,select:focus{box-shadow:0 0 0 2px var(--blue-border);}
       </div>
     </div>
     <div id="swapMsg" style="margin-top:8px;"></div>
-    <button class="btn-teal" style="width:100%;padding:11px;font-size:14px;margin-top:.75rem;" onclick="doShiftSwap()">確認換班</button>
+    <button class="btn-teal" style="width:100%;padding:11px;font-size:14px;margin-top:.75rem;" onclick="doShiftSwap()">確認</button>
   </div>
 </div>
 
@@ -1215,7 +1220,6 @@ function logScheduleChange(pid,y,m,d,beforeDay,afterDay,changeType){
     changedBy:currentUser?(currentUser.role==='admin'?'管理者':currentUser.name):''
   };
   state.changeLog.push(entry);
-  state.submitted[pid+'-'+mkey(y,m)]=false; // 有修正就強制打回未送出，逼著要重新送出
   saveLocal();
   pushChangeLogToAT(entry);
 }
@@ -1696,8 +1700,8 @@ function renderStaff(){
   var submitted=isSubmitted(p.id,y,m);
   var banner=document.getElementById('submitBanner'),btn=document.getElementById('submitBtn');
   banner.style.display='flex';
-  if(submitted){banner.style.background='#f7f7f5';btn.textContent='重新送出';document.getElementById('submitBannerTitle').textContent='本月排班已送出';document.getElementById('submitBannerSub').textContent='可隨時修改後重新送出';}
-  else{banner.style.background='var(--green-bg)';btn.textContent='送出本月排班';document.getElementById('submitBannerTitle').textContent='排班填寫完成了嗎？';document.getElementById('submitBannerSub').textContent='送出後資料將同步到 Airtable';}
+  if(submitted){banner.style.background='#f7f7f5';btn.style.display='none';document.getElementById('submitBannerTitle').textContent='✓ 本月排班已送出';document.getElementById('submitBannerSub').textContent='如需異動，請使用「🔄 換班」功能（不會重複送出整月排班）';}
+  else{banner.style.background='var(--green-bg)';btn.style.display='';btn.textContent='送出本月排班';btn.disabled=false;document.getElementById('submitBannerTitle').textContent='排班填寫完成了嗎？';document.getElementById('submitBannerSub').textContent='送出後資料將同步到 Airtable';}
 
   var weekNavEl=document.getElementById('staffWeekNav');
   if(staffView==='week'){
@@ -1800,56 +1804,64 @@ function openSwapModal(){
 }
 function toggleSwapAction(){
   var mode=document.querySelector('input[name="swap_action"]:checked').value;
-  document.getElementById('swapToFields').style.display=mode==='swap'?'block':'none';
+  document.getElementById('swapToFields').style.display=(mode==='swap'||mode==='add')?'block':'none';
+  document.getElementById('swapFromField').style.display=mode==='add'?'none':'block';
+  document.getElementById('swapToDateLabel').textContent=mode==='add'?'新增這天':'換成這天（將新增）';
 }
 function closeSwapModal(){document.getElementById('swapOverlay').classList.remove('show');}
 function swapOverlayBg(e){if(e.target===document.getElementById('swapOverlay'))closeSwapModal();}
 
 async function doShiftSwap(){
   var pid=currentUser.pid;
-  var fromVal=document.getElementById('swap_from').value;
   var mode=document.querySelector('input[name="swap_action"]:checked').value;
   var msgEl=document.getElementById('swapMsg');
-  if(!fromVal){msgEl.innerHTML='<div class="at-status err">請選擇原班次</div>';return;}
-  var from=JSON.parse(fromVal);
+
+  var from=null;
+  if(mode!=='add'){
+    var fromVal=document.getElementById('swap_from').value;
+    if(!fromVal){msgEl.innerHTML='<div class="at-status err">請選擇原班次</div>';return;}
+    from=JSON.parse(fromVal);
+  }
 
   var toDate,toSlot,toS,toE,ty,tm,td;
-  if(mode==='swap'){
+  if(mode==='swap'||mode==='add'){
     toDate=document.getElementById('swap_to_date').value;
     toSlot=document.getElementById('swap_to_slot').value;
     toS=document.getElementById('swap_to_s').value;toE=document.getElementById('swap_to_e').value;
-    if(!toDate){msgEl.innerHTML='<div class="at-status err">請選擇換過去的新日期</div>';return;}
+    if(!toDate){msgEl.innerHTML='<div class="at-status err">請選擇日期</div>';return;}
     if(t2n(toS)>=t2n(toE)){msgEl.innerHTML='<div class="at-status err">時間設定不正確</div>';return;}
     var toD=new Date(toDate);ty=toD.getFullYear();tm=toD.getMonth();td=toD.getDate();
   }
 
   msgEl.innerHTML='<div class="at-status loading">處理中…</div>';
 
-  var fromK=mkey(from.y,from.m);
-  var fromAt=((state.attendance[fromK]||{})[pid]||{})[from.d]||{};
-  var fromWasConfirmed=from.slot==='am'?!!fromAt.amConfirmed:!!fromAt.pmConfirmed;
-  var fromBeforeDay=(state.schedule[fromK]&&state.schedule[fromK][pid]&&state.schedule[fromK][pid][from.d])?JSON.parse(JSON.stringify(state.schedule[fromK][pid][from.d])):null;
+  if(mode==='cancel'||mode==='swap'){
+    var fromK=mkey(from.y,from.m);
+    var fromAt=((state.attendance[fromK]||{})[pid]||{})[from.d]||{};
+    var fromWasConfirmed=from.slot==='am'?!!fromAt.amConfirmed:!!fromAt.pmConfirmed;
+    var fromBeforeDay=(state.schedule[fromK]&&state.schedule[fromK][pid]&&state.schedule[fromK][pid][from.d])?JSON.parse(JSON.stringify(state.schedule[fromK][pid][from.d])):null;
 
-  // 取消原班次：保留刪除線紀錄（amCancelled/pmCancelled + 原時間文字），不是直接消失
-  if(state.schedule[fromK]&&state.schedule[fromK][pid]&&state.schedule[fromK][pid][from.d]){
-    var fromDay=state.schedule[fromK][pid][from.d];
-    var origLabel=from.slot==='am'?(fromDay.ams+'–'+fromDay.ame):(fromDay.pms+'–'+fromDay.pme);
-    fromDay[from.slot]=false;
-    fromDay[from.slot+'Cancelled']=true;
-    fromDay[from.slot+'CancelledLabel']=origLabel;
+    // 取消原班次：保留刪除線紀錄（amCancelled/pmCancelled + 原時間文字），不是直接消失
+    if(state.schedule[fromK]&&state.schedule[fromK][pid]&&state.schedule[fromK][pid][from.d]){
+      var fromDay=state.schedule[fromK][pid][from.d];
+      var origLabel=from.slot==='am'?(fromDay.ams+'–'+fromDay.ame):(fromDay.pms+'–'+fromDay.pme);
+      fromDay[from.slot]=false;
+      fromDay[from.slot+'Cancelled']=true;
+      fromDay[from.slot+'CancelledLabel']=origLabel;
+    }
+    if(state.attendance[fromK]&&state.attendance[fromK][pid]&&state.attendance[fromK][pid][from.d]){
+      delete state.attendance[fromK][pid][from.d][from.slot+'Confirmed'];
+      delete state.attendance[fromK][pid][from.d][from.slot+'Absent'];
+    }
+    var fromAfterDay=(state.schedule[fromK]&&state.schedule[fromK][pid])?state.schedule[fromK][pid][from.d]:null;
+
+    saveLocal();
+    logScheduleChange(pid,from.y,from.m,from.d,fromBeforeDay,fromAfterDay,mode==='swap'?'換班（取消原班）':'換班（僅取消）');
+    pushDailyScheduleToAT(pid,from.y,from.m,from.d);
+    if(!fromWasConfirmed)pushAttendanceToAT(pid,from.d,from.y,from.m); // 已確認過的不覆寫，保留出勤確認表歷史紀錄
   }
-  if(state.attendance[fromK]&&state.attendance[fromK][pid]&&state.attendance[fromK][pid][from.d]){
-    delete state.attendance[fromK][pid][from.d][from.slot+'Confirmed'];
-    delete state.attendance[fromK][pid][from.d][from.slot+'Absent'];
-  }
-  var fromAfterDay=(state.schedule[fromK]&&state.schedule[fromK][pid])?state.schedule[fromK][pid][from.d]:null;
 
-  saveLocal();
-  logScheduleChange(pid,from.y,from.m,from.d,fromBeforeDay,fromAfterDay,mode==='swap'?'換班（取消原班）':'換班（僅取消）');
-  pushDailyScheduleToAT(pid,from.y,from.m,from.d);
-  if(!fromWasConfirmed)pushAttendanceToAT(pid,from.d,from.y,from.m); // 已確認過的不覆寫，保留出勤確認表歷史紀錄
-
-  if(mode==='swap'){
+  if(mode==='swap'||mode==='add'){
     var toK=mkey(ty,tm);
     if(!state.schedule[toK])state.schedule[toK]={};
     if(!state.schedule[toK][pid])state.schedule[toK][pid]={};
@@ -1863,12 +1875,13 @@ async function doShiftSwap(){
     if(toSlot==='am'){newDay.ams=toS;newDay.ame=toE;}else{newDay.pms=toS;newDay.pme=toE;}
 
     saveLocal();
-    logScheduleChange(pid,ty,tm,td,toBeforeDay,newDay,'換班（新增班次）');
+    logScheduleChange(pid,ty,tm,td,toBeforeDay,newDay,mode==='swap'?'換班（新增班次）':'新增班表');
     pushDailyScheduleToAT(pid,ty,tm,td);
-    msgEl.innerHTML='<div class="at-status ok">✓ 換班完成，原班次已標記取消、新班次已標記(新)（月曆將在下次送出本月排班時一併同步）</div>';
-  }else{
-    msgEl.innerHTML='<div class="at-status ok">✓ 已取消該班次，排班表上會保留刪除線紀錄（月曆將在下次送出本月排班時一併同步）</div>';
   }
+
+  if(mode==='swap')msgEl.innerHTML='<div class="at-status ok">✓ 換班完成，原班次已標記取消、新班次已標記(新)（月曆將在下次送出本月排班時一併同步）</div>';
+  else if(mode==='add')msgEl.innerHTML='<div class="at-status ok">✓ 已新增班次並標記(新)（月曆將在下次送出本月排班時一併同步）</div>';
+  else msgEl.innerHTML='<div class="at-status ok">✓ 已取消該班次，排班表上會保留刪除線紀錄（月曆將在下次送出本月排班時一併同步）</div>';
   setTimeout(function(){closeSwapModal();renderStaff();},1200);
 }
 
@@ -2009,7 +2022,7 @@ function openDayModalForAdmin(){
 // ============================================================
 // Day Modal（排班填寫）
 // ============================================================
-function mkSel(id,val,onch){var h='<select id="'+id+'" onchange="'+onch+'" style="flex:1;font-size:13px;padding:8px 6px;">';TIMES.forEach(function(t){h+='<option'+(t===val?' selected':'')+'>'+t+'</option>';});return h+'</select>';}
+function mkSel(id,val,onch,disabled){var h='<select id="'+id+'" onchange="'+onch+'" '+(disabled?'disabled':'')+' style="flex:1;font-size:13px;padding:8px 6px;">';TIMES.forEach(function(t){h+='<option'+(t===val?' selected':'')+'>'+t+'</option>';});return h+'</select>';}
 
 function openDayModal(pid,d,y,m){
   modalPid=pid;modalD=d;modalY=y;modalM=m;
@@ -2027,9 +2040,10 @@ function openDayModalInner(){
   delBtn.style.display=(currentUser&&currentUser.role==='admin'&&(day.am||day.pm))?'':'none';
   refreshModalGap();
   var isAdmin=currentUser&&currentUser.role==='admin';
+  var staffLocked=!isAdmin&&currentUser&&currentUser.role==='staff'&&isSubmitted(pid,y,m);
   var html='<div class="slot-section'+(pr.am?' pref-border':'')+'">';
-  html+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap;"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="checkbox" class="big-checkbox" id="m_am" '+(day.am?'checked':'')+' onchange="mToggle(\'am\')"><span style="font-size:14px;font-weight:700;">上午班</span></label>'+(pr.am?'<span class="pref-tag">偏好</span>':'')+(day.amNew?'<span class="new-tag">新</span>':'')+(at.amConfirmed?'<span class="attn-confirmed">✓ 已確認</span>':at.amAbsent?'<span class="attn-absent">✗ 缺席</span>':'')+(day.amCancelled&&!day.am?'<span style="font-size:11px;color:#999;text-decoration:line-through;">原排 '+day.amCancelledLabel+'（已取消）</span>':'')+'</div>';
-  html+='<div id="m_am_t" style="'+(day.am?'':'opacity:.4;pointer-events:none;')+'"><div class="time-row">'+mkSel('m_ams',day.ams||'09:00','mTime(\'am\',\'s\',this.value)')+'<span style="font-size:14px;color:#bbb;">—</span>'+mkSel('m_ame',day.ame||'12:00','mTime(\'am\',\'e\',this.value)')+'</div>';
+  html+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap;"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="checkbox" class="big-checkbox" id="m_am" '+(day.am?'checked':'')+(staffLocked?' disabled':'')+' onchange="mToggle(\'am\')"><span style="font-size:14px;font-weight:700;">上午班</span></label>'+(pr.am?'<span class="pref-tag">偏好</span>':'')+(day.amNew?'<span class="new-tag">新</span>':'')+(at.amConfirmed?'<span class="attn-confirmed">✓ 已確認</span>':at.amAbsent?'<span class="attn-absent">✗ 缺席</span>':'')+(day.amCancelled&&!day.am?'<span style="font-size:11px;color:#999;text-decoration:line-through;">原排 '+day.amCancelledLabel+'（已取消）</span>':'')+'</div>';
+  html+='<div id="m_am_t" style="'+(day.am?'':'opacity:.4;pointer-events:none;')+'"><div class="time-row">'+mkSel('m_ams',day.ams||'09:00','mTime(\'am\',\'s\',this.value)',staffLocked)+'<span style="font-size:14px;color:#bbb;">—</span>'+mkSel('m_ame',day.ame||'12:00','mTime(\'am\',\'e\',this.value)',staffLocked)+'</div>';
   if(!isAdmin&&currentUser&&currentUser.role==='staff'&&day.am){
     var isToday=(y===today.getFullYear()&&m===today.getMonth()&&d===today.getDate());
     if(at.selfAm)html+='<button class="btn-green" disabled style="width:100%;margin-top:8px;opacity:1;">✓ 已自簽到</button>';
@@ -2037,14 +2051,17 @@ function openDayModalInner(){
   }
   html+='</div></div>';
   html+='<div class="slot-section'+(pr.pm?' pref-border':'')+'">';
-  html+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap;"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="checkbox" class="big-checkbox" id="m_pm" '+(day.pm?'checked':'')+' onchange="mToggle(\'pm\')"><span style="font-size:14px;font-weight:700;">下午班</span></label>'+(pr.pm?'<span class="pref-tag">偏好</span>':'')+(day.pmNew?'<span class="new-tag">新</span>':'')+(at.pmConfirmed?'<span class="attn-confirmed">✓ 已確認</span>':at.pmAbsent?'<span class="attn-absent">✗ 缺席</span>':'')+(day.pmCancelled&&!day.pm?'<span style="font-size:11px;color:#999;text-decoration:line-through;">原排 '+day.pmCancelledLabel+'（已取消）</span>':'')+'</div>';
-  html+='<div id="m_pm_t" style="'+(day.pm?'':'opacity:.4;pointer-events:none;')+'"><div class="time-row">'+mkSel('m_pms',day.pms||'13:00','mTime(\'pm\',\'s\',this.value)')+'<span style="font-size:14px;color:#bbb;">—</span>'+mkSel('m_pme',day.pme||'16:00','mTime(\'pm\',\'e\',this.value)')+'</div>';
+  html+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap;"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="checkbox" class="big-checkbox" id="m_pm" '+(day.pm?'checked':'')+(staffLocked?' disabled':'')+' onchange="mToggle(\'pm\')"><span style="font-size:14px;font-weight:700;">下午班</span></label>'+(pr.pm?'<span class="pref-tag">偏好</span>':'')+(day.pmNew?'<span class="new-tag">新</span>':'')+(at.pmConfirmed?'<span class="attn-confirmed">✓ 已確認</span>':at.pmAbsent?'<span class="attn-absent">✗ 缺席</span>':'')+(day.pmCancelled&&!day.pm?'<span style="font-size:11px;color:#999;text-decoration:line-through;">原排 '+day.pmCancelledLabel+'（已取消）</span>':'')+'</div>';
+  html+='<div id="m_pm_t" style="'+(day.pm?'':'opacity:.4;pointer-events:none;')+'"><div class="time-row">'+mkSel('m_pms',day.pms||'13:00','mTime(\'pm\',\'s\',this.value)',staffLocked)+'<span style="font-size:14px;color:#bbb;">—</span>'+mkSel('m_pme',day.pme||'16:00','mTime(\'pm\',\'e\',this.value)',staffLocked)+'</div>';
   if(!isAdmin&&currentUser&&currentUser.role==='staff'&&day.pm){
     var isTodayPm=(y===today.getFullYear()&&m===today.getMonth()&&d===today.getDate());
     if(at.selfPm)html+='<button class="btn-green" disabled style="width:100%;margin-top:8px;opacity:1;">✓ 已自簽到</button>';
     else if(isTodayPm)html+='<button class="btn-teal" id="self_sign_pm" onclick="staffSelfSign(\'pm\')" style="width:100%;margin-top:8px;">📍 今日自行簽到（下午）</button>';
   }
   html+='</div></div>';
+  if(staffLocked){
+    html+='<div style="font-size:11px;color:var(--amber-text);background:var(--amber-bg);border-radius:8px;padding:8px 10px;margin-top:.5rem;">🔒 本月排班已送出，無法直接修改。如需異動，請使用「🔄 換班」功能（取消／換到其他天／新增班表）。</div>';
+  }
   if(isAdmin&&(day.am||day.pm)){
     html+='<div style="font-size:11px;color:var(--muted);background:#f7f7f5;border-radius:8px;padding:6px 10px;margin-top:.5rem;">💡 確認出勤請至「出勤與簽到管理」分頁處理</div>';
   }
@@ -2166,6 +2183,7 @@ function showTimeChangedHint(){
   box.innerHTML='⚠️ 時間已變更，原本的確認出勤已被重設，請重新至「確認出勤」核對';
 }
 function mToggle(slot){
+  if(currentUser&&currentUser.role==='staff'&&isSubmitted(modalPid,modalY,modalM)){openDayModalInner();return;}
   ensureDay();
   var k=mkey(modalY,modalM);
   var beforeDay=JSON.parse(JSON.stringify(state.schedule[k][modalPid][modalD]));
@@ -2181,6 +2199,7 @@ function mToggle(slot){
   if(resetConfirmIfNeeded(slot)){openDayModalInner();showTimeChangedHint();}
 }
 function mTime(slot,se,val){
+  if(currentUser&&currentUser.role==='staff'&&isSubmitted(modalPid,modalY,modalM)){openDayModalInner();return;}
   ensureDay();
   var k=mkey(modalY,modalM);
   var beforeDay=JSON.parse(JSON.stringify(state.schedule[k][modalPid][modalD]));
@@ -2421,7 +2440,7 @@ async function submitToAirtable(){
     state.submitted[pid+'-'+mkey(y,m)]=true;saveLocal();
     var gcalNote=await syncPersonMonthToGCalSafe(pid,y,m,dim);
     showSubmitStatus('ok','✓ 同步 '+count+' 天，總計 '+totalHrs.toFixed(1)+'h'+gcalNote);
-    btn.textContent='重新送出';btn.disabled=false;renderStaff();
+    btn.disabled=false;renderStaff();
   }catch(err){showSubmitStatus('err','同步失敗：'+err.message);btn.disabled=false;btn.textContent='重試';}
 }
 function showSubmitStatus(type,msg){var cls='at-status '+(type==='ok'?'ok':type==='err'?'err':'loading');document.getElementById('submitStatus').innerHTML='<div class="'+cls+'" style="margin-bottom:.75rem;">'+msg+'</div>';}
