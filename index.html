@@ -597,7 +597,6 @@ input:focus,select:focus{box-shadow:0 0 0 2px var(--blue-border);}
       <button onclick="closeProfileModal()" style="font-size:18px;padding:2px 8px;line-height:1;">✕</button>
     </div>
     <div style="font-size:12px;color:var(--muted);margin-bottom:10px;">這些資料用於列印「外派/出勤簽到表」，同一單位的人員通常大多欄位一致，可直接沿用預設值。</div>
-    <div class="field-row"><label>身分證字號</label><input type="text" id="prof_idNumber" placeholder="A123456789" style="width:100%;"></div>
     <div class="field-row"><label>身分別</label>
       <select id="prof_roleType" style="width:100%;">
         <option value="臨床研究人員">臨床研究人員</option>
@@ -883,7 +882,6 @@ function openProfileModal(pid){
   var p=state.staff.find(function(x){return x.id===pid;});if(!p)return;
   profileTargetPid=pid;
   document.getElementById('profileModalName').textContent=p.name;
-  document.getElementById('prof_idNumber').value=p.idNumber||'';
   document.getElementById('prof_roleType').value=p.roleType||'研究助理';
   document.getElementById('prof_employType').value=p.employType||'兼任';
   document.getElementById('prof_phone').value=p.phone||'';
@@ -901,7 +899,6 @@ function profileOverlayBg(e){if(e.target===document.getElementById('profileOverl
 async function saveProfileModal(){
   if(!profileTargetPid)return;
   var profile={
-    idNumber:document.getElementById('prof_idNumber').value.trim(),
     roleType:document.getElementById('prof_roleType').value,
     employType:document.getElementById('prof_employType').value,
     phone:document.getElementById('prof_phone').value.trim(),
@@ -1152,7 +1149,6 @@ async function loadStaffFromAirtable(){
     var f=r.fields;
     return{
       id:r.id,atId:r.id,name:f['姓名']||'',pwdHash:f['密碼雜湊']||'',idx:i,
-      idNumber:f['身分證字號']||'',
       roleType:f['身分別']||'研究助理',
       employType:f['類別']||'兼任',
       phone:f['聯絡電話']||'',
@@ -1171,7 +1167,7 @@ async function deleteStaffFromAirtable(atId){await fetch('https://api.airtable.c
 async function updateStaffProfile(pid,profile){
   var p=state.staff.find(function(x){return x.id===pid;});if(!p)return;
   var fields={
-    '身分證字號':profile.idNumber,'身分別':profile.roleType,'類別':profile.employType,'聯絡電話':profile.phone,
+    '身分別':profile.roleType,'類別':profile.employType,'聯絡電話':profile.phone,
     '所屬部門':profile.dept,'部門代號':profile.deptCode,'外派單位地點':profile.unit,'工作內容':profile.workContent,
     '執行計畫編號':profile.projectCode,'外派單位負責人':profile.supervisor
   };
@@ -1316,11 +1312,11 @@ async function startDemo(){
     var dp=demoPeople[i];
     var id=demoId();
     var fields={
-      '姓名':dp.name,'密碼雜湊':pwdHash,'身分證字號':'','身分別':dp.roleType,'類別':dp.employType,'聯絡電話':dp.phone,
+      '姓名':dp.name,'密碼雜湊':pwdHash,'身分別':dp.roleType,'類別':dp.employType,'聯絡電話':dp.phone,
       '所屬部門':dp.dept,'部門代號':dp.deptCode,'外派單位地點':dp.unit,'工作內容':dp.workContent,'執行計畫編號':dp.projectCode,'外派單位負責人':dp.supervisor
     };
     demoTable(AT.staffTable).push({id:id,fields:fields});
-    state.staff.push({id:id,atId:id,name:dp.name,pwdHash:pwdHash,idNumber:'',roleType:dp.roleType,employType:dp.employType,phone:dp.phone,dept:dp.dept,deptCode:dp.deptCode,unit:dp.unit,workContent:dp.workContent,projectCode:dp.projectCode,supervisor:dp.supervisor});
+    state.staff.push({id:id,atId:id,name:dp.name,pwdHash:pwdHash,roleType:dp.roleType,employType:dp.employType,phone:dp.phone,dept:dp.dept,deptCode:dp.deptCode,unit:dp.unit,workContent:dp.workContent,projectCode:dp.projectCode,supervisor:dp.supervisor});
   }
 
   // 幫每個人排本月 1 號到今天的班（上午9-12、下午13-16，週末跳過），並模擬不同的確認狀態
@@ -2229,7 +2225,7 @@ function renderAdminPeople(){
     var fc=schedHrs>=TARGET?'#1D9E75':schedHrs>0?'#BA7517':'#999';
     var badge=sub?'<span class="badge badge-green">已送出</span>':schedHrs>=TARGET?'<span class="badge badge-teal">已排達標</span>':schedHrs>0?'<span class="badge badge-amber">填報中</span>':'<span class="badge badge-gray">未填報</span>';
     var c=getPersonColor(i);
-    html+='<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #f0f0ee;flex-wrap:wrap;"><div style="width:32px;height:32px;border-radius:50%;background:'+c[0]+';color:'+c[1]+';display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0;">'+p.name[0]+'</div><div style="flex:1;min-width:140px;"><div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;"><span style="font-size:14px;font-weight:700;">'+p.name+'</span>'+badge+'</div><div style="display:flex;align-items:center;gap:8px;"><div class="progress-bar" style="flex:1;"><div class="progress-fill" style="width:'+pct.toFixed(0)+'%;background:'+fc+';"></div></div><span style="font-size:12px;color:var(--muted);white-space:nowrap;">已排 '+schedHrs.toFixed(1)+'/'+TARGET+'h</span></div><div style="font-size:11px;color:#999;margin-top:2px;">已確認出勤：'+confHrs.toFixed(1)+'h'+(p.idNumber?'':' · <span style="color:#BA7517;">尚未填寫簽到表資料</span>')+'</div></div><div style="display:flex;gap:6px;flex-wrap:wrap;"><button class="btn-teal" style="font-size:12px;padding:4px 10px;" onclick="openProfileModal(\''+p.id+'\')">📋 簽到表資料</button><button class="btn-blue" style="font-size:12px;padding:4px 10px;" onclick="resetStaffPwd(\''+p.id+'\')">重設密碼</button><button class="btn-red" style="font-size:12px;padding:4px 10px;" onclick="removeStaff(\''+p.id+'\')">移除</button></div></div>';
+    html+='<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #f0f0ee;flex-wrap:wrap;"><div style="width:32px;height:32px;border-radius:50%;background:'+c[0]+';color:'+c[1]+';display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0;">'+p.name[0]+'</div><div style="flex:1;min-width:140px;"><div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;"><span style="font-size:14px;font-weight:700;">'+p.name+'</span>'+badge+'</div><div style="display:flex;align-items:center;gap:8px;"><div class="progress-bar" style="flex:1;"><div class="progress-fill" style="width:'+pct.toFixed(0)+'%;background:'+fc+';"></div></div><span style="font-size:12px;color:var(--muted);white-space:nowrap;">已排 '+schedHrs.toFixed(1)+'/'+TARGET+'h</span></div><div style="font-size:11px;color:#999;margin-top:2px;">已確認出勤：'+confHrs.toFixed(1)+'h'+(p.projectCode?'':' · <span style="color:#BA7517;">尚未填寫簽到表資料</span>')+'</div></div><div style="display:flex;gap:6px;flex-wrap:wrap;"><button class="btn-teal" style="font-size:12px;padding:4px 10px;" onclick="openProfileModal(\''+p.id+'\')">📋 簽到表資料</button><button class="btn-blue" style="font-size:12px;padding:4px 10px;" onclick="resetStaffPwd(\''+p.id+'\')">重設密碼</button><button class="btn-red" style="font-size:12px;padding:4px 10px;" onclick="removeStaff(\''+p.id+'\')">移除</button></div></div>';
   });
   el.innerHTML=html||'<p style="font-size:13px;color:#bbb;">尚無人員</p>';
 }
