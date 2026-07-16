@@ -543,6 +543,8 @@ input:focus,select:focus{box-shadow:0 0 0 2px var(--blue-border);}
         <div style="font-size:13px;font-weight:700;margin-bottom:8px;">設定連線</div>
         <div class="field-row"><label>Google 行事曆 ID</label><input type="text" id="gcal_id" placeholder="xxx@group.calendar.google.com"></div>
         <div class="field-row"><label>OAuth Client ID</label><input type="text" id="gcal_client_id" placeholder="xxx.apps.googleusercontent.com"></div>
+        <div class="field-row"><label>OAuth Client Secret</label><input type="password" id="gcal_client_secret" placeholder="GOCSPX-xxxxxxxxxxxx"></div>
+        <div class="field-hint">Google 對「網頁應用程式」類型的 OAuth 用戶端，即使使用 PKCE 仍會要求 Client Secret，請至 Google Cloud Console 憑證頁面複製</div>
         <button class="btn-blue" style="width:100%;padding:10px;margin-top:4px;" onclick="gcalAuth()">🔐 授權並連線 Google 帳號（Authorization Code + PKCE）</button>
         <div id="gcalAuthStatus" style="margin-top:8px;"></div>
       </div>
@@ -1458,6 +1460,7 @@ function showAdmin(){
   showScreen('scr-admin');renderAdmin();renderCheckinCodeDisplay();loadAutoSyncUI();
   var calIdEl=document.getElementById('gcal_id');if(calIdEl&&!calIdEl.value&&gcalState.calId)calIdEl.value=gcalState.calId;
   var clientIdEl=document.getElementById('gcal_client_id');if(clientIdEl&&!clientIdEl.value){var savedClient=localStorage.getItem('gcal_client_id');if(savedClient)clientIdEl.value=savedClient;}
+  var clientSecretEl=document.getElementById('gcal_client_secret');if(clientSecretEl&&!clientSecretEl.value){var savedSecret=localStorage.getItem('gcal_client_secret');if(savedSecret)clientSecretEl.value=savedSecret;}
   if(gcalState.userEmail){var sec=document.getElementById('gcalSyncSection');if(sec)sec.style.display='block';var u=document.getElementById('gcalConnectedUser');if(u)u.textContent='已連線：'+gcalState.userEmail;}
 }
 function goToOv(){showScreen('scr-overview');renderOv();}
@@ -2600,9 +2603,11 @@ async function pkceChallenge(verifier){
 
 function gcalAuth(){
   var clientId=document.getElementById('gcal_client_id').value.trim(),calId=document.getElementById('gcal_id').value.trim();
+  var clientSecret=document.getElementById('gcal_client_secret').value.trim();
   if(!clientId||!calId){document.getElementById('gcalAuthStatus').innerHTML='<div class="at-status err">請填入行事曆 ID 與 Client ID</div>';return;}
   gcalState.calId=calId;saveLocal();
   localStorage.setItem('gcal_client_id',clientId);
+  if(clientSecret)localStorage.setItem('gcal_client_secret',clientSecret);
   var verifier=randStr(64);
   gcalState.codeVerifier=verifier;
   localStorage.setItem('gcal_pkce_verifier',verifier);
@@ -2643,13 +2648,16 @@ function gcalAuth(){
 async function exchangeCodeForToken(code,clientId){
   document.getElementById('gcalAuthStatus').innerHTML='<div class="at-status loading">交換 Token 中…</div>';
   try{
-    var body=new URLSearchParams({
+    var clientSecret=(document.getElementById('gcal_client_secret')&&document.getElementById('gcal_client_secret').value.trim())||localStorage.getItem('gcal_client_secret')||'';
+    var bodyObj={
       client_id:clientId,
       code:code,
       code_verifier:gcalState.codeVerifier||localStorage.getItem('gcal_pkce_verifier')||'',
       grant_type:'authorization_code',
       redirect_uri:window.location.origin+window.location.pathname
-    });
+    };
+    if(clientSecret)bodyObj.client_secret=clientSecret;
+    var body=new URLSearchParams(bodyObj);
     var res=await fetch('https://oauth2.googleapis.com/token',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:body.toString()});
     var json=await res.json();
     if(!res.ok)throw new Error(json.error_description||json.error||'交換失敗');
@@ -2674,9 +2682,13 @@ async function ensureGCalToken(){
   if(gcalState.accessToken&&Date.now()<gcalState.expiresAt)return;
   if(!gcalState.refreshToken)return;
   var clientId=document.getElementById('gcal_client_id')?document.getElementById('gcal_client_id').value.trim():localStorage.getItem('gcal_client_id');
+  if(!clientId)clientId=localStorage.getItem('gcal_client_id');
   if(!clientId)return;
+  var clientSecret=(document.getElementById('gcal_client_secret')&&document.getElementById('gcal_client_secret').value.trim())||localStorage.getItem('gcal_client_secret')||'';
   try{
-    var body=new URLSearchParams({client_id:clientId,refresh_token:gcalState.refreshToken,grant_type:'refresh_token'});
+    var bodyObj={client_id:clientId,refresh_token:gcalState.refreshToken,grant_type:'refresh_token'};
+    if(clientSecret)bodyObj.client_secret=clientSecret;
+    var body=new URLSearchParams(bodyObj);
     var res=await fetch('https://oauth2.googleapis.com/token',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:body.toString()});
     var json=await res.json();
     if(!res.ok)throw new Error(json.error_description||json.error||'refresh失敗');
