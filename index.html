@@ -653,12 +653,23 @@ input:focus,select:focus{box-shadow:0 0 0 2px var(--blue-border);}
       <div style="height:1px;background:var(--border);margin:12px 0;"></div>
     </div>
     <div id="swapToFields" style="display:none;">
-      <div class="field-row"><label id="swapToDateLabel">換成這天（將新增）</label><input type="date" id="swap_to_date" style="width:100%;"></div>
+      <div class="field-row"><label>換成這天（將新增）</label><input type="date" id="swap_to_date" style="width:100%;"></div>
       <div class="field-row"><label>時段</label>
         <select id="swap_to_slot" style="width:100%;"><option value="am">上午</option><option value="pm">下午</option></select>
       </div>
       <div class="time-row">
         <select id="swap_to_s" style="flex:1;"></select><span style="padding-top:8px;color:#aaa;">—</span><select id="swap_to_e" style="flex:1;"></select>
+      </div>
+    </div>
+    <div id="swapAddFields" style="display:none;">
+      <div class="field-row"><label>新增這天</label><input type="date" id="swap_add_date" style="width:100%;"></div>
+      <div class="field-row">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="checkbox" id="swap_add_am_check" class="big-checkbox" onchange="toggleAddSlotFields('am')" checked><span>上午班</span></label>
+        <div class="time-row" id="swap_add_am_row"><select id="swap_add_am_s" style="flex:1;"></select><span style="padding-top:8px;color:#aaa;">—</span><select id="swap_add_am_e" style="flex:1;"></select></div>
+      </div>
+      <div class="field-row">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="checkbox" id="swap_add_pm_check" class="big-checkbox" onchange="toggleAddSlotFields('pm')"><span>下午班</span></label>
+        <div class="time-row" id="swap_add_pm_row" style="display:none;"><select id="swap_add_pm_s" style="flex:1;"></select><span style="padding-top:8px;color:#aaa;">—</span><select id="swap_add_pm_e" style="flex:1;"></select></div>
       </div>
     </div>
     <div id="swapMsg" style="margin-top:8px;"></div>
@@ -1796,17 +1807,35 @@ function openSwapModal(){
   slotSel.onchange=applySwapSlotDefaults;
   applySwapSlotDefaults();
   document.getElementById('swap_to_date').value='';
+
+  // 新增班表模式：上午/下午各自的時間下拉選單
+  ['swap_add_am_s','swap_add_am_e','swap_add_pm_s','swap_add_pm_e'].forEach(function(id){
+    var el=document.getElementById(id);el.innerHTML='';
+    TIMES.forEach(function(t){var o=document.createElement('option');o.value=t;o.textContent=t;el.appendChild(o);});
+  });
+  document.getElementById('swap_add_am_s').value='09:00';document.getElementById('swap_add_am_e').value='12:00';
+  document.getElementById('swap_add_pm_s').value='13:00';document.getElementById('swap_add_pm_e').value='16:00';
+  document.getElementById('swap_add_am_check').checked=true;
+  document.getElementById('swap_add_pm_check').checked=false;
+  document.getElementById('swap_add_am_row').style.display='';
+  document.getElementById('swap_add_pm_row').style.display='none';
+  document.getElementById('swap_add_date').value='';
+
   document.getElementById('swapMsg').innerHTML='';
   var cancelRadio=document.querySelector('input[name="swap_action"][value="cancel"]');
   if(cancelRadio)cancelRadio.checked=true;
   toggleSwapAction();
   document.getElementById('swapOverlay').classList.add('show');
 }
+function toggleAddSlotFields(slot){
+  var checked=document.getElementById('swap_add_'+slot+'_check').checked;
+  document.getElementById('swap_add_'+slot+'_row').style.display=checked?'':'none';
+}
 function toggleSwapAction(){
   var mode=document.querySelector('input[name="swap_action"]:checked').value;
-  document.getElementById('swapToFields').style.display=(mode==='swap'||mode==='add')?'block':'none';
   document.getElementById('swapFromField').style.display=mode==='add'?'none':'block';
-  document.getElementById('swapToDateLabel').textContent=mode==='add'?'新增這天':'換成這天（將新增）';
+  document.getElementById('swapToFields').style.display=mode==='swap'?'block':'none';
+  document.getElementById('swapAddFields').style.display=mode==='add'?'block':'none';
 }
 function closeSwapModal(){document.getElementById('swapOverlay').classList.remove('show');}
 function swapOverlayBg(e){if(e.target===document.getElementById('swapOverlay'))closeSwapModal();}
@@ -1824,13 +1853,27 @@ async function doShiftSwap(){
   }
 
   var toDate,toSlot,toS,toE,ty,tm,td;
-  if(mode==='swap'||mode==='add'){
+  if(mode==='swap'){
     toDate=document.getElementById('swap_to_date').value;
     toSlot=document.getElementById('swap_to_slot').value;
     toS=document.getElementById('swap_to_s').value;toE=document.getElementById('swap_to_e').value;
     if(!toDate){msgEl.innerHTML='<div class="at-status err">請選擇日期</div>';return;}
     if(t2n(toS)>=t2n(toE)){msgEl.innerHTML='<div class="at-status err">時間設定不正確</div>';return;}
     var toD=new Date(toDate);ty=toD.getFullYear();tm=toD.getMonth();td=toD.getDate();
+  }
+
+  var addDate,addAmOn,addPmOn,addAmS,addAmE,addPmS,addPmE,ay,am2,ad;
+  if(mode==='add'){
+    addDate=document.getElementById('swap_add_date').value;
+    addAmOn=document.getElementById('swap_add_am_check').checked;
+    addPmOn=document.getElementById('swap_add_pm_check').checked;
+    addAmS=document.getElementById('swap_add_am_s').value;addAmE=document.getElementById('swap_add_am_e').value;
+    addPmS=document.getElementById('swap_add_pm_s').value;addPmE=document.getElementById('swap_add_pm_e').value;
+    if(!addDate){msgEl.innerHTML='<div class="at-status err">請選擇日期</div>';return;}
+    if(!addAmOn&&!addPmOn){msgEl.innerHTML='<div class="at-status err">請至少勾選上午或下午其中一個時段</div>';return;}
+    if(addAmOn&&t2n(addAmS)>=t2n(addAmE)){msgEl.innerHTML='<div class="at-status err">上午時間設定不正確</div>';return;}
+    if(addPmOn&&t2n(addPmS)>=t2n(addPmE)){msgEl.innerHTML='<div class="at-status err">下午時間設定不正確</div>';return;}
+    var addD=new Date(addDate);ay=addD.getFullYear();am2=addD.getMonth();ad=addD.getDate();
   }
 
   msgEl.innerHTML='<div class="at-status loading">處理中…</div>';
@@ -1861,7 +1904,7 @@ async function doShiftSwap(){
     if(!fromWasConfirmed)pushAttendanceToAT(pid,from.d,from.y,from.m); // 已確認過的不覆寫，保留出勤確認表歷史紀錄
   }
 
-  if(mode==='swap'||mode==='add'){
+  if(mode==='swap'){
     var toK=mkey(ty,tm);
     if(!state.schedule[toK])state.schedule[toK]={};
     if(!state.schedule[toK][pid])state.schedule[toK][pid]={};
@@ -1875,8 +1918,23 @@ async function doShiftSwap(){
     if(toSlot==='am'){newDay.ams=toS;newDay.ame=toE;}else{newDay.pms=toS;newDay.pme=toE;}
 
     saveLocal();
-    logScheduleChange(pid,ty,tm,td,toBeforeDay,newDay,mode==='swap'?'換班（新增班次）':'新增班表');
+    logScheduleChange(pid,ty,tm,td,toBeforeDay,newDay,'換班（新增班次）');
     pushDailyScheduleToAT(pid,ty,tm,td);
+  }
+
+  if(mode==='add'){
+    var addK=mkey(ay,am2);
+    if(!state.schedule[addK])state.schedule[addK]={};
+    if(!state.schedule[addK][pid])state.schedule[addK][pid]={};
+    var addBeforeDay=state.schedule[addK][pid][ad]?JSON.parse(JSON.stringify(state.schedule[addK][pid][ad])):null;
+    if(!state.schedule[addK][pid][ad])state.schedule[addK][pid][ad]={am:false,ams:'09:00',ame:'12:00',pm:false,pms:'13:00',pme:'16:00'};
+    var addDay=state.schedule[addK][pid][ad];
+    if(addAmOn){addDay.am=true;addDay.amNew=true;delete addDay.amCancelled;delete addDay.amCancelledLabel;addDay.ams=addAmS;addDay.ame=addAmE;}
+    if(addPmOn){addDay.pm=true;addDay.pmNew=true;delete addDay.pmCancelled;delete addDay.pmCancelledLabel;addDay.pms=addPmS;addDay.pme=addPmE;}
+
+    saveLocal();
+    logScheduleChange(pid,ay,am2,ad,addBeforeDay,addDay,'新增班表');
+    pushDailyScheduleToAT(pid,ay,am2,ad);
   }
 
   if(mode==='swap')msgEl.innerHTML='<div class="at-status ok">✓ 換班完成，原班次已標記取消、新班次已標記(新)（月曆將在下次送出本月排班時一併同步）</div>';
