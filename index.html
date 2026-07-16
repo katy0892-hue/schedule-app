@@ -553,14 +553,6 @@ input:focus,select:focus{box-shadow:0 0 0 2px var(--blue-border);}
           <span>✅</span><span style="font-size:13px;color:var(--green-text);" id="gcalConnectedUser">已連線</span>
           <button class="btn-red" style="margin-left:auto;font-size:11px;padding:3px 8px;" onclick="gcalDisconnect()">中斷</button>
         </div>
-        <div style="display:flex;gap:8px;margin-bottom:10px;">
-          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;flex:1;background:#f7f7f5;border-radius:8px;padding:8px 10px;">
-            <input type="radio" name="gcal_mode" value="scheduled" checked> 已排班（預排）
-          </label>
-          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;flex:1;background:#f7f7f5;border-radius:8px;padding:8px 10px;">
-            <input type="radio" name="gcal_mode" value="confirmed"> 僅已確認出勤
-          </label>
-        </div>
         <button class="btn-teal" style="width:100%;padding:11px;font-size:14px;" onclick="syncToGCal()">📤 同步本月班表到 Google 行事曆</button>
         <div id="gcalSyncStatus" style="margin-top:8px;"></div>
       </div>
@@ -818,13 +810,13 @@ function setPref(d,data,y,m){state.pref[mkey(y,m)+'-'+d]=data;}
 function getPersonColor(idx){return PERSON_COLORS[idx%PERSON_COLORS.length];}
 
 function monthHrs(pid,y,m){
-  // 補班現在就是一般排班（帶 isMakeup 標記），已確認時數會直接在下面這個迴圈裡被算到，不用另外處理
+  // 已確認的時數一律以「排班時間」計算，不受自行簽到或實際簽到退時間影響
   var dim=new Date(y,m+1,0).getDate(),total=0,pd=getPdata(pid,y,m),attn=getAttn(pid,y,m);
   for(var d=1;d<=dim;d++){
     var day=pd[d];if(!day)continue;
     var at=attn[d]||{};
-    if(day.am&&day.ams&&day.ame&&at.amConfirmed)total+=calcH(at.actualAms||day.ams,at.actualAme||day.ame);
-    if(day.pm&&day.pms&&day.pme&&at.pmConfirmed)total+=calcH(at.actualPms||day.pms,at.actualPme||day.pme);
+    if(day.am&&day.ams&&day.ame&&at.amConfirmed)total+=calcH(day.ams,day.ame);
+    if(day.pm&&day.pms&&day.pme&&at.pmConfirmed)total+=calcH(day.pms,day.pme);
   }
   return total;
 }
@@ -1698,7 +1690,7 @@ function buildMonthListHtml(pid,y,m){
   for(var d=1;d<=dim;d++){
     var dow=new Date(y,m,d).getDay(),isWE=dow===0||dow===6,pr=getPref(d,y,m);
     var day=pd[d]||{};var at=attn[d]||{};
-    var dh=0;if(day.am&&at.amConfirmed)dh+=calcH(at.actualAms||day.ams,at.actualAme||day.ame);if(day.pm&&at.pmConfirmed)dh+=calcH(at.actualPms||day.pms,at.actualPme||day.pme);
+    var dh=0;if(day.am&&at.amConfirmed)dh+=calcH(day.ams,day.ame);if(day.pm&&at.pmConfirmed)dh+=calcH(day.pms,day.pme);
     var amGap=gapLabel(d,'am',y,m),pmGap=gapLabel(d,'pm',y,m);
     html+='<div class="day-list-row clickable" onclick="openDayModal(\''+pid+'\','+d+','+y+','+m+')"><div class="day-date'+(isWE?' we':'')+'"><div style="font-size:15px;font-weight:700;">'+(m+1)+'/'+d+'</div><div style="font-size:11px;">'+DW[dow]+'</div></div><div class="day-slots">';
     if(day.am&&calcH(day.ams,day.ame)>0){html+='<div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;"><span class="slot-tag am">上午 '+(at.actualAms||day.ams)+'–'+(at.actualAme||day.ame)+'</span>'+(at.amConfirmed?'<span class="attn-confirmed">✓</span>':at.amAbsent?'<span class="attn-absent">✗</span>':'')+(pr.am?'<span class="pref-tag">偏好</span>':'')+'</div>';}
@@ -1822,19 +1814,7 @@ async function doShiftSwap(){
   pushDailyScheduleToAT(pid,ty,tm,td);
   if(!fromWasConfirmed)pushAttendanceToAT(pid,from.d,from.y,from.m); // 已確認過的不覆寫，保留出勤確認表歷史紀錄
 
-  await ensureGCalToken();
-  var gcalNote='';
-  if(gcalState.accessToken&&getCalId()){
-    try{
-      await syncSingleDayToGCal(pid,from.d,from.y,from.m);
-      await syncSingleDayToGCal(pid,td,ty,tm);
-      gcalNote='並同步月曆';
-    }catch(e){gcalNote='（⚠️ 月曆同步失敗：'+e.message+'）';}
-  }else if(gcalState.refreshToken){
-    gcalNote='（⚠️ 月曆授權已失效，未同步，請重新連線）';
-  }
-
-  msgEl.innerHTML='<div class="at-status ok">✓ 換班完成，已更新排班'+gcalNote+'</div>';
+  msgEl.innerHTML='<div class="at-status ok">✓ 換班完成，已更新排班（月曆將在下次送出本月排班時一併同步）</div>';
   setTimeout(function(){closeSwapModal();renderStaff();},1200);
 }
 
@@ -2144,7 +2124,6 @@ function mToggle(slot){
   saveLocal();
   logScheduleChange(modalPid,modalY,modalM,modalD,beforeDay,day,'排班修改');
   pushDailyScheduleToAT(modalPid,modalY,modalM,modalD);
-  syncSingleDayToGCalSafe(modalPid,modalD,modalY,modalM);
   if(resetConfirmIfNeeded(slot)){openDayModalInner();showTimeChangedHint();}
 }
 function mTime(slot,se,val){
@@ -2159,7 +2138,6 @@ function mTime(slot,se,val){
   saveLocal();
   logScheduleChange(modalPid,modalY,modalM,modalD,beforeDay,day,'排班修改');
   pushDailyScheduleToAT(modalPid,modalY,modalM,modalD);
-  syncSingleDayToGCalSafe(modalPid,modalD,modalY,modalM);
   if(resetConfirmIfNeeded(slot)){openDayModalInner();showTimeChangedHint();}
 }
 function refreshModalGap(){var amGap=gapLabel(modalD,'am',modalY,modalM),pmGap=gapLabel(modalD,'pm',modalY,modalM);var html='';if(amGap)html+='<div class="modal-gap-pill gap-pill '+amGap.cls+'">上午 '+amGap.text+'</div>';if(pmGap)html+='<div class="modal-gap-pill gap-pill '+pmGap.cls+'">下午 '+pmGap.text+'</div>';var gr=document.getElementById('modalGapRow');gr.innerHTML=html;gr.style.display=html?'flex':'none';}
@@ -2184,7 +2162,6 @@ function deleteCurrentDaySchedule(){
   if(!wasConfirmed){
     pushAttendanceToAT(modalPid,modalD,modalY,modalM); // 沒確認過，安全清空出勤確認表對應紀錄
   } // 已確認過的，保留 Airtable 出勤確認表既有紀錄，不覆寫
-  syncSingleDayToGCalSafe(modalPid,modalD,modalY,modalM);
   closeModal();
 }
 
@@ -2386,7 +2363,8 @@ async function submitToAirtable(){
     var totalHrs=monthHrs(pid,y,m);
     await pushHrsSummaryToAT(pid,y,m);
     state.submitted[pid+'-'+mkey(y,m)]=true;saveLocal();
-    showSubmitStatus('ok','✓ 同步 '+count+' 天，總計 '+totalHrs.toFixed(1)+'h');
+    var gcalNote=await syncPersonMonthToGCalSafe(pid,y,m,dim);
+    showSubmitStatus('ok','✓ 同步 '+count+' 天，總計 '+totalHrs.toFixed(1)+'h'+gcalNote);
     btn.textContent='重新送出';btn.disabled=false;renderStaff();
   }catch(err){showSubmitStatus('err','同步失敗：'+err.message);btn.disabled=false;btn.textContent='重試';}
 }
@@ -2709,7 +2687,6 @@ async function syncToGCal(){
   await ensureGCalToken();
   if(!gcalState.accessToken){alert('請先授權');return;}
   var calId=getCalId();
-  var modeEl=document.querySelector('input[name="gcal_mode"]:checked'),mode=modeEl?modeEl.value:'scheduled';
   var statusEl=document.getElementById('gcalSyncStatus');statusEl.innerHTML='<div class="at-status loading">同步中…</div>';
   var dim=new Date(vy,vm+1,0).getDate(),k=mkey(vy,vm),created=0;
   try{
@@ -2722,28 +2699,18 @@ async function syncToGCal(){
       for(var si=0;si<state.staff.length;si++){
         var p=state.staff[si];
         var day=((state.schedule[k]||{})[p.id]||{})[d];if(!day)continue;
-        var at=((state.attendance[k]||{})[p.id]||{})[d]||{};
-        var syncAm=day.am&&calcH(day.ams,day.ame)>0&&(mode==='scheduled'||at.amConfirmed);
-        var syncPm=day.pm&&calcH(day.pms,day.pme)>0&&(mode==='scheduled'||at.pmConfirmed);
         var descText='簽到碼：'+todayCode;
-        if(syncAm){
-          var ams2=mode==='confirmed'?(at.actualAms||day.ams):day.ams;
-          var ame2=mode==='confirmed'?(at.actualAme||day.ame):day.ame;
-          var amLabel=(mode==='scheduled'?'[排] '+p.name:'['+p.name+']')+' 上午班';
-          await fetch('https://www.googleapis.com/calendar/v3/calendars/'+encodeURIComponent(calId)+'/events',{method:'POST',headers:{Authorization:'Bearer '+gcalState.accessToken,'Content-Type':'application/json'},body:JSON.stringify({summary:amLabel,description:descText,start:{dateTime:dateStr+'T'+ams2+':00',timeZone:'Asia/Taipei'},end:{dateTime:dateStr+'T'+ame2+':00',timeZone:'Asia/Taipei'},colorId:'2'})});
+        if(day.am&&calcH(day.ams,day.ame)>0){
+          await fetch('https://www.googleapis.com/calendar/v3/calendars/'+encodeURIComponent(calId)+'/events',{method:'POST',headers:{Authorization:'Bearer '+gcalState.accessToken,'Content-Type':'application/json'},body:JSON.stringify({summary:'[排] '+p.name+' 上午班',description:descText,start:{dateTime:dateStr+'T'+day.ams+':00',timeZone:'Asia/Taipei'},end:{dateTime:dateStr+'T'+day.ame+':00',timeZone:'Asia/Taipei'},colorId:'2'})});
           created++;
         }
-        if(syncPm){
-          var pms2=mode==='confirmed'?(at.actualPms||day.pms):day.pms;
-          var pme2=mode==='confirmed'?(at.actualPme||day.pme):day.pme;
-          var pmLabel=(mode==='scheduled'?'[排] '+p.name:'['+p.name+']')+' 下午班';
-          await fetch('https://www.googleapis.com/calendar/v3/calendars/'+encodeURIComponent(calId)+'/events',{method:'POST',headers:{Authorization:'Bearer '+gcalState.accessToken,'Content-Type':'application/json'},body:JSON.stringify({summary:pmLabel,description:descText,start:{dateTime:dateStr+'T'+pms2+':00',timeZone:'Asia/Taipei'},end:{dateTime:dateStr+'T'+pme2+':00',timeZone:'Asia/Taipei'},colorId:'5'})});
+        if(day.pm&&calcH(day.pms,day.pme)>0){
+          await fetch('https://www.googleapis.com/calendar/v3/calendars/'+encodeURIComponent(calId)+'/events',{method:'POST',headers:{Authorization:'Bearer '+gcalState.accessToken,'Content-Type':'application/json'},body:JSON.stringify({summary:'[排] '+p.name+' 下午班',description:descText,start:{dateTime:dateStr+'T'+day.pms+':00',timeZone:'Asia/Taipei'},end:{dateTime:dateStr+'T'+day.pme+':00',timeZone:'Asia/Taipei'},colorId:'5'})});
           created++;
         }
       }
     }
-    var modeLabel=mode==='scheduled'?'預排班（含未確認）':'已確認出勤';
-    statusEl.innerHTML='<div class="at-status ok">✅ 同步完成，建立 '+created+' 個事件（'+modeLabel+'）</div>';
+    statusEl.innerHTML='<div class="at-status ok">✅ 同步完成，建立 '+created+' 個事件</div>';
     autoSyncSettings.lastSync=Date.now();saveLocal();loadAutoSyncUI();
   }catch(e){statusEl.innerHTML='<div class="at-status err">失敗：'+e.message+'</div>';}
 }
@@ -2779,6 +2746,28 @@ async function syncSingleDayToGCal(pid,d,y,m){
   }
   if(day.pm&&calcH(day.pms,day.pme)>0){
     await fetch('https://www.googleapis.com/calendar/v3/calendars/'+encodeURIComponent(calId)+'/events',{method:'POST',headers:{Authorization:'Bearer '+gcalState.accessToken,'Content-Type':'application/json'},body:JSON.stringify({summary:'[排] '+p.name+' 下午班',description:descText,start:{dateTime:dateStr+'T'+day.pms+':00',timeZone:'Asia/Taipei'},end:{dateTime:dateStr+'T'+day.pme+':00',timeZone:'Asia/Taipei'},colorId:'5'})});
+  }
+}
+
+// 整月一次性同步到月曆——只在「送出本月排班」時觸發，取代原本逐筆編輯就即時同步的做法
+async function syncPersonMonthToGCalSafe(pid,y,m,dim){
+  await ensureGCalToken();
+  if(!gcalState.accessToken){
+    return gcalState.refreshToken?'（⚠️ 月曆授權已失效，未同步，請重新連線）':'（尚未連線 Google 行事曆，未同步）';
+  }
+  if(!getCalId())return'（⚠️ 尚未設定行事曆 ID，未同步）';
+  var pd=getPdata(pid,y,m);
+  var synced=0;
+  try{
+    for(var d=1;d<=dim;d++){
+      var day=pd[d];
+      if(!day||(!day.am&&!day.pm))continue;
+      await syncSingleDayToGCal(pid,d,y,m);
+      synced++;
+    }
+    return synced>0?'，並同步 '+synced+' 天到月曆':'';
+  }catch(e){
+    return '（⚠️ 月曆同步失敗：'+e.message+'）';
   }
 }
 
@@ -2840,6 +2829,19 @@ var SKIP_MAIN_INIT=false;
     window.history.replaceState({},document.title,window.location.pathname);
   }
 })();
+
+// 每分鐘檢查一次是否跨天了——避免分頁開著過夜，today 卡在舊日期，導致簽到碼一直不換新
+setInterval(function(){
+  var now=new Date();
+  if(now.getFullYear()!==today.getFullYear()||now.getMonth()!==today.getMonth()||now.getDate()!==today.getDate()){
+    today=now;
+    if(currentUser&&currentUser.role==='admin'){
+      renderCheckinCodeDisplay();
+      renderCheckinTab();
+      checkMonthlyReminder();
+    }
+  }
+},60000);
 
 if(!SKIP_MAIN_INIT)init();
 </script>
