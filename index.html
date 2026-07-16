@@ -83,6 +83,8 @@ input:focus,select:focus{box-shadow:0 0 0 2px var(--blue-border);}
 .wk-chip.pm{background:var(--pm-bg);color:var(--pm-text);}
 .wk-chip.confirmed{border:1.5px solid #6EE7B7;}
 .wk-chip.absent{border:1.5px solid #FCA5A5;opacity:.6;}
+.wk-chip.cancelled,.slot-tag.cancelled,.person-chip.cancelled{text-decoration:line-through;opacity:.55;background:#eee!important;color:#888!important;}
+.new-tag{font-size:9px;background:var(--blue-bg);color:var(--blue-text);padding:0 4px;border-radius:3px;margin-left:3px;font-weight:700;}
 .wk-chip.empty{background:#f0f0ee;color:#aaa;font-weight:400;}
 .wk-chip.makeup{background:var(--blue-bg);color:var(--blue-text);}
 .wk-chip .pc-dot{width:7px;height:7px;border-radius:2px;flex-shrink:0;display:inline-block;}
@@ -632,17 +634,27 @@ input:focus,select:focus{box-shadow:0 0 0 2px var(--blue-border);}
       <div class="modal-title">🔄 換班</div>
       <button onclick="closeSwapModal()" style="font-size:18px;padding:2px 8px;line-height:1;">✕</button>
     </div>
-    <div style="font-size:12px;color:var(--muted);margin-bottom:10px;">選擇要取消的原班次，並填入換過去的新班次，送出後會自動取消原班、新增新班，並同步這兩天到月曆。</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:10px;">選擇要取消的原班次。原班次會保留在排班表上並用刪除線標示，新排的班次會標註「(新)」，方便雙方都看得出異動紀錄。</div>
     <div class="field-row"><label>原本的班（將取消）</label>
       <select id="swap_from" style="width:100%;"></select>
     </div>
     <div style="height:1px;background:var(--border);margin:12px 0;"></div>
-    <div class="field-row"><label>換成這天（將新增）</label><input type="date" id="swap_to_date" style="width:100%;"></div>
-    <div class="field-row"><label>時段</label>
-      <select id="swap_to_slot" style="width:100%;"><option value="am">上午</option><option value="pm">下午</option></select>
+    <div style="display:flex;gap:8px;margin-bottom:12px;">
+      <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;flex:1;background:#f7f7f5;border-radius:8px;padding:8px 10px;">
+        <input type="radio" name="swap_action" value="cancel" checked onchange="toggleSwapAction()"> 僅取消，不補新班次
+      </label>
+      <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;flex:1;background:#f7f7f5;border-radius:8px;padding:8px 10px;">
+        <input type="radio" name="swap_action" value="swap" onchange="toggleSwapAction()"> 換到其他天／時段
+      </label>
     </div>
-    <div class="time-row">
-      <select id="swap_to_s" style="flex:1;"></select><span style="padding-top:8px;color:#aaa;">—</span><select id="swap_to_e" style="flex:1;"></select>
+    <div id="swapToFields" style="display:none;">
+      <div class="field-row"><label>換成這天（將新增）</label><input type="date" id="swap_to_date" style="width:100%;"></div>
+      <div class="field-row"><label>時段</label>
+        <select id="swap_to_slot" style="width:100%;"><option value="am">上午</option><option value="pm">下午</option></select>
+      </div>
+      <div class="time-row">
+        <select id="swap_to_s" style="flex:1;"></select><span style="padding-top:8px;color:#aaa;">—</span><select id="swap_to_e" style="flex:1;"></select>
+      </div>
     </div>
     <div id="swapMsg" style="margin-top:8px;"></div>
     <button class="btn-teal" style="width:100%;padding:11px;font-size:14px;margin-top:.75rem;" onclick="doShiftSwap()">確認換班</button>
@@ -1531,12 +1543,16 @@ function buildWeekGrid(weekStart,y,m,clickFn,isAdmin){
     html+='<div class="'+cls+'" '+cellClick+'>';
     state.staff.forEach(function(p,i){
       var day=((state.schedule[k2]||{})[p.id]||{})[dd];
-      if(!day||!day.am||calcH(day.ams,day.ame)<=0)return;
+      if(!day)return;
       var at=((state.attendance[k2]||{})[p.id]||{})[dd]||{};
-      var chipCls='wk-chip am'+(at.amConfirmed?' confirmed':at.amAbsent?' absent':'');
       var c=getPersonColor(i);
-      var chipClick=isAdmin?'onclick="event.stopPropagation();openDayModal(\''+p.id+'\','+dd+','+dy+','+dm+')"':'';
-      html+='<span class="'+chipCls+'" style="background:'+c[0]+';color:'+c[1]+';'+(isAdmin?'cursor:pointer;':'')+'" '+chipClick+' title="'+p.name+' '+day.ams+'–'+day.ame+(isAdmin?'（點擊直接編輯）':'')+'">'+personDot(i)+personChipLabel(p)+'</span>';
+      if(day.am&&calcH(day.ams,day.ame)>0){
+        var chipCls='wk-chip am'+(at.amConfirmed?' confirmed':at.amAbsent?' absent':'');
+        var chipClick=isAdmin?'onclick="event.stopPropagation();openDayModal(\''+p.id+'\','+dd+','+dy+','+dm+')"':'';
+        html+='<span class="'+chipCls+'" style="background:'+c[0]+';color:'+c[1]+';'+(isAdmin?'cursor:pointer;':'')+'" '+chipClick+' title="'+p.name+' '+day.ams+'–'+day.ame+(isAdmin?'（點擊直接編輯）':'')+'">'+personDot(i)+personChipLabel(p)+(day.amNew?'<span class="new-tag">新</span>':'')+'</span>';
+      }else if(day.amCancelled){
+        html+='<span class="wk-chip am cancelled" title="'+p.name+' 原排 '+day.amCancelledLabel+'（已取消）">'+personDot(i)+personChipLabel(p)+'</span>';
+      }
     });
     var amGap=gapLabel(dd,'am',dy,dm);
     if(amGap)html+='<span class="gap-pill '+amGap.cls+'">'+amGap.text+'</span>';
@@ -1555,12 +1571,16 @@ function buildWeekGrid(weekStart,y,m,clickFn,isAdmin){
     html+='<div class="'+cls+'" '+cellClick+'>';
     state.staff.forEach(function(p,i){
       var day=((state.schedule[k2]||{})[p.id]||{})[dd];
-      if(!day||!day.pm||calcH(day.pms,day.pme)<=0)return;
+      if(!day)return;
       var at=((state.attendance[k2]||{})[p.id]||{})[dd]||{};
-      var chipCls='wk-chip pm'+(at.pmConfirmed?' confirmed':at.pmAbsent?' absent':'');
       var c=getPersonColor(i);
-      var chipClick=isAdmin?'onclick="event.stopPropagation();openDayModal(\''+p.id+'\','+dd+','+dy+','+dm+')"':'';
-      html+='<span class="'+chipCls+'" style="background:'+c[0]+';color:'+c[1]+';'+(isAdmin?'cursor:pointer;':'')+'" '+chipClick+' title="'+p.name+' '+day.pms+'–'+day.pme+(isAdmin?'（點擊直接編輯）':'')+'">'+personDot(i)+personChipLabel(p)+'</span>';
+      if(day.pm&&calcH(day.pms,day.pme)>0){
+        var chipCls='wk-chip pm'+(at.pmConfirmed?' confirmed':at.pmAbsent?' absent':'');
+        var chipClick=isAdmin?'onclick="event.stopPropagation();openDayModal(\''+p.id+'\','+dd+','+dy+','+dm+')"':'';
+        html+='<span class="'+chipCls+'" style="background:'+c[0]+';color:'+c[1]+';'+(isAdmin?'cursor:pointer;':'')+'" '+chipClick+' title="'+p.name+' '+day.pms+'–'+day.pme+(isAdmin?'（點擊直接編輯）':'')+'">'+personDot(i)+personChipLabel(p)+(day.pmNew?'<span class="new-tag">新</span>':'')+'</span>';
+      }else if(day.pmCancelled){
+        html+='<span class="wk-chip pm cancelled" title="'+p.name+' 原排 '+day.pmCancelledLabel+'（已取消）">'+personDot(i)+personChipLabel(p)+'</span>';
+      }
     });
     var pmGap=gapLabel(dd,'pm',dy,dm);
     if(pmGap)html+='<span class="gap-pill '+pmGap.cls+'">'+pmGap.text+'</span>';
@@ -1596,14 +1616,18 @@ function buildStaffWeekGrid(weekStart,pid,y,m){
       html+='<div class="'+cls+'" onclick="openDayModal(\''+pid+'\','+dd+','+dy+','+dm+')">';
       if(slot==='am'&&day.am&&calcH(day.ams,day.ame)>0){
         var chipCls='wk-chip am'+(at.amConfirmed?' confirmed':at.amAbsent?' absent':'');
-        html+='<span class="'+chipCls+'">'+(at.actualAms||day.ams)+'–'+(at.actualAme||day.ame)+'</span>';
+        html+='<span class="'+chipCls+'">'+(at.actualAms||day.ams)+'–'+(at.actualAme||day.ame)+(day.amNew?'<span class="new-tag">新</span>':'')+'</span>';
         if(at.amConfirmed)html+='<span class="gap-pill gap-full">✓</span>';
         else if(at.amAbsent)html+='<span class="gap-pill gap-need">✗</span>';
       }else if(slot==='pm'&&day.pm&&calcH(day.pms,day.pme)>0){
         var chipCls='wk-chip pm'+(at.pmConfirmed?' confirmed':at.pmAbsent?' absent':'');
-        html+='<span class="'+chipCls+'">'+(at.actualPms||day.pms)+'–'+(at.actualPme||day.pme)+'</span>';
+        html+='<span class="'+chipCls+'">'+(at.actualPms||day.pms)+'–'+(at.actualPme||day.pme)+(day.pmNew?'<span class="new-tag">新</span>':'')+'</span>';
         if(at.pmConfirmed)html+='<span class="gap-pill gap-full">✓</span>';
         else if(at.pmAbsent)html+='<span class="gap-pill gap-need">✗</span>';
+      }else if(slot==='am'&&day.amCancelled){
+        html+='<span class="wk-chip am cancelled">'+day.amCancelledLabel+'</span>';
+      }else if(slot==='pm'&&day.pmCancelled){
+        html+='<span class="wk-chip pm cancelled">'+day.pmCancelledLabel+'</span>';
       }else{
         var isPref=(slot==='am'?pr.am:pr.pm);
         if(isPref)html+='<span class="wk-chip empty">偏好</span>';
@@ -1643,17 +1667,19 @@ function renderOv(){
 function buildMonthOvHtml(y,m){
   var dim=new Date(y,m+1,0).getDate(),k=mkey(y,m),html='';
   for(var d=1;d<=dim;d++){
-    var dow=new Date(y,m,d).getDay(),isWE=dow===0||dow===6,pr=getPref(d,y,m),amArr=[],pmArr=[];
+    var dow=new Date(y,m,d).getDay(),isWE=dow===0||dow===6,pr=getPref(d,y,m),amArr=[],pmArr=[],amCancArr=[],pmCancArr=[];
     state.staff.forEach(function(p,i){
       var day=((state.schedule[k]||{})[p.id]||{})[d];if(!day)return;
       var at=((state.attendance[k]||{})[p.id]||{})[d]||{};
-      if(day.am&&calcH(day.ams,day.ame)>0)amArr.push({p:p,i:i,confirmed:at.amConfirmed,absent:at.amAbsent});
-      if(day.pm&&calcH(day.pms,day.pme)>0)pmArr.push({p:p,i:i,confirmed:at.pmConfirmed,absent:at.pmAbsent});
+      if(day.am&&calcH(day.ams,day.ame)>0)amArr.push({p:p,i:i,confirmed:at.amConfirmed,absent:at.amAbsent,isNew:day.amNew});
+      else if(day.amCancelled)amCancArr.push({p:p,i:i,label:day.amCancelledLabel});
+      if(day.pm&&calcH(day.pms,day.pme)>0)pmArr.push({p:p,i:i,confirmed:at.pmConfirmed,absent:at.pmAbsent,isNew:day.pmNew});
+      else if(day.pmCancelled)pmCancArr.push({p:p,i:i,label:day.pmCancelledLabel});
     });
     var amGap=gapLabel(d,'am',y,m),pmGap=gapLabel(d,'pm',y,m);
     html+='<div class="overview-row"><div style="font-size:12px;color:'+(isWE?'#A32D2D':'var(--muted)')+';line-height:1.5;padding-top:2px;text-align:center;">'+(m+1)+'/'+d+'<br>'+DW[dow]+'</div><div class="ov-slots">';
-    html+='<div class="ov-slot-row"><span class="ov-slot-lbl am">上午</span><div class="ov-chips">'+(amArr.length?amArr.map(function(x){var c=getPersonColor(x.i);var border=x.confirmed?'2px solid #6EE7B7':x.absent?'2px solid #FCA5A5':'none';return '<span class="person-chip" style="background:'+c[0]+';color:'+c[1]+';border:'+border+';">'+personDot(x.i)+x.p.name+'</span>';}).join(''):'<span style="font-size:11px;color:#bbb;">—</span>')+(amGap?'<span class="gap-pill '+amGap.cls+'">'+amGap.text+'</span>':'')+'</div></div>';
-    html+='<div class="ov-slot-row"><span class="ov-slot-lbl pm">下午</span><div class="ov-chips">'+(pmArr.length?pmArr.map(function(x){var c=getPersonColor(x.i);var border=x.confirmed?'2px solid #6EE7B7':x.absent?'2px solid #FCA5A5':'none';return '<span class="person-chip" style="background:'+c[0]+';color:'+c[1]+';border:'+border+';">'+personDot(x.i)+x.p.name+'</span>';}).join(''):'<span style="font-size:11px;color:#bbb;">—</span>')+(pmGap?'<span class="gap-pill '+pmGap.cls+'">'+pmGap.text+'</span>':'')+'</div></div>';
+    html+='<div class="ov-slot-row"><span class="ov-slot-lbl am">上午</span><div class="ov-chips">'+(amArr.length?amArr.map(function(x){var c=getPersonColor(x.i);var border=x.confirmed?'2px solid #6EE7B7':x.absent?'2px solid #FCA5A5':'none';return '<span class="person-chip" style="background:'+c[0]+';color:'+c[1]+';border:'+border+';">'+personDot(x.i)+x.p.name+(x.isNew?'<span class="new-tag">新</span>':'')+'</span>';}).join(''):'')+amCancArr.map(function(x){return '<span class="person-chip cancelled" title="原排 '+x.label+'（已取消）">'+personDot(x.i)+x.p.name+'</span>';}).join('')+(!amArr.length&&!amCancArr.length?'<span style="font-size:11px;color:#bbb;">—</span>':'')+(amGap?'<span class="gap-pill '+amGap.cls+'">'+amGap.text+'</span>':'')+'</div></div>';
+    html+='<div class="ov-slot-row"><span class="ov-slot-lbl pm">下午</span><div class="ov-chips">'+(pmArr.length?pmArr.map(function(x){var c=getPersonColor(x.i);var border=x.confirmed?'2px solid #6EE7B7':x.absent?'2px solid #FCA5A5':'none';return '<span class="person-chip" style="background:'+c[0]+';color:'+c[1]+';border:'+border+';">'+personDot(x.i)+x.p.name+(x.isNew?'<span class="new-tag">新</span>':'')+'</span>';}).join(''):'')+pmCancArr.map(function(x){return '<span class="person-chip cancelled" title="原排 '+x.label+'（已取消）">'+personDot(x.i)+x.p.name+'</span>';}).join('')+(!pmArr.length&&!pmCancArr.length?'<span style="font-size:11px;color:#bbb;">—</span>':'')+(pmGap?'<span class="gap-pill '+pmGap.cls+'">'+pmGap.text+'</span>':'')+'</div></div>';
     html+='</div></div>';
   }
   return html;
@@ -1693,9 +1719,11 @@ function buildMonthListHtml(pid,y,m){
     var dh=0;if(day.am&&at.amConfirmed)dh+=calcH(day.ams,day.ame);if(day.pm&&at.pmConfirmed)dh+=calcH(day.pms,day.pme);
     var amGap=gapLabel(d,'am',y,m),pmGap=gapLabel(d,'pm',y,m);
     html+='<div class="day-list-row clickable" onclick="openDayModal(\''+pid+'\','+d+','+y+','+m+')"><div class="day-date'+(isWE?' we':'')+'"><div style="font-size:15px;font-weight:700;">'+(m+1)+'/'+d+'</div><div style="font-size:11px;">'+DW[dow]+'</div></div><div class="day-slots">';
-    if(day.am&&calcH(day.ams,day.ame)>0){html+='<div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;"><span class="slot-tag am">上午 '+(at.actualAms||day.ams)+'–'+(at.actualAme||day.ame)+'</span>'+(at.amConfirmed?'<span class="attn-confirmed">✓</span>':at.amAbsent?'<span class="attn-absent">✗</span>':'')+(pr.am?'<span class="pref-tag">偏好</span>':'')+'</div>';}
-    if(day.pm&&calcH(day.pms,day.pme)>0){html+='<div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;"><span class="slot-tag pm">下午 '+(at.actualPms||day.pms)+'–'+(at.actualPme||day.pme)+'</span>'+(at.pmConfirmed?'<span class="attn-confirmed">✓</span>':at.pmAbsent?'<span class="attn-absent">✗</span>':'')+(pr.pm?'<span class="pref-tag">偏好</span>':'')+'</div>';}
-    if(!day.am&&!day.pm)html+='<span class="slot-tag empty">未排班</span>';
+    if(day.am&&calcH(day.ams,day.ame)>0){html+='<div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;"><span class="slot-tag am">上午 '+(at.actualAms||day.ams)+'–'+(at.actualAme||day.ame)+'</span>'+(day.amNew?'<span class="new-tag">新</span>':'')+(at.amConfirmed?'<span class="attn-confirmed">✓</span>':at.amAbsent?'<span class="attn-absent">✗</span>':'')+(pr.am?'<span class="pref-tag">偏好</span>':'')+'</div>';}
+    else if(day.amCancelled){html+='<div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;"><span class="slot-tag am cancelled">上午 '+day.amCancelledLabel+'</span></div>';}
+    if(day.pm&&calcH(day.pms,day.pme)>0){html+='<div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;"><span class="slot-tag pm">下午 '+(at.actualPms||day.pms)+'–'+(at.actualPme||day.pme)+'</span>'+(day.pmNew?'<span class="new-tag">新</span>':'')+(at.pmConfirmed?'<span class="attn-confirmed">✓</span>':at.pmAbsent?'<span class="attn-absent">✗</span>':'')+(pr.pm?'<span class="pref-tag">偏好</span>':'')+'</div>';}
+    else if(day.pmCancelled){html+='<div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;"><span class="slot-tag pm cancelled">下午 '+day.pmCancelledLabel+'</span></div>';}
+    if(!day.am&&!day.pm&&!day.amCancelled&&!day.pmCancelled)html+='<span class="slot-tag empty">未排班</span>';
     if(dh>0)html+='<span style="font-size:11px;color:var(--muted);">✓'+dh.toFixed(1)+'h</span>';
     html+='</div><div class="day-gap">';
     if(amGap)html+='<span class="gap-pill '+amGap.cls+'">上 '+amGap.text+'</span>';
@@ -1765,7 +1793,14 @@ function openSwapModal(){
   applySwapSlotDefaults();
   document.getElementById('swap_to_date').value='';
   document.getElementById('swapMsg').innerHTML='';
+  var cancelRadio=document.querySelector('input[name="swap_action"][value="cancel"]');
+  if(cancelRadio)cancelRadio.checked=true;
+  toggleSwapAction();
   document.getElementById('swapOverlay').classList.add('show');
+}
+function toggleSwapAction(){
+  var mode=document.querySelector('input[name="swap_action"]:checked').value;
+  document.getElementById('swapToFields').style.display=mode==='swap'?'block':'none';
 }
 function closeSwapModal(){document.getElementById('swapOverlay').classList.remove('show');}
 function swapOverlayBg(e){if(e.target===document.getElementById('swapOverlay'))closeSwapModal();}
@@ -1773,15 +1808,20 @@ function swapOverlayBg(e){if(e.target===document.getElementById('swapOverlay'))c
 async function doShiftSwap(){
   var pid=currentUser.pid;
   var fromVal=document.getElementById('swap_from').value;
-  var toDate=document.getElementById('swap_to_date').value;
-  var toSlot=document.getElementById('swap_to_slot').value;
-  var toS=document.getElementById('swap_to_s').value,toE=document.getElementById('swap_to_e').value;
+  var mode=document.querySelector('input[name="swap_action"]:checked').value;
   var msgEl=document.getElementById('swapMsg');
-  if(!fromVal||!toDate){msgEl.innerHTML='<div class="at-status err">請選擇原班次與新日期</div>';return;}
-  if(t2n(toS)>=t2n(toE)){msgEl.innerHTML='<div class="at-status err">時間設定不正確</div>';return;}
-
+  if(!fromVal){msgEl.innerHTML='<div class="at-status err">請選擇原班次</div>';return;}
   var from=JSON.parse(fromVal);
-  var toD=new Date(toDate),ty=toD.getFullYear(),tm=toD.getMonth(),td=toD.getDate();
+
+  var toDate,toSlot,toS,toE,ty,tm,td;
+  if(mode==='swap'){
+    toDate=document.getElementById('swap_to_date').value;
+    toSlot=document.getElementById('swap_to_slot').value;
+    toS=document.getElementById('swap_to_s').value;toE=document.getElementById('swap_to_e').value;
+    if(!toDate){msgEl.innerHTML='<div class="at-status err">請選擇換過去的新日期</div>';return;}
+    if(t2n(toS)>=t2n(toE)){msgEl.innerHTML='<div class="at-status err">時間設定不正確</div>';return;}
+    var toD=new Date(toDate);ty=toD.getFullYear();tm=toD.getMonth();td=toD.getDate();
+  }
 
   msgEl.innerHTML='<div class="at-status loading">處理中…</div>';
 
@@ -1789,8 +1829,14 @@ async function doShiftSwap(){
   var fromAt=((state.attendance[fromK]||{})[pid]||{})[from.d]||{};
   var fromWasConfirmed=from.slot==='am'?!!fromAt.amConfirmed:!!fromAt.pmConfirmed;
   var fromBeforeDay=(state.schedule[fromK]&&state.schedule[fromK][pid]&&state.schedule[fromK][pid][from.d])?JSON.parse(JSON.stringify(state.schedule[fromK][pid][from.d])):null;
+
+  // 取消原班次：保留刪除線紀錄（amCancelled/pmCancelled + 原時間文字），不是直接消失
   if(state.schedule[fromK]&&state.schedule[fromK][pid]&&state.schedule[fromK][pid][from.d]){
-    state.schedule[fromK][pid][from.d][from.slot]=false;
+    var fromDay=state.schedule[fromK][pid][from.d];
+    var origLabel=from.slot==='am'?(fromDay.ams+'–'+fromDay.ame):(fromDay.pms+'–'+fromDay.pme);
+    fromDay[from.slot]=false;
+    fromDay[from.slot+'Cancelled']=true;
+    fromDay[from.slot+'CancelledLabel']=origLabel;
   }
   if(state.attendance[fromK]&&state.attendance[fromK][pid]&&state.attendance[fromK][pid][from.d]){
     delete state.attendance[fromK][pid][from.d][from.slot+'Confirmed'];
@@ -1798,23 +1844,31 @@ async function doShiftSwap(){
   }
   var fromAfterDay=(state.schedule[fromK]&&state.schedule[fromK][pid])?state.schedule[fromK][pid][from.d]:null;
 
-  var toK=mkey(ty,tm);
-  if(!state.schedule[toK])state.schedule[toK]={};
-  if(!state.schedule[toK][pid])state.schedule[toK][pid]={};
-  var toBeforeDay=state.schedule[toK][pid][td]?JSON.parse(JSON.stringify(state.schedule[toK][pid][td])):null;
-  if(!state.schedule[toK][pid][td])state.schedule[toK][pid][td]={am:false,ams:'09:00',ame:'12:00',pm:false,pms:'13:00',pme:'16:00'};
-  var newDay=state.schedule[toK][pid][td];
-  newDay[toSlot]=true;
-  if(toSlot==='am'){newDay.ams=toS;newDay.ame=toE;}else{newDay.pms=toS;newDay.pme=toE;}
-
   saveLocal();
-  logScheduleChange(pid,from.y,from.m,from.d,fromBeforeDay,fromAfterDay,'換班（取消原班）');
-  logScheduleChange(pid,ty,tm,td,toBeforeDay,newDay,'換班（新增班次）');
+  logScheduleChange(pid,from.y,from.m,from.d,fromBeforeDay,fromAfterDay,mode==='swap'?'換班（取消原班）':'換班（僅取消）');
   pushDailyScheduleToAT(pid,from.y,from.m,from.d);
-  pushDailyScheduleToAT(pid,ty,tm,td);
   if(!fromWasConfirmed)pushAttendanceToAT(pid,from.d,from.y,from.m); // 已確認過的不覆寫，保留出勤確認表歷史紀錄
 
-  msgEl.innerHTML='<div class="at-status ok">✓ 換班完成，已更新排班（月曆將在下次送出本月排班時一併同步）</div>';
+  if(mode==='swap'){
+    var toK=mkey(ty,tm);
+    if(!state.schedule[toK])state.schedule[toK]={};
+    if(!state.schedule[toK][pid])state.schedule[toK][pid]={};
+    var toBeforeDay=state.schedule[toK][pid][td]?JSON.parse(JSON.stringify(state.schedule[toK][pid][td])):null;
+    if(!state.schedule[toK][pid][td])state.schedule[toK][pid][td]={am:false,ams:'09:00',ame:'12:00',pm:false,pms:'13:00',pme:'16:00'};
+    var newDay=state.schedule[toK][pid][td];
+    newDay[toSlot]=true;
+    newDay[toSlot+'New']=true;
+    delete newDay[toSlot+'Cancelled'];
+    delete newDay[toSlot+'CancelledLabel'];
+    if(toSlot==='am'){newDay.ams=toS;newDay.ame=toE;}else{newDay.pms=toS;newDay.pme=toE;}
+
+    saveLocal();
+    logScheduleChange(pid,ty,tm,td,toBeforeDay,newDay,'換班（新增班次）');
+    pushDailyScheduleToAT(pid,ty,tm,td);
+    msgEl.innerHTML='<div class="at-status ok">✓ 換班完成，原班次已標記取消、新班次已標記(新)（月曆將在下次送出本月排班時一併同步）</div>';
+  }else{
+    msgEl.innerHTML='<div class="at-status ok">✓ 已取消該班次，排班表上會保留刪除線紀錄（月曆將在下次送出本月排班時一併同步）</div>';
+  }
   setTimeout(function(){closeSwapModal();renderStaff();},1200);
 }
 
@@ -1974,7 +2028,7 @@ function openDayModalInner(){
   refreshModalGap();
   var isAdmin=currentUser&&currentUser.role==='admin';
   var html='<div class="slot-section'+(pr.am?' pref-border':'')+'">';
-  html+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="checkbox" class="big-checkbox" id="m_am" '+(day.am?'checked':'')+' onchange="mToggle(\'am\')"><span style="font-size:14px;font-weight:700;">上午班</span></label>'+(pr.am?'<span class="pref-tag">偏好</span>':'')+(at.amConfirmed?'<span class="attn-confirmed">✓ 已確認</span>':at.amAbsent?'<span class="attn-absent">✗ 缺席</span>':'')+'</div>';
+  html+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap;"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="checkbox" class="big-checkbox" id="m_am" '+(day.am?'checked':'')+' onchange="mToggle(\'am\')"><span style="font-size:14px;font-weight:700;">上午班</span></label>'+(pr.am?'<span class="pref-tag">偏好</span>':'')+(day.amNew?'<span class="new-tag">新</span>':'')+(at.amConfirmed?'<span class="attn-confirmed">✓ 已確認</span>':at.amAbsent?'<span class="attn-absent">✗ 缺席</span>':'')+(day.amCancelled&&!day.am?'<span style="font-size:11px;color:#999;text-decoration:line-through;">原排 '+day.amCancelledLabel+'（已取消）</span>':'')+'</div>';
   html+='<div id="m_am_t" style="'+(day.am?'':'opacity:.4;pointer-events:none;')+'"><div class="time-row">'+mkSel('m_ams',day.ams||'09:00','mTime(\'am\',\'s\',this.value)')+'<span style="font-size:14px;color:#bbb;">—</span>'+mkSel('m_ame',day.ame||'12:00','mTime(\'am\',\'e\',this.value)')+'</div>';
   if(!isAdmin&&currentUser&&currentUser.role==='staff'&&day.am){
     var isToday=(y===today.getFullYear()&&m===today.getMonth()&&d===today.getDate());
@@ -1983,7 +2037,7 @@ function openDayModalInner(){
   }
   html+='</div></div>';
   html+='<div class="slot-section'+(pr.pm?' pref-border':'')+'">';
-  html+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="checkbox" class="big-checkbox" id="m_pm" '+(day.pm?'checked':'')+' onchange="mToggle(\'pm\')"><span style="font-size:14px;font-weight:700;">下午班</span></label>'+(pr.pm?'<span class="pref-tag">偏好</span>':'')+(at.pmConfirmed?'<span class="attn-confirmed">✓ 已確認</span>':at.pmAbsent?'<span class="attn-absent">✗ 缺席</span>':'')+'</div>';
+  html+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap;"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="checkbox" class="big-checkbox" id="m_pm" '+(day.pm?'checked':'')+' onchange="mToggle(\'pm\')"><span style="font-size:14px;font-weight:700;">下午班</span></label>'+(pr.pm?'<span class="pref-tag">偏好</span>':'')+(day.pmNew?'<span class="new-tag">新</span>':'')+(at.pmConfirmed?'<span class="attn-confirmed">✓ 已確認</span>':at.pmAbsent?'<span class="attn-absent">✗ 缺席</span>':'')+(day.pmCancelled&&!day.pm?'<span style="font-size:11px;color:#999;text-decoration:line-through;">原排 '+day.pmCancelledLabel+'（已取消）</span>':'')+'</div>';
   html+='<div id="m_pm_t" style="'+(day.pm?'':'opacity:.4;pointer-events:none;')+'"><div class="time-row">'+mkSel('m_pms',day.pms||'13:00','mTime(\'pm\',\'s\',this.value)')+'<span style="font-size:14px;color:#bbb;">—</span>'+mkSel('m_pme',day.pme||'16:00','mTime(\'pm\',\'e\',this.value)')+'</div>';
   if(!isAdmin&&currentUser&&currentUser.role==='staff'&&day.pm){
     var isTodayPm=(y===today.getFullYear()&&m===today.getMonth()&&d===today.getDate());
@@ -2256,18 +2310,20 @@ function buildMonthAdminHtml(y,m){
   var dim=new Date(y,m+1,0).getDate(),k=mkey(y,m),html='';
   for(var d=1;d<=dim;d++){
     var dow=new Date(y,m,d).getDay(),isWE=dow===0||dow===6,pr=getPref(d,y,m);
-    var amArr=[],pmArr=[];
+    var amArr=[],pmArr=[],amCancArr=[],pmCancArr=[];
     state.staff.forEach(function(p,i){
       var day=((state.schedule[k]||{})[p.id]||{})[d];if(!day)return;
       var at=((state.attendance[k]||{})[p.id]||{})[d]||{};
-      if(day.am&&calcH(day.ams,day.ame)>0)amArr.push({p:p,i:i,confirmed:at.amConfirmed,absent:at.amAbsent});
-      if(day.pm&&calcH(day.pms,day.pme)>0)pmArr.push({p:p,i:i,confirmed:at.pmConfirmed,absent:at.pmAbsent});
+      if(day.am&&calcH(day.ams,day.ame)>0)amArr.push({p:p,i:i,confirmed:at.amConfirmed,absent:at.amAbsent,isNew:day.amNew});
+      else if(day.amCancelled)amCancArr.push({p:p,i:i,label:day.amCancelledLabel});
+      if(day.pm&&calcH(day.pms,day.pme)>0)pmArr.push({p:p,i:i,confirmed:at.pmConfirmed,absent:at.pmAbsent,isNew:day.pmNew});
+      else if(day.pmCancelled)pmCancArr.push({p:p,i:i,label:day.pmCancelledLabel});
     });
     var amGap=gapLabel(d,'am',y,m),pmGap=gapLabel(d,'pm',y,m);
     var amPref=pr.am?'<span class="pref-tag">偏好</span>':'',pmPref=pr.pm?'<span class="pref-tag">偏好</span>':'';
     html+='<div class="overview-row" style="cursor:pointer;position:relative;padding-right:28px;" onclick="adminOpenDay(\''+y+'\',\''+m+'\',\''+d+'\')"><div style="font-size:12px;color:'+(isWE?'#A32D2D':'var(--muted)')+';line-height:1.5;padding-top:2px;text-align:center;">'+(m+1)+'/'+d+'<br>'+DW[dow]+'</div><div class="ov-slots">';
-    html+='<div class="ov-slot-row"><span class="ov-slot-lbl am">上午</span><div class="ov-chips">'+amPref+(amArr.length?amArr.map(function(x){var c=getPersonColor(x.i);var border=x.confirmed?'2px solid #6EE7B7':x.absent?'2px solid #FCA5A5':'none';return '<span class="person-chip" style="background:'+c[0]+';color:'+c[1]+';border:'+border+';cursor:pointer;" onclick="event.stopPropagation();openDayModal(\''+x.p.id+'\','+d+','+y+','+m+')" title="點擊直接編輯">'+personDot(x.i)+x.p.name+'</span>';}).join(''):'<span style="font-size:11px;color:#bbb;">—</span>')+(amGap?'<span class="gap-pill '+amGap.cls+'">'+amGap.text+'</span>':'')+'</div></div>';
-    html+='<div class="ov-slot-row"><span class="ov-slot-lbl pm">下午</span><div class="ov-chips">'+pmPref+(pmArr.length?pmArr.map(function(x){var c=getPersonColor(x.i);var border=x.confirmed?'2px solid #6EE7B7':x.absent?'2px solid #FCA5A5':'none';return '<span class="person-chip" style="background:'+c[0]+';color:'+c[1]+';border:'+border+';cursor:pointer;" onclick="event.stopPropagation();openDayModal(\''+x.p.id+'\','+d+','+y+','+m+')" title="點擊直接編輯">'+personDot(x.i)+x.p.name+'</span>';}).join(''):'<span style="font-size:11px;color:#bbb;">—</span>')+(pmGap?'<span class="gap-pill '+pmGap.cls+'">'+pmGap.text+'</span>':'')+'</div></div>';
+    html+='<div class="ov-slot-row"><span class="ov-slot-lbl am">上午</span><div class="ov-chips">'+amPref+(amArr.length?amArr.map(function(x){var c=getPersonColor(x.i);var border=x.confirmed?'2px solid #6EE7B7':x.absent?'2px solid #FCA5A5':'none';return '<span class="person-chip" style="background:'+c[0]+';color:'+c[1]+';border:'+border+';cursor:pointer;" onclick="event.stopPropagation();openDayModal(\''+x.p.id+'\','+d+','+y+','+m+')" title="點擊直接編輯">'+personDot(x.i)+x.p.name+(x.isNew?'<span class="new-tag">新</span>':'')+'</span>';}).join(''):'')+amCancArr.map(function(x){return '<span class="person-chip cancelled" style="cursor:pointer;" onclick="event.stopPropagation();openDayModal(\''+x.p.id+'\','+d+','+y+','+m+')" title="原排 '+x.label+'（已取消）">'+personDot(x.i)+x.p.name+'</span>';}).join('')+(!amArr.length&&!amCancArr.length?'<span style="font-size:11px;color:#bbb;">—</span>':'')+(amGap?'<span class="gap-pill '+amGap.cls+'">'+amGap.text+'</span>':'')+'</div></div>';
+    html+='<div class="ov-slot-row"><span class="ov-slot-lbl pm">下午</span><div class="ov-chips">'+pmPref+(pmArr.length?pmArr.map(function(x){var c=getPersonColor(x.i);var border=x.confirmed?'2px solid #6EE7B7':x.absent?'2px solid #FCA5A5':'none';return '<span class="person-chip" style="background:'+c[0]+';color:'+c[1]+';border:'+border+';cursor:pointer;" onclick="event.stopPropagation();openDayModal(\''+x.p.id+'\','+d+','+y+','+m+')" title="點擊直接編輯">'+personDot(x.i)+x.p.name+(x.isNew?'<span class="new-tag">新</span>':'')+'</span>';}).join(''):'')+pmCancArr.map(function(x){return '<span class="person-chip cancelled" style="cursor:pointer;" onclick="event.stopPropagation();openDayModal(\''+x.p.id+'\','+d+','+y+','+m+')" title="原排 '+x.label+'（已取消）">'+personDot(x.i)+x.p.name+'</span>';}).join('')+(!pmArr.length&&!pmCancArr.length?'<span style="font-size:11px;color:#bbb;">—</span>':'')+(pmGap?'<span class="gap-pill '+pmGap.cls+'">'+pmGap.text+'</span>':'')+'</div></div>';
     html+='</div><button class="wk-add-btn" style="position:absolute;right:2px;top:50%;transform:translateY(-50%);" onclick="event.stopPropagation();adminOpenDay(\''+y+'\',\''+m+'\',\''+d+'\')" title="新增人員">+</button></div>';
   }
   return html;
