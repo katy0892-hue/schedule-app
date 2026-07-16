@@ -427,8 +427,8 @@ input:focus,select:focus{box-shadow:0 0 0 2px var(--blue-border);}
 
   <div class="tabs">
     <button class="tab active" onclick="switchTab('overview',this)">每日總覽</button>
-    <button class="tab" onclick="switchTab('confirm',this)">✅ 出勤與簽到管理</button>
     <button class="tab" onclick="switchTab('people',this)">人員管理</button>
+    <button class="tab" onclick="switchTab('confirm',this)">✅ 出勤與簽到管理</button>
     <button class="tab" onclick="switchTab('pref',this)">偏好時段</button>
     <button class="tab" onclick="switchTab('gcal',this)">行事曆</button>
   </div>
@@ -441,6 +441,21 @@ input:focus,select:focus{box-shadow:0 0 0 2px var(--blue-border);}
       <button onclick="nextWeek_admin()">下週 ›</button>
     </div>
     <div class="card" style="padding:.75rem 1rem;"><div id="adminOv"></div></div>
+  </div>
+
+  <div id="tab-people" class="tsec">
+    <div class="card" style="padding:.75rem 1rem;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+        <div style="font-size:13px;font-weight:700;">人員列表</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+          <input type="text" id="newName" placeholder="新增人員姓名" style="width:110px;">
+          <input type="text" id="newPwd" placeholder="身分證末5碼" maxlength="5" style="width:100px;">
+          <button class="btn-teal" onclick="addStaff()">新增</button>
+        </div>
+      </div>
+      <div id="adminPeople"></div>
+      <div id="staffSyncStatus" style="margin-top:8px;font-size:12px;color:var(--muted);"></div>
+    </div>
   </div>
 
   <div id="tab-confirm" class="tsec">
@@ -476,21 +491,6 @@ input:focus,select:focus{box-shadow:0 0 0 2px var(--blue-border);}
         </select>
       </div>
       <div id="confirmBody"></div>
-    </div>
-  </div>
-
-  <div id="tab-people" class="tsec">
-    <div class="card" style="padding:.75rem 1rem;">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
-        <div style="font-size:13px;font-weight:700;">人員列表</div>
-        <div style="display:flex;gap:6px;flex-wrap:wrap;">
-          <input type="text" id="newName" placeholder="新增人員姓名" style="width:110px;">
-          <input type="text" id="newPwd" placeholder="身分證末5碼" maxlength="5" style="width:100px;">
-          <button class="btn-teal" onclick="addStaff()">新增</button>
-        </div>
-      </div>
-      <div id="adminPeople"></div>
-      <div id="staffSyncStatus" style="margin-top:8px;font-size:12px;color:var(--muted);"></div>
     </div>
   </div>
 
@@ -1531,11 +1531,12 @@ function buildWeekGrid(weekStart,y,m,clickFn,isAdmin){
       var at=((state.attendance[k2]||{})[p.id]||{})[dd]||{};
       var chipCls='wk-chip am'+(at.amConfirmed?' confirmed':at.amAbsent?' absent':'');
       var c=getPersonColor(i);
-      html+='<span class="'+chipCls+'" style="background:'+c[0]+';color:'+c[1]+';" title="'+p.name+' '+day.ams+'–'+day.ame+'">'+personDot(i)+personChipLabel(p)+'</span>';
+      var chipClick=isAdmin?'onclick="event.stopPropagation();openDayModal(\''+p.id+'\','+dd+','+dy+','+dm+')"':'';
+      html+='<span class="'+chipCls+'" style="background:'+c[0]+';color:'+c[1]+';'+(isAdmin?'cursor:pointer;':'')+'" '+chipClick+' title="'+p.name+' '+day.ams+'–'+day.ame+(isAdmin?'（點擊直接編輯）':'')+'">'+personDot(i)+personChipLabel(p)+'</span>';
     });
     var amGap=gapLabel(dd,'am',dy,dm);
     if(amGap)html+='<span class="gap-pill '+amGap.cls+'">'+amGap.text+'</span>';
-    if(clickFn)html+='<button class="wk-add-btn" onclick="event.stopPropagation();'+clickFn+'(\''+dy+'\',\''+dm+'\',\''+dd+'\')">+</button>';
+    if(clickFn)html+='<button class="wk-add-btn" onclick="event.stopPropagation();'+clickFn+'(\''+dy+'\',\''+dm+'\',\''+dd+'\')" title="新增人員">+</button>';
     html+='</div>';
   });
 
@@ -1554,11 +1555,12 @@ function buildWeekGrid(weekStart,y,m,clickFn,isAdmin){
       var at=((state.attendance[k2]||{})[p.id]||{})[dd]||{};
       var chipCls='wk-chip pm'+(at.pmConfirmed?' confirmed':at.pmAbsent?' absent':'');
       var c=getPersonColor(i);
-      html+='<span class="'+chipCls+'" style="background:'+c[0]+';color:'+c[1]+';" title="'+p.name+' '+day.pms+'–'+day.pme+'">'+personDot(i)+personChipLabel(p)+'</span>';
+      var chipClick=isAdmin?'onclick="event.stopPropagation();openDayModal(\''+p.id+'\','+dd+','+dy+','+dm+')"':'';
+      html+='<span class="'+chipCls+'" style="background:'+c[0]+';color:'+c[1]+';'+(isAdmin?'cursor:pointer;':'')+'" '+chipClick+' title="'+p.name+' '+day.pms+'–'+day.pme+(isAdmin?'（點擊直接編輯）':'')+'">'+personDot(i)+personChipLabel(p)+'</span>';
     });
     var pmGap=gapLabel(dd,'pm',dy,dm);
     if(pmGap)html+='<span class="gap-pill '+pmGap.cls+'">'+pmGap.text+'</span>';
-    if(clickFn)html+='<button class="wk-add-btn" onclick="event.stopPropagation();'+clickFn+'(\''+dy+'\',\''+dm+'\',\''+dd+'\')">+</button>';
+    if(clickFn)html+='<button class="wk-add-btn" onclick="event.stopPropagation();'+clickFn+'(\''+dy+'\',\''+dm+'\',\''+dd+'\')" title="新增人員">+</button>';
     html+='</div>';
   });
   html+='</div>';
@@ -1922,7 +1924,7 @@ function saveConfirm(){
   var pmSt=document.querySelector('input[name="pm_status"]:checked');
   if(pmSt){at.pmConfirmed=pmSt.value==='confirmed';at.pmAbsent=pmSt.value==='absent';}
   state.attendance[k][t.pid][t.d]=at;
-  saveLocal();closeConfirmModal();renderConfirm();renderAdminStats();
+  saveLocal();closeConfirmModal();refreshAdminAllViews();
   pushAttendanceToAT(t.pid,t.d,t.y,t.m);
   syncSingleDayToGCalSafe(t.pid,t.d,t.y,t.m);
 }
@@ -2029,10 +2031,16 @@ function openDayModalInner(){
   document.getElementById('modalBody').innerHTML=html;
   document.getElementById('dayOverlay').classList.add('show');
 }
+function refreshAdminAllViews(){
+  renderAdminOv();
+  renderAdminStats();
+  renderAdminPeople();
+  renderConfirm();
+}
 function closeModal(){
   document.getElementById('dayOverlay').classList.remove('show');
   if(currentUser&&currentUser.role==='staff'){renderStaff();saveLocal();}
-  if(currentUser&&currentUser.role==='admin'){renderAdminOv();renderAdminStats();saveLocal();}
+  if(currentUser&&currentUser.role==='admin'){refreshAdminAllViews();saveLocal();}
 }
 function overlayBgClick(e){if(e.target===document.getElementById('dayOverlay'))closeModal();}
 
@@ -2219,10 +2227,10 @@ function buildMonthAdminHtml(y,m){
     });
     var amGap=gapLabel(d,'am',y,m),pmGap=gapLabel(d,'pm',y,m);
     var amPref=pr.am?'<span class="pref-tag">偏好</span>':'',pmPref=pr.pm?'<span class="pref-tag">偏好</span>':'';
-    html+='<div class="overview-row" style="cursor:pointer;" onclick="adminOpenDay(\''+y+'\',\''+m+'\',\''+d+'\')"><div style="font-size:12px;color:'+(isWE?'#A32D2D':'var(--muted)')+';line-height:1.5;padding-top:2px;text-align:center;">'+(m+1)+'/'+d+'<br>'+DW[dow]+'</div><div class="ov-slots">';
-    html+='<div class="ov-slot-row"><span class="ov-slot-lbl am">上午</span><div class="ov-chips">'+amPref+(amArr.length?amArr.map(function(x){var c=getPersonColor(x.i);var border=x.confirmed?'2px solid #6EE7B7':x.absent?'2px solid #FCA5A5':'none';return '<span class="person-chip" style="background:'+c[0]+';color:'+c[1]+';border:'+border+';">'+personDot(x.i)+x.p.name+'</span>';}).join(''):'<span style="font-size:11px;color:#bbb;">—</span>')+(amGap?'<span class="gap-pill '+amGap.cls+'">'+amGap.text+'</span>':'')+'</div></div>';
-    html+='<div class="ov-slot-row"><span class="ov-slot-lbl pm">下午</span><div class="ov-chips">'+pmPref+(pmArr.length?pmArr.map(function(x){var c=getPersonColor(x.i);var border=x.confirmed?'2px solid #6EE7B7':x.absent?'2px solid #FCA5A5':'none';return '<span class="person-chip" style="background:'+c[0]+';color:'+c[1]+';border:'+border+';">'+personDot(x.i)+x.p.name+'</span>';}).join(''):'<span style="font-size:11px;color:#bbb;">—</span>')+(pmGap?'<span class="gap-pill '+pmGap.cls+'">'+pmGap.text+'</span>':'')+'</div></div>';
-    html+='</div></div>';
+    html+='<div class="overview-row" style="cursor:pointer;position:relative;padding-right:28px;" onclick="adminOpenDay(\''+y+'\',\''+m+'\',\''+d+'\')"><div style="font-size:12px;color:'+(isWE?'#A32D2D':'var(--muted)')+';line-height:1.5;padding-top:2px;text-align:center;">'+(m+1)+'/'+d+'<br>'+DW[dow]+'</div><div class="ov-slots">';
+    html+='<div class="ov-slot-row"><span class="ov-slot-lbl am">上午</span><div class="ov-chips">'+amPref+(amArr.length?amArr.map(function(x){var c=getPersonColor(x.i);var border=x.confirmed?'2px solid #6EE7B7':x.absent?'2px solid #FCA5A5':'none';return '<span class="person-chip" style="background:'+c[0]+';color:'+c[1]+';border:'+border+';cursor:pointer;" onclick="event.stopPropagation();openDayModal(\''+x.p.id+'\','+d+','+y+','+m+')" title="點擊直接編輯">'+personDot(x.i)+x.p.name+'</span>';}).join(''):'<span style="font-size:11px;color:#bbb;">—</span>')+(amGap?'<span class="gap-pill '+amGap.cls+'">'+amGap.text+'</span>':'')+'</div></div>';
+    html+='<div class="ov-slot-row"><span class="ov-slot-lbl pm">下午</span><div class="ov-chips">'+pmPref+(pmArr.length?pmArr.map(function(x){var c=getPersonColor(x.i);var border=x.confirmed?'2px solid #6EE7B7':x.absent?'2px solid #FCA5A5':'none';return '<span class="person-chip" style="background:'+c[0]+';color:'+c[1]+';border:'+border+';cursor:pointer;" onclick="event.stopPropagation();openDayModal(\''+x.p.id+'\','+d+','+y+','+m+')" title="點擊直接編輯">'+personDot(x.i)+x.p.name+'</span>';}).join(''):'<span style="font-size:11px;color:#bbb;">—</span>')+(pmGap?'<span class="gap-pill '+pmGap.cls+'">'+pmGap.text+'</span>':'')+'</div></div>';
+    html+='</div><button class="wk-add-btn" style="position:absolute;right:2px;top:50%;transform:translateY(-50%);" onclick="event.stopPropagation();adminOpenDay(\''+y+'\',\''+m+'\',\''+d+'\')" title="新增人員">+</button></div>';
   }
   return html;
 }
