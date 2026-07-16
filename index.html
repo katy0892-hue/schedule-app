@@ -249,7 +249,6 @@ input:focus,select:focus{box-shadow:0 0 0 2px var(--blue-border);}
           <div class="field-row"><label>人員工時</label><input type="text" id="setup_hrs" placeholder="人員工時"></div>
           <div class="field-row"><label>人員名單</label><input type="text" id="setup_staff" placeholder="人員名單"></div>
           <div class="field-row"><label>出勤確認表</label><input type="text" id="setup_attn" placeholder="出勤確認表"></div>
-          <div class="field-row"><label>簽到紀錄表</label><input type="text" id="setup_checkin" placeholder="簽到紀錄表"></div>
           <div class="field-row"><label>異動紀錄表</label><input type="text" id="setup_changelog" placeholder="異動紀錄表"></div>
         </div>
       </details>
@@ -731,7 +730,7 @@ var state={
   checkinRecords:[], // [{pid,name,date,slot,time,code}]
   changeLog:[] // [{id,pid,name,dateStr,changeType,before,after,changedAt,changedBy}]
 };
-var AT={token:'',base:'',dailyTable:'每日班表',hrsTable:'人員工時',staffTable:'人員名單',attnTable:'出勤確認表',checkinTable:'簽到紀錄表',changeLogTable:'異動紀錄表'};
+var AT={token:'',base:'',dailyTable:'每日班表',hrsTable:'人員工時',staffTable:'人員名單',attnTable:'出勤確認表',changeLogTable:'異動紀錄表'};
 var gcalState={accessToken:null,refreshToken:null,expiresAt:0,userEmail:null,codeVerifier:null,calId:null};
 var autoSyncSettings={enabled:false,lastSync:null,lastFingerprint:null};
 
@@ -967,11 +966,6 @@ function deleteSelfCheckinRecord(id){
   state.checkinRecords=state.checkinRecords.filter(function(r){return r.id!==id;});
   saveLocal();renderCheckinTab();
 }
-async function pushCheckinRecordToAT(rec){
-  try{
-    await atFetch('POST',AT.checkinTable,{records:[{fields:{'姓名':rec.name,'日期':rec.date,'時段':rec.slot,'簽到時間':rec.time,'方式':rec.code==='self'?'管理者自簽':'掃碼自簽'}}]});
-  }catch(e){console.error('簽到紀錄同步失敗:',e);}
-}
 
 // ============================================================
 // 自行簽到功能
@@ -1030,8 +1024,7 @@ async function doSelfCheckin(){
   setTimeout(closeSelfCheckin,2000);
   renderCheckinTab();
 
-  // 寫回 Airtable（簽到紀錄表 + 出勤確認表）
-  pushCheckinRecordToAT(rec);
+  // 寫回 Airtable 出勤確認表（含簽到方式欄位）
   pushAttendanceToAT(pid,d,k.split('-')[0]*1,k.split('-')[1]*1-1);
 }
 
@@ -1256,19 +1249,20 @@ async function pushDailyScheduleToAT(pid,y,m,d){
       for(var i=0;i<ex.length;i++){
         await fetch('https://api.airtable.com/v0/'+AT.base+'/'+encodeURIComponent(AT.dailyTable)+'/'+ex[i].id,{method:'DELETE',headers:{Authorization:'Bearer '+AT.token}});
       }
-      return;
+    }else{
+      var dh=(day.am?calcH(day.ams,day.ame):0)+(day.pm?calcH(day.pms,day.pme):0);
+      await upsertHrsRecord({
+        '姓名':p.name,'月份':monthLabel,'日期':dateStr,
+        '上午開始':day.am?day.ams:'','上午結束':day.am?day.ame:'',
+        '下午開始':day.pm?day.pms:'','下午結束':day.pm?day.pme:'',
+        '當日工時':parseFloat(dh.toFixed(2))
+      },key,AT.dailyTable);
     }
-    var dh=(day.am?calcH(day.ams,day.ame):0)+(day.pm?calcH(day.pms,day.pme):0);
-    await upsertHrsRecord({
-      '姓名':p.name,'月份':monthLabel,'日期':dateStr,
-      '上午開始':day.am?day.ams:'','上午結束':day.am?day.ame:'',
-      '下午開始':day.pm?day.pms:'','下午結束':day.pm?day.pme:'',
-      '當日工時':parseFloat(dh.toFixed(2))
-    },key,AT.dailyTable);
   }catch(e){
     console.error('每日班表同步失敗:',e);
     showATSyncToast('⚠️ 排班同步到 Airtable 失敗：'+e.message,true);
   }
+  pushHrsSummaryToAT(pid,y,m);
 }
 
 // 出勤確認表：寫回單一人員單一天的確認狀態（是否補班／原因直接讀該天排班本身的標記，不再需要獨立補班表）
@@ -1284,9 +1278,27 @@ async function pushAttendanceToAT(pid,d,y,m){
       '上午確認':!!at.amConfirmed,'上午缺席':!!at.amAbsent,
       '下午確認':!!at.pmConfirmed,'下午缺席':!!at.pmAbsent,
       '實際上午簽到':at.actualAms||'','實際上午簽退':at.actualAme||'',
-      '實際下午簽到':at.actualPms||'','實際下午簽退':at.actualPme||''
+      '實際下午簽到':at.actualPms||'','實際下午簽退':at.actualPme||'',
+      '上午簽到方式':at.selfAm?'自行簽到':(at.amConfirmed?'管理者確認':''),
+      '下午簽到方式':at.selfPm?'自行簽到':(at.pmConfirmed?'管理者確認':'')
     },key,AT.attnTable);
   }catch(e){console.error('出勤確認同步失敗:',e);showATSyncToast('⚠️ 出勤確認同步到 Airtable 失敗：'+e.message,true);}
+  pushHrsSummaryToAT(pid,y,m);
+}
+
+// 人員工時：預排時數（隨排班即時更新）+ 總工時（僅計已確認出勤，逐步逼近最終確定值）
+async function pushHrsSummaryToAT(pid,y,m){
+  var p=state.staff.find(function(x){return x.id===pid;});if(!p)return;
+  var monthLabel=y+'年'+(m+1)+'月';
+  var schedHrs=scheduledHrs(pid,y,m),confHrs=monthHrs(pid,y,m);
+  try{
+    await upsertHrsRecord({
+      '姓名':p.name,'月份':monthLabel,
+      '預排時數':parseFloat(schedHrs.toFixed(1)),
+      '總工時':parseFloat(confHrs.toFixed(1)),
+      '是否達標':confHrs>=TARGET
+    },p.name+'_'+monthLabel);
+  }catch(e){console.error('人員工時同步失敗:',e);showATSyncToast('⚠️ 人員工時同步到 Airtable 失敗：'+e.message,true);}
 }
 
 // ============================================================
@@ -1296,7 +1308,7 @@ async function startDemo(){
   DEMO_MODE=true;
   window.fetch=demoFetchInterceptor;
   demoDB={};
-  AT={token:'DEMO',base:'DEMO',dailyTable:'每日班表',hrsTable:'人員工時',staffTable:'人員名單',attnTable:'出勤確認表',checkinTable:'簽到紀錄表'};
+  AT={token:'DEMO',base:'DEMO',dailyTable:'每日班表',hrsTable:'人員工時',staffTable:'人員名單',attnTable:'出勤確認表'};
 
   var adminPwd='admin',staffPwd='12345';
   ADMIN_MASTER_HASH=await hashPwd(adminPwd);
@@ -1386,11 +1398,11 @@ async function doSetup(){
   }
   var token=document.getElementById('setup_token').value.trim(),base=document.getElementById('setup_base').value.trim();
   var daily=document.getElementById('setup_daily').value.trim()||'每日班表',hrs=document.getElementById('setup_hrs').value.trim()||'人員工時',staff=document.getElementById('setup_staff').value.trim()||'人員名單';
-  var attn=document.getElementById('setup_attn').value.trim()||'出勤確認表',checkin=document.getElementById('setup_checkin').value.trim()||'簽到紀錄表';
+  var attn=document.getElementById('setup_attn').value.trim()||'出勤確認表';
   var changelog=document.getElementById('setup_changelog').value.trim()||'異動紀錄表';
   if(!token||!base){document.getElementById('setupErr').innerHTML='<div class="at-status err">請填入 Token 和 Base ID</div>';return;}
   var btn=document.querySelector('#scr-setup button.btn-blue');btn.disabled=true;btn.textContent='連線中…';
-  AT={token:token,base:base,dailyTable:daily,hrsTable:hrs,staffTable:staff,attnTable:attn,checkinTable:checkin,changeLogTable:changelog};
+  AT={token:token,base:base,dailyTable:daily,hrsTable:hrs,staffTable:staff,attnTable:attn,changeLogTable:changelog};
   try{
     await atFetch('GET',staff,null,'maxRecords=1');saveLocal();
     document.getElementById('setupErr').innerHTML='<div class="at-status ok">✓ 連線成功！</div>';
@@ -2152,7 +2164,6 @@ function staffSelfSign(slot){
     var rec={id:Date.now().toString(),pid:modalPid,name:p.name,date:todayKey(),slot:slot,time:nowT,code:'self'};
     state.checkinRecords.push(rec);
     saveLocal();
-    pushCheckinRecordToAT(rec);
   }
   pushAttendanceToAT(modalPid,modalD,modalY,modalM);
 }
@@ -2304,7 +2315,7 @@ async function submitToAirtable(){
       if(i+10<recordsToCreate.length)await new Promise(function(r){setTimeout(r,250);});
     }
     var totalHrs=monthHrs(pid,y,m);
-    await upsertHrsRecord({'姓名':p.name,'月份':monthLabel,'總工時':parseFloat(totalHrs.toFixed(1)),'是否達標':totalHrs>=TARGET},p.name+'_'+monthLabel);
+    await pushHrsSummaryToAT(pid,y,m);
     state.submitted[pid+'-'+mkey(y,m)]=true;saveLocal();
     showSubmitStatus('ok','✓ 同步 '+count+' 天，總計 '+totalHrs.toFixed(1)+'h');
     btn.textContent='重新送出';btn.disabled=false;renderStaff();
