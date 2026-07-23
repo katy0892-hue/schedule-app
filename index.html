@@ -2501,7 +2501,6 @@ async function loadAttendancePeriodStaffList(mode){
 function buildRowsFromATRecords(records){
   var rows=records.map(function(f){
     var dparts=(f['日期']||'').split('-'),y=+dparts[0],m=+dparts[1]-1,d=+dparts[2];
-    return {y:y,m:m,d:d,ams:f['實際上午簽到']||'',ame:f['實際上午簽退']||'',pms:f['實際下午簽到']||'',pme:f['實際下午簽退']||'',isMakeup:!!f['是否補班'],amOn:!!f['上午確認'],pmOn:!!f['下午確認']};
   });
   rows.sort(function(a,b){return (a.y*10000+a.m*100+a.d)-(b.y*10000+b.m*100+b.d);});
   return rows.filter(function(r){return (r.amOn&&r.ams&&r.ame)||(r.pmOn&&r.pms&&r.pme);});
@@ -2520,16 +2519,17 @@ async function buildAttendanceHTML(personName,mode){
   var rows=buildRowsFromATRecords(records);
   var tableRows='',totalHrs=0;
   var unit=person.unit||'',workContent=person.workContent||'',projectCode=person.projectCode||'',supervisor=person.supervisor||'';
+  var roleType=person.roleType||'',employType=person.employType||'',dept=person.dept||'',deptCode=person.deptCode||'',phone=person.phone||'';
   rows.forEach(function(r){
     var dow=new Date(r.y,r.m,r.d).getDay(),isWE=dow===0||dow===6;
     var dateLabel=(r.m+1)+'/'+r.d+' '+['日','一','二','三','四','五','六'][dow];
     var amH=(r.amOn&&r.ams&&r.ame)?calcH(r.ams,r.ame):0,pmH=(r.pmOn&&r.pms&&r.pme)?calcH(r.pms,r.pme):0,dh=amH+pmH;totalHrs+=dh;
-    var mkNote=r.isMakeup?'（補）':'';
+   
     // 合併上午/下午為單一簽到-簽退：簽到取最早有出席的時段開始時間，簽退取最晚有出席的時段結束時間
     var signIn=r.amOn&&r.ams?r.ams:(r.pmOn&&r.pms?r.pms:'');
     var signOut=r.pmOn&&r.pme?r.pme:(r.amOn&&r.ame?r.ame:'');
     tableRows+='<tr style="background:'+(isWE?'#fafafa':'#fff')+';color:'+(isWE?'#b91c1c':'#222')+';">';
-    tableRows+='<td style="text-align:center;white-space:nowrap;font-weight:'+(isWE?'600':'400')+';">'+dateLabel+mkNote+'</td>';
+    tableRows+='<td style="text-align:center;white-space:nowrap;font-weight:'+(isWE?'600':'400')+';">'+dateLabel+'</td>';
     tableRows+='<td style="text-align:center;">'+signIn+'</td><td style="text-align:center;">'+signOut+'</td>';
     tableRows+='<td style="text-align:center;">'+dh.toFixed(1)+'</td>';
     tableRows+='<td style="text-align:center;">'+unit+'</td><td style="text-align:center;">'+workContent+'</td><td style="text-align:center;">'+projectCode+'</td><td style="text-align:center;">'+supervisor+'</td>';
@@ -2539,10 +2539,10 @@ async function buildAttendanceHTML(personName,mode){
     '<p style="text-align:right;font-size:10px;">(附件四)</p>'+
     '<h2 style="text-align:center;font-size:16px;font-weight:bold;text-decoration:underline;margin-bottom:10px;">外派/出勤簽到表</h2>'+
     '<div style="font-size:12px;margin-bottom:4px;line-height:2;"><b>申請人姓名：</b><u style="padding:0 40px;">'+personName+'</u>　<b>期間：</b>'+modeLabel+'</div>'+
-    '<div style="font-size:12px;margin-bottom:4px;line-height:2;"><b>身分別：</b>□臨床研究人員　□博士後研究員　□研究助理</div>'+
-    '<div style="font-size:12px;margin-bottom:4px;line-height:2;"><b>類別：</b>□專任　□兼任</div>'+
-    '<div style="font-size:12px;margin-bottom:4px;line-height:2;"><b>身分證字號：</b><u style="padding:0 60px;"></u>　<b>所屬部門：</b><u style="padding:0 40px;"></u>（代號：<u style="padding:0 40px;"></u>）</div>'+
-    '<div style="font-size:12px;margin-bottom:8px;line-height:2;"><b>聯絡電話：</b><u style="padding:0 80px;"></u></div>'+
+    '<div style="font-size:12px;margin-bottom:4px;line-height:2;"><b>身分別：</b>'+checkboxLine(['臨床研究人員','博士後研究員','研究助理'],roleType)+'</div>'+
+    '<div style="font-size:12px;margin-bottom:4px;line-height:2;"><b>類別：</b>'+checkboxLine(['專任','兼任'],employType)+'</div>'+
+    '<div style="font-size:12px;margin-bottom:4px;line-height:2;"><b>身分證字號：</b><u style="padding:0 60px;"></u>　<b>所屬部門：</b><u style="padding:0 20px;">'+dept+'</u>（代號：<u style="padding:0 20px;">'+deptCode+'</u>）</div>'+
+    '<div style="font-size:12px;margin-bottom:8px;line-height:2;"><b>聯絡電話：</b><u style="padding:0 40px;">'+phone+'</u></div>'+
     '<table style="width:100%;border-collapse:collapse;font-size:10px;margin-bottom:10px;">'+
       '<thead><tr style="background:#e8e8e8;">'+
         '<th style="border:1px solid #333;padding:4px;width:60px;">日期</th>'+
@@ -2560,8 +2560,8 @@ async function buildAttendanceHTML(personName,mode){
     '<div style="margin-top:8px;font-size:10px;line-height:1.8;color:#555;">'+
       '1. 每月考勤週期結束(每月20號結束後，26日前)，請將此表送交院區考勤存檔<br>'+
       '2. 如為連續外派之專任研究助理，需由外派單位負責人簽名確認出勤時數，並配合調整前考勤統計表列印後於每月26日上午12時前送達考勤部門辦理。<br>'+
-      (rows.some(function(r){return r.isMakeup;})?'• （補）標記表示該日為補班日期<br>':'')+
-      '• 本表資料直接讀取自 Airtable 出勤確認表，僅列出已確認之出勤紀錄'+
+      
+      '• 本表資料直接讀取自 Airtable 出勤確認表，僅列出已確認之出勤紀錄'
     '</div></div>';
 }
 async function showWordExport(){
