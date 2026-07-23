@@ -2501,6 +2501,7 @@ async function loadAttendancePeriodStaffList(mode){
 function buildRowsFromATRecords(records){
   var rows=records.map(function(f){
     var dparts=(f['日期']||'').split('-'),y=+dparts[0],m=+dparts[1]-1,d=+dparts[2];
+    return {y:y,m:m,d:d,ams:f['實際上午簽到']||'',ame:f['實際上午簽退']||'',pms:f['實際下午簽到']||'',pme:f['實際下午簽退']||'',amOn:!!f['上午確認'],pmOn:!!f['下午確認']};
   });
   rows.sort(function(a,b){return (a.y*10000+a.m*100+a.d)-(b.y*10000+b.m*100+b.d);});
   return rows.filter(function(r){return (r.amOn&&r.ams&&r.ame)||(r.pmOn&&r.pms&&r.pme);});
@@ -2561,7 +2562,7 @@ async function buildAttendanceHTML(personName,mode){
       '1. 每月考勤週期結束(每月20號結束後，26日前)，請將此表送交院區考勤存檔<br>'+
       '2. 如為連續外派之專任研究助理，需由外派單位負責人簽名確認出勤時數，並配合調整前考勤統計表列印後於每月26日上午12時前送達考勤部門辦理。<br>'+
       
-      '• 本表資料直接讀取自 Airtable 出勤確認表，僅列出已確認之出勤紀錄'
+      '• 本表資料直接讀取自 Airtable 出勤確認表，僅列出已確認之出勤紀錄'+
     '</div></div>';
 }
 async function showWordExport(){
