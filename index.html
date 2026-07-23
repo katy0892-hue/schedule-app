@@ -269,6 +269,7 @@ input:focus,select:focus{box-shadow:0 0 0 2px var(--blue-border);}
           <div class="field-row"><label>人員名單</label><input type="text" id="setup_staff" placeholder="人員名單"></div>
           <div class="field-row"><label>出勤確認表</label><input type="text" id="setup_attn" placeholder="出勤確認表"></div>
           <div class="field-row"><label>異動紀錄表</label><input type="text" id="setup_changelog" placeholder="異動紀錄表"></div>
+          <div class="field-row"><label>每日簽到碼</label><input type="text" id="setup_code" placeholder="每日簽到碼"></div>
         </div>
       </details>
       <button class="btn-blue" style="width:100%;padding:11px;font-size:15px;" onclick="doSetup()">連線並啟動</button>
@@ -750,7 +751,7 @@ var state={
   checkinRecords:[], // [{pid,name,date,slot,time,code}]
   changeLog:[] // [{id,pid,name,dateStr,changeType,before,after,changedAt,changedBy}]
 };
-var AT={token:'',base:'',dailyTable:'每日班表',hrsTable:'人員工時',staffTable:'人員名單',attnTable:'出勤確認表',changeLogTable:'異動紀錄表'};
+var AT={token:'',base:'',dailyTable:'每日班表',hrsTable:'人員工時',staffTable:'人員名單',attnTable:'出勤確認表',changeLogTable:'異動紀錄表',codeTable:'每日簽到碼'};
 var gcalState={accessToken:null,refreshToken:null,expiresAt:0,userEmail:null,codeVerifier:null,calId:null};
 var autoSyncSettings={enabled:false,lastSync:null,lastFingerprint:null};
 
@@ -942,49 +943,112 @@ async function saveProfileModal(){
 // 簽到碼管理
 // ============================================================
 function todayKey(){return today.getFullYear()+'-'+pad(today.getMonth()+1)+'-'+pad(today.getDate());}
+function codeKey(dateStr){return 'CODE_'+dateStr;}
 function generateCode(){return Math.floor(100000+Math.random()*900000).toString();}
-function getTodayCode(){
+function getTodayCode(){return state.checkinCodes[todayKey()]||'';}
+  async function fetchCodeFromAT(dateStr){
+  var recs=await atGetAll(AT.codeTable,'FIND("'+codeKey(dateStr)+'",{唯一鍵})=1');
+  if(!recs.length)return null;
+  var c=(recs[0].fields['簽到碼']||'').toString().trim();
+  return c||null;
+}
+  async function pushCodeToAT(dateStr,code){
+  await upsertHrsRecord({
+    '日期':dateStr,
+    '簽到碼':code,
+    '更新時間':new Date().toISOString(),
+    '更新者':currentUser?(currentUser.role==='admin'?'管理者':currentUser.name):''
+  },codeKey(dateStr),AT.codeTable);
+}
+
+// 管理者端：以 Airtable 為準；沒有才產生並寫回。force=true 代表「換新碼」
+async function ensureTodayCode(force){
   var k=todayKey();
-  if(!state.checkinCodes[k]){state.checkinCodes[k]=generateCode();saveLocal();}
-  return state.checkinCodes[k];
+  if(!force){
+    var remote=await fetchCodeFromAT(k);
+    if(remote){state.checkinCodes[k]=remote;saveLocal();return remote;}
+  }
+  var code=generateCode();
+  await pushCodeToAT(k,code);        // ★ 先確定寫進 Airtable，成功才更新本機
+  state.checkinCodes[k]=code;saveLocal();
+  return code;
 }
-function refreshCheckinCode(){
-  var k=todayKey();state.checkinCodes[k]=generateCode();saveLocal();
-  renderCheckinCodeDisplay();renderCheckinTab();
-}
-function copyCheckinCode(){
-  var code=getTodayCode();
-  navigator.clipboard&&navigator.clipboard.writeText(code).then(function(){alert('簽到碼已複製：'+code);}).catch(function(){prompt('複製此碼：',code);});
-}
-function renderCheckinCodeDisplay(){
-  var code=getTodayCode();
-  var el=document.getElementById('bigCheckinCode');if(el)el.textContent=code;
-  var el2=document.getElementById('checkinCodeDisplay');if(el2)el2.textContent=code;
-  var dateEl=document.getElementById('checkinCodeDate');if(dateEl)dateEl.textContent='有效日期：'+(today.getMonth()+1)+'/'+today.getDate();
+
+function paintCheckinCode(text){
+  var el=document.getElementById('bigCheckinCode');if(el)el.textContent=text;
+  var el2=document.getElementById('checkinCodeDisplay');if(el2)el2.textContent=text;
+  var dateEl=document.getElementById('checkinCodeDate');
+  if(dateEl)dateEl.textContent='有效日期：'+(today.getMonth()+1)+'/'+today.getDate();
   var card=document.getElementById('todayCheckinCode');if(card)card.style.display='';
 }
-function renderCheckinTab(){
-  var recs=state.checkinRecords.filter(function(r){return r.date===todayKey();});
+
+async function renderCheckinCodeDisplay(){
+  paintCheckinCode(getTodayCode()||'讀取中…');
+  try{
+    paintCheckinCode(await ensureTodayCode(false));
+  }catch(e){
+    paintCheckinCode('連線失敗');
+    showATSyncToast('⚠️ 無法從 Airtable 取得今日簽到碼：'+e.message+'（人員將無法驗證）',true);
+  }
+}
+
+async function refreshCheckinCode(){
+  var prev=getTodayCode();
+  paintCheckinCode('產生中…');
+  try{
+    paintCheckinCode(await ensureTodayCode(true));
+    renderCheckinTab();
+    showATSyncToast('✓ 新簽到碼已寫入 Airtable，所有裝置都會讀到同一組',false);
+  }catch(e){
+    paintCheckinCode(prev||'——');
+    alert('換新碼失敗：'+e.message+'\n\n為避免各裝置拿到不同的碼，這次沒有更換。請確認網路／Airtable 連線後再試。');
+  }
+}
+
+function copyCheckinCode(){
+  var code=getTodayCode();
+  if(!code){alert('尚未取得今日簽到碼，請稍候或重新整理頁面');return;}
+  if(navigator.clipboard){
+    navigator.clipboard.writeText(code)
+      .then(function(){alert('簽到碼已複製：'+code);})
+      .catch(function(){prompt('複製此碼：',code);});
+  }else{prompt('複製此碼：',code);}
+}
+
+async function renderCheckinTab(){
   var el=document.getElementById('checkinRecords');if(!el)return;
-  if(!recs.length){el.innerHTML='<p style="font-size:13px;color:#aaa;text-align:center;padding:1rem;">今日尚無簽到紀錄</p>';return;}
-  var html='';
+  el.innerHTML='<p style="font-size:12px;color:#aaa;text-align:center;padding:1rem;">讀取中…</p>';
+  var dateStr=todayKey(),recs=[],fromLocal=false;
+  try{
+    var formula='AND(IS_AFTER({日期},"'+addOneDay(dateStr)+'"),IS_BEFORE({日期},"'+subOneDay(dateStr)+'"),OR({上午簽到方式}="自行簽到",{下午簽到方式}="自行簽到"))';
+    var raw=await atGetAll(AT.attnTable,formula);
+    raw.forEach(function(r){
+      var f=r.fields;
+      if(f['上午簽到方式']==='自行簽到')recs.push({name:f['姓名']||'',slot:'am',time:f['實際上午簽到']||'—'});
+      if(f['下午簽到方式']==='自行簽到')recs.push({name:f['姓名']||'',slot:'pm',time:f['實際下午簽到']||'—'});
+    });
+  }catch(e){
+    fromLocal=true;
+    recs=state.checkinRecords.filter(function(r){return r.date===dateStr;})
+      .map(function(r){return{name:r.name,slot:r.slot,time:r.time};});
+  }
+  if(!recs.length){
+    el.innerHTML='<p style="font-size:13px;color:#aaa;text-align:center;padding:1rem;">今日尚無簽到紀錄</p>';
+    return;
+  }
+  var html=fromLocal?'<div class="at-status err" style="margin-bottom:8px;">⚠️ Airtable 讀取失敗，以下僅為本機紀錄，可能不完整</div>':'';
   recs.forEach(function(r){
-    var p=state.staff.find(function(s){return s.id===r.pid;});
+    var p=state.staff.find(function(s){return s.name===r.name;});
     var c=p?getPersonColor(state.staff.indexOf(p)):['#f0f0ee','#666'];
-    var slotLabel=r.slot==='am'?'上午':'下午';
-    html+='<div style="display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid #f0f0ee;">';
-    html+='<span style="background:'+c[0]+';color:'+c[1]+';padding:2px 8px;border-radius:8px;font-size:12px;font-weight:600;">'+(r.name?r.name[0]:'?')+' '+r.name+'</span>';
-    html+='<span style="font-size:12px;color:var(--muted);">'+slotLabel+'</span>';
-    html+='<span style="font-size:12px;font-weight:700;">'+r.time+'</span>';
-    html+='<span class="attn-confirmed">✓ 自簽</span>';
-    html+='<button class="btn-red" style="margin-left:auto;font-size:11px;padding:3px 8px;" onclick="deleteSelfCheckinRecord(\''+r.id+'\')">刪除</button>';
-    html+='</div>';
+    html+='<div style="display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid #f0f0ee;">'
+      +'<span style="background:'+c[0]+';color:'+c[1]+';padding:2px 8px;border-radius:8px;font-size:12px;font-weight:600;">'+r.name+'</span>'
+      +'<span style="font-size:12px;color:var(--muted);">'+(r.slot==='am'?'上午':'下午')+'</span>'
+      +'<span style="font-size:12px;font-weight:700;">'+r.time+'</span>'
+      +'<span class="attn-confirmed">✓ 自簽</span>'
+      +'<span style="margin-left:auto;font-size:11px;color:#aaa;">如需更正請至下方「確認出勤狀態」</span>'
+      +'</div>';
   });
   el.innerHTML=html;
-}
-function deleteSelfCheckinRecord(id){
-  state.checkinRecords=state.checkinRecords.filter(function(r){return r.id!==id;});
-  saveLocal();renderCheckinTab();
 }
 
 // ============================================================
@@ -1013,8 +1077,6 @@ async function doSelfCheckin(){
   var msgEl=document.getElementById('selfCheckinMsg');
 
   if(!code||!pid||!time){msgEl.innerHTML='<div class="at-status err">請填寫完整資料</div>';return;}
-  var todayCode=getTodayCode();
-  if(code!==todayCode){msgEl.innerHTML='<div class="at-status err">簽到碼不正確，請向管理者確認</div>';return;}
 
   var p=state.staff.find(function(s){return s.id===pid;});if(!p)return;
   var k=mkey(today.getFullYear(),today.getMonth()),d=today.getDate();
@@ -1023,9 +1085,24 @@ async function doSelfCheckin(){
     msgEl.innerHTML='<div class="at-status err">您今日無此時段的排班，請聯繫管理者</div>';return;
   }
 
-  // 已簽過的檢查
   var alreadySigned=state.checkinRecords.some(function(r){return r.pid===pid&&r.date===todayKey()&&r.slot===slot;});
-  if(alreadySigned){msgEl.innerHTML='<div class="at-status err">您今日'+( slot==='am'?'上午':'下午')+'已完成簽到</div>';return;}
+  if(alreadySigned){msgEl.innerHTML='<div class="at-status err">您今日'+(slot==='am'?'上午':'下午')+'已完成簽到</div>';return;}
+
+  // ★ 向 Airtable 取當日碼比對，不再使用本機（本機根本沒有管理者那組碼）
+  msgEl.innerHTML='<div class="at-status loading">驗證簽到碼中…</div>';
+  var todayCode=null;
+  try{
+    todayCode=await fetchCodeFromAT(todayKey());
+  }catch(e){
+    msgEl.innerHTML='<div class="at-status err">無法連線驗證簽到碼（'+e.message+'），請稍後再試</div>';return;
+  }
+  if(!todayCode){
+    msgEl.innerHTML='<div class="at-status err">管理者今日尚未產生簽到碼，請聯繫管理者</div>';return;
+  }
+  if(code!==todayCode){
+    msgEl.innerHTML='<div class="at-status err">簽到碼不正確，請向管理者確認</div>';return;
+  }
+  state.checkinCodes[todayKey()]=todayCode;   // 順手快取
 
   // 記錄自簽
   var rec={id:Date.now().toString(),pid:pid,name:p.name,date:todayKey(),slot:slot,time:time,code:code};
@@ -1327,7 +1404,7 @@ async function startDemo(){
   DEMO_MODE=true;
   window.fetch=demoFetchInterceptor;
   demoDB={};
-  AT={token:'DEMO',base:'DEMO',dailyTable:'每日班表',hrsTable:'人員工時',staffTable:'人員名單',attnTable:'出勤確認表'};
+  AT={token:'DEMO',base:'DEMO',dailyTable:'每日班表',hrsTable:'人員工時',staffTable:'人員名單',attnTable:'出勤確認表',changeLogTable:'異動紀錄表',codeTable:'每日簽到碼'};
 
   var adminPwd='admin',staffPwd='12345';
   ADMIN_MASTER_HASH=await hashPwd(adminPwd);
@@ -1420,9 +1497,10 @@ async function doSetup(){
   var daily=document.getElementById('setup_daily').value.trim()||'每日班表',hrs=document.getElementById('setup_hrs').value.trim()||'人員工時',staff=document.getElementById('setup_staff').value.trim()||'人員名單';
   var attn=document.getElementById('setup_attn').value.trim()||'出勤確認表';
   var changelog=document.getElementById('setup_changelog').value.trim()||'異動紀錄表';
+  var codeT=document.getElementById('setup_code').value.trim()||'每日簽到碼'; 
   if(!token||!base){document.getElementById('setupErr').innerHTML='<div class="at-status err">請填入 Token 和 Base ID</div>';return;}
   var btn=document.querySelector('#scr-setup button.btn-blue');btn.disabled=true;btn.textContent='連線中…';
-  AT={token:token,base:base,dailyTable:daily,hrsTable:hrs,staffTable:staff,attnTable:attn,changeLogTable:changelog};
+  AT={token:token,base:base,dailyTable:daily,hrsTable:hrs,staffTable:staff,attnTable:attn,changeLogTable:changelog,codeTable:codeT};
   try{
     await atFetch('GET',staff,null,'maxRecords=1');saveLocal();
     document.getElementById('setupErr').innerHTML='<div class="at-status ok">✓ 連線成功！</div>';
@@ -1472,7 +1550,7 @@ async function doLogin(){
 function goLogin(){currentUser=null;document.getElementById('loginRole').value='';document.getElementById('loginPwd').value='';showScreen('scr-login');initLoginMonthPicker();}
 function showScreen(id){document.querySelectorAll('.screen').forEach(function(s){s.classList.remove('active');});document.getElementById(id).classList.add('active');}
 function showAdmin(){
-  showScreen('scr-admin');renderAdmin();renderCheckinCodeDisplay();loadAutoSyncUI();
+  showScreen('scr-admin');renderAdmin();
   var calIdEl=document.getElementById('gcal_id');if(calIdEl&&!calIdEl.value&&gcalState.calId)calIdEl.value=gcalState.calId;
   var clientIdEl=document.getElementById('gcal_client_id');if(clientIdEl&&!clientIdEl.value){var savedClient=localStorage.getItem('gcal_client_id');if(savedClient)clientIdEl.value=savedClient;}
   var clientSecretEl=document.getElementById('gcal_client_secret');if(clientSecretEl&&!clientSecretEl.value){var savedSecret=localStorage.getItem('gcal_client_secret');if(savedSecret)clientSecretEl.value=savedSecret;}
@@ -2678,13 +2756,13 @@ async function syncToGCal(){
     var timeMin=vy+'-'+pad(vm+1)+'-01T00:00:00Z',timeMax=vy+'-'+pad(vm+1)+'-'+pad(dim)+'T23:59:59Z';
     var evRes=await fetch('https://www.googleapis.com/calendar/v3/calendars/'+encodeURIComponent(calId)+'/events?timeMin='+timeMin+'&timeMax='+timeMax+'&maxResults=500',{headers:{Authorization:'Bearer '+gcalState.accessToken}});
     if(evRes.ok){var evData=await evRes.json();for(var ev of (evData.items||[]).filter(function(e){return e.summary&&(e.summary.includes('上午班')||e.summary.includes('下午班'));})){await fetch('https://www.googleapis.com/calendar/v3/calendars/'+encodeURIComponent(calId)+'/events/'+ev.id,{method:'DELETE',headers:{Authorization:'Bearer '+gcalState.accessToken}});}}
-    var todayCode=getTodayCode();
+    var todayStr=todayKey(),todayCode=getTodayCode();
     for(var d=1;d<=dim;d++){
       var dateStr=vy+'-'+pad(vm+1)+'-'+pad(d);
       for(var si=0;si<state.staff.length;si++){
         var p=state.staff[si];
         var day=((state.schedule[k]||{})[p.id]||{})[d];if(!day)continue;
-        var descText='簽到碼：'+todayCode;
+        var descText=(dateStr===todayStr&&todayCode)?('簽到碼：'+todayCode):'';
         if(day.am&&calcH(day.ams,day.ame)>0){
           await fetch('https://www.googleapis.com/calendar/v3/calendars/'+encodeURIComponent(calId)+'/events',{method:'POST',headers:{Authorization:'Bearer '+gcalState.accessToken,'Content-Type':'application/json'},body:JSON.stringify({summary:'[排] '+p.name+' 上午班',description:descText,start:{dateTime:dateStr+'T'+day.ams+':00',timeZone:'Asia/Taipei'},end:{dateTime:dateStr+'T'+day.ame+':00',timeZone:'Asia/Taipei'},colorId:'2'})});
           created++;
@@ -2725,7 +2803,7 @@ async function syncSingleDayToGCal(pid,d,y,m){
   }
   var k=mkey(y,m),day=((state.schedule[k]||{})[pid]||{})[d];
   if(!day)return;
-  var descText='簽到碼：'+getTodayCode();
+  var descText=(dateStr===todayKey()&&getTodayCode())?('簽到碼：'+getTodayCode()):'';
   if(day.am&&calcH(day.ams,day.ame)>0){
     await fetch('https://www.googleapis.com/calendar/v3/calendars/'+encodeURIComponent(calId)+'/events',{method:'POST',headers:{Authorization:'Bearer '+gcalState.accessToken,'Content-Type':'application/json'},body:JSON.stringify({summary:'[排] '+p.name+' 上午班',description:descText,start:{dateTime:dateStr+'T'+day.ams+':00',timeZone:'Asia/Taipei'},end:{dateTime:dateStr+'T'+day.ame+':00',timeZone:'Asia/Taipei'},colorId:'2'})});
   }
