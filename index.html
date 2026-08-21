@@ -1153,6 +1153,10 @@ async function syncScheduleFromAT(y,m){
       var pid=staff.id;if(!state.schedule[k][pid])state.schedule[k][pid]={};
       var d=parseInt((f['日期']||'').split('-')[2]);
       state.schedule[k][pid][d]={am:!!f['上午開始'],ams:f['上午開始']||'09:00',ame:f['上午結束']||'12:00',pm:!!f['下午開始'],pms:f['下午開始']||'13:00',pme:f['下午結束']||'16:00'};
+      if(f['上午新增'])state.schedule[k][pid][d].amNew=true;
+      if(f['下午新增'])state.schedule[k][pid][d].pmNew=true;
+      if(f['上午取消']){state.schedule[k][pid][d].amCancelled=true;state.schedule[k][pid][d].amCancelledLabel=f['上午取消前時間']||'';}
+      if(f['下午取消']){state.schedule[k][pid][d].pmCancelled=true;state.schedule[k][pid][d].pmCancelledLabel=f['下午取消前時間']||'';}
       state.submitted[pid+'-'+k]=true;
     });
     saveLocal();
@@ -1263,9 +1267,10 @@ async function pushDailyScheduleToAT(pid,y,m,d){
   var monthLabel=y+'年'+(m+1)+'月';
   var dateStr=y+'-'+pad(m+1)+'-'+pad(d);
   var key=p.name+'_'+monthLabel+'_'+pad(d);
+  var hasCancelHistory=day&&(day.amCancelled||day.pmCancelled);
   try{
-    if(!day||(!day.am&&!day.pm)){
-      // 這天已經沒有排班了，把 Airtable 對應紀錄刪掉，避免留下過期資料
+    if(!day||(!day.am&&!day.pm&&!hasCancelHistory)){
+      // 這天已經沒有排班、也沒有取消紀錄要保留，把 Airtable 對應紀錄刪掉，避免留下過期資料
       var ex=await atGetAll(AT.dailyTable,'FIND("'+key+'",{唯一鍵})=1');
       for(var i=0;i<ex.length;i++){
         await fetch('https://api.airtable.com/v0/'+AT.base+'/'+encodeURIComponent(AT.dailyTable)+'/'+ex[i].id,{method:'DELETE',headers:{Authorization:'Bearer '+AT.token}});
@@ -1276,7 +1281,10 @@ async function pushDailyScheduleToAT(pid,y,m,d){
         '姓名':p.name,'月份':monthLabel,'日期':dateStr,
         '上午開始':day.am?day.ams:'','上午結束':day.am?day.ame:'',
         '下午開始':day.pm?day.pms:'','下午結束':day.pm?day.pme:'',
-        '當日工時':parseFloat(dh.toFixed(2))
+        '當日工時':parseFloat(dh.toFixed(2)),
+        '上午新增':!!day.amNew,'下午新增':!!day.pmNew,
+        '上午取消':!!day.amCancelled,'下午取消':!!day.pmCancelled,
+        '上午取消前時間':day.amCancelledLabel||'','下午取消前時間':day.pmCancelledLabel||''
       },key,AT.dailyTable);
     }
   }catch(e){
@@ -2109,7 +2117,17 @@ function mToggle(slot){
   var k=mkey(modalY,modalM);
   var beforeDay=JSON.parse(JSON.stringify(state.schedule[k][modalPid][modalD]));
   var checked=document.getElementById('m_'+slot).checked;
+  var wasOff=!beforeDay[slot];
   state.schedule[k][modalPid][modalD][slot]=checked;
+  if(currentUser&&currentUser.role==='admin'){
+    if(checked&&wasOff){
+      state.schedule[k][modalPid][modalD][slot+'New']=true;
+      delete state.schedule[k][modalPid][modalD][slot+'Cancelled'];
+      delete state.schedule[k][modalPid][modalD][slot+'CancelledLabel'];
+    }else if(!checked){
+      delete state.schedule[k][modalPid][modalD][slot+'New'];
+    }
+  }
   var t=document.getElementById('m_'+slot+'_t');if(t)t.style.cssText=checked?'':'opacity:.4;pointer-events:none;';refreshModalGap();
   var day=state.schedule[k][modalPid][modalD];
   var delBtn=document.getElementById('modalDeleteBtn');
