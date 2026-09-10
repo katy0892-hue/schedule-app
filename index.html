@@ -137,6 +137,10 @@ input:focus,select:focus{box-shadow:0 0 0 2px var(--blue-border);}
 
 /* ====== NOTIFICATION BANNER ====== */
 .notif-banner{border:1px solid var(--amber-border);background:var(--amber-bg);border-radius:var(--radius);padding:.75rem 1rem;margin-bottom:1rem;display:flex;align-items:center;gap:10px;}
+.today-attn-banner{border-radius:var(--radius);padding:.75rem 1rem;margin-bottom:1rem;display:flex;align-items:center;gap:10px;font-size:13px;font-weight:600;}
+.today-attn-banner.confirmed{background:var(--green-bg);border:1px solid var(--green-border);color:var(--green-text);}
+.today-attn-banner.absent{background:var(--red-bg);border:1px solid var(--red-border);color:var(--red-text);}
+.today-attn-banner.pending{background:#f7f7f5;border:1px solid var(--border);color:var(--muted);}
 
 /* ====== CHECKIN QR ====== */
 .checkin-card{background:var(--card);border:2px solid var(--am-border);border-radius:var(--radius-lg);padding:1.5rem;text-align:center;margin-bottom:1rem;}
@@ -240,6 +244,10 @@ input:focus,select:focus{box-shadow:0 0 0 2px var(--blue-border);}
 .cal-entry.cancelled{text-decoration:line-through;opacity:.5;}
 .cal-entry.new-entry{border:1.5px solid #0C447C;font-weight:700;}
 .cal-entry.new-entry::before{content:"🆕";flex-shrink:0;font-size:8px;}
+.cal-entry.status-confirmed{border:1.5px solid #1D9E75;}
+.cal-entry.status-confirmed::before{content:"✓";flex-shrink:0;font-weight:700;color:#1D9E75;}
+.cal-entry.status-absent{border:1.5px solid #A32D2D;opacity:.75;}
+.cal-entry.status-absent::before{content:"✗";flex-shrink:0;font-weight:700;color:#A32D2D;}
 .cal-more{font-size:8px;color:var(--muted);padding-left:3px;}
 .cal-add-btn{position:absolute;bottom:1px;right:1px;font-size:11px;line-height:1;width:15px;height:15px;display:flex;align-items:center;justify-content:center;border-radius:3px;background:transparent;border:none;color:#ccc;}
 .cal-add-btn:hover{background:var(--border);color:var(--text);}
@@ -369,6 +377,7 @@ input:focus,select:focus{box-shadow:0 0 0 2px var(--blue-border);}
     <button onclick="goLogin()">登出</button>
   </div>
   <div class="stat-grid" id="staffStats"></div>
+  <div id="todayAttnBanner"></div>
 
   <!-- 歷史時數（直接顯示，不用另外打開） -->
   <div class="card" style="padding:.75rem 1rem;">
@@ -1747,10 +1756,14 @@ function buildMonthOvHtml(y,m){
       var day=((state.schedule[k]||{})[p.id]||{})[d];if(!day)return;
       var at=((state.attendance[k]||{})[p.id]||{})[d]||{};
       var c=getPersonColor(i);
-      if(day.am&&calcH(day.ams,day.ame)>0)entries.push('<div class="cal-entry'+(day.amNew?' new-entry':'')+'" style="background:'+c[0]+';color:'+c[1]+';" title="'+p.name+' 上午 '+day.ams+'–'+day.ame+(day.amNew?'（新增班次）':'')+'"><span class="cal-dot" style="background:'+c[1]+';"></span>'+p.name+'</div>');
-      else if(day.amCancelled)entries.push('<div class="cal-entry cancelled" title="'+p.name+' 原排 '+day.amCancelledLabel+'（已取消）"><span class="cal-dot" style="background:#ccc;"></span>'+p.name+'</div>');
-      if(day.pm&&calcH(day.pms,day.pme)>0)entries.push('<div class="cal-entry'+(day.pmNew?' new-entry':'')+'" style="background:'+c[0]+';color:'+c[1]+';" title="'+p.name+' 下午 '+day.pms+'–'+day.pme+(day.pmNew?'（新增班次）':'')+'"><span class="cal-dot" style="background:'+c[1]+';"></span>'+p.name+'</div>');
-      else if(day.pmCancelled)entries.push('<div class="cal-entry cancelled" title="'+p.name+' 原排 '+day.pmCancelledLabel+'（已取消）"><span class="cal-dot" style="background:#ccc;"></span>'+p.name+'</div>');
+      if(day.am&&calcH(day.ams,day.ame)>0){
+        var amStatusCls=at.amConfirmed?' status-confirmed':(at.amAbsent?' status-absent':'');
+        entries.push('<div class="cal-entry'+(day.amNew?' new-entry':'')+amStatusCls+'" style="background:'+c[0]+';color:'+c[1]+';" title="'+p.name+' 上午 '+day.ams+'–'+day.ame+(day.amNew?'（新增班次）':'')+'　'+(at.amConfirmed?'✓已確認出勤':at.amAbsent?'✗已標記缺席':'尚未確認')+'"><span class="cal-dot" style="background:'+c[1]+';"></span>'+p.name+'</div>');
+      }else if(day.amCancelled)entries.push('<div class="cal-entry cancelled" title="'+p.name+' 原排 '+day.amCancelledLabel+'（已取消）"><span class="cal-dot" style="background:#ccc;"></span>'+p.name+'</div>');
+      if(day.pm&&calcH(day.pms,day.pme)>0){
+        var pmStatusCls=at.pmConfirmed?' status-confirmed':(at.pmAbsent?' status-absent':'');
+        entries.push('<div class="cal-entry'+(day.pmNew?' new-entry':'')+pmStatusCls+'" style="background:'+c[0]+';color:'+c[1]+';" title="'+p.name+' 下午 '+day.pms+'–'+day.pme+(day.pmNew?'（新增班次）':'')+'　'+(at.pmConfirmed?'✓已確認出勤':at.pmAbsent?'✗已標記缺席':'尚未確認')+'"><span class="cal-dot" style="background:'+c[1]+';"></span>'+p.name+'</div>');
+      }else if(day.pmCancelled)entries.push('<div class="cal-entry cancelled" title="'+p.name+' 原排 '+day.pmCancelledLabel+'（已取消）"><span class="cal-dot" style="background:#ccc;"></span>'+p.name+'</div>');
     });
     var maxShow=3,html=entries.slice(0,maxShow).join('');
     if(entries.length>maxShow)html+='<div class="cal-more">+'+(entries.length-maxShow)+' 更多</div>';
@@ -1785,13 +1798,14 @@ function buildMonthListHtml(pid,y,m){
     var day=pd[d]||{};var at=attn[d]||{};
     var lines=[];
     if(day.am&&calcH(day.ams,day.ame)>0){
-      var amCls='cal-entry'+(at.amConfirmed?'':at.amAbsent?'':'');
-      lines.push('<div class="cal-entry'+(day.amNew?' new-entry':'')+'" style="background:var(--am-bg);color:var(--am-text);">'+(at.actualAms||day.ams)+'–'+(at.actualAme||day.ame)+(at.amConfirmed?' ✓':at.amAbsent?' ✗':'')+'</div>');
+      var amStatusCls=at.amConfirmed?' status-confirmed':(at.amAbsent?' status-absent':'');
+      lines.push('<div class="cal-entry'+(day.amNew?' new-entry':'')+amStatusCls+'" style="background:var(--am-bg);color:var(--am-text);" title="'+(at.amConfirmed?'已確認出勤':at.amAbsent?'已標記缺席':'尚未確認')+'">'+(at.actualAms||day.ams)+'–'+(at.actualAme||day.ame)+'</div>');
     }else if(day.amCancelled){
       lines.push('<div class="cal-entry cancelled" style="background:#eee;">'+day.amCancelledLabel+'</div>');
     }
     if(day.pm&&calcH(day.pms,day.pme)>0){
-      lines.push('<div class="cal-entry'+(day.pmNew?' new-entry':'')+'" style="background:var(--pm-bg);color:var(--pm-text);">'+(at.actualPms||day.pms)+'–'+(at.actualPme||day.pme)+(at.pmConfirmed?' ✓':at.pmAbsent?' ✗':'')+'</div>');
+      var pmStatusCls=at.pmConfirmed?' status-confirmed':(at.pmAbsent?' status-absent':'');
+      lines.push('<div class="cal-entry'+(day.pmNew?' new-entry':'')+pmStatusCls+'" style="background:var(--pm-bg);color:var(--pm-text);" title="'+(at.pmConfirmed?'已確認出勤':at.pmAbsent?'已標記缺席':'尚未確認')+'">'+(at.actualPms||day.pms)+'–'+(at.actualPme||day.pme)+'</div>');
     }else if(day.pmCancelled){
       lines.push('<div class="cal-entry cancelled" style="background:#eee;">'+day.pmCancelledLabel+'</div>');
     }
@@ -2450,10 +2464,14 @@ function buildMonthAdminHtml(y,m){
       var at=((state.attendance[k]||{})[p.id]||{})[d]||{};
       var c=getPersonColor(i);
       var clickAttr='onclick="event.stopPropagation();openDayModal(\''+p.id+'\','+d+','+y+','+m+')"';
-      if(day.am&&calcH(day.ams,day.ame)>0)entries.push('<div class="cal-entry'+(day.amNew?' new-entry':'')+'" style="background:'+c[0]+';color:'+c[1]+';cursor:pointer;" '+clickAttr+' title="'+p.name+' 上午 '+day.ams+'–'+day.ame+(day.amNew?'（新增班次，點擊編輯）':'（點擊編輯）')+'"><span class="cal-dot" style="background:'+c[1]+';"></span>'+p.name+'</div>');
-      else if(day.amCancelled)entries.push('<div class="cal-entry cancelled" style="cursor:pointer;" '+clickAttr+' title="'+p.name+' 原排 '+day.amCancelledLabel+'（已取消）"><span class="cal-dot" style="background:#ccc;"></span>'+p.name+'</div>');
-      if(day.pm&&calcH(day.pms,day.pme)>0)entries.push('<div class="cal-entry'+(day.pmNew?' new-entry':'')+'" style="background:'+c[0]+';color:'+c[1]+';cursor:pointer;" '+clickAttr+' title="'+p.name+' 下午 '+day.pms+'–'+day.pme+(day.pmNew?'（新增班次，點擊編輯）':'（點擊編輯）')+'"><span class="cal-dot" style="background:'+c[1]+';"></span>'+p.name+'</div>');
-      else if(day.pmCancelled)entries.push('<div class="cal-entry cancelled" style="cursor:pointer;" '+clickAttr+' title="'+p.name+' 原排 '+day.pmCancelledLabel+'（已取消）"><span class="cal-dot" style="background:#ccc;"></span>'+p.name+'</div>');
+      if(day.am&&calcH(day.ams,day.ame)>0){
+        var amStatusCls=at.amConfirmed?' status-confirmed':(at.amAbsent?' status-absent':'');
+        entries.push('<div class="cal-entry'+(day.amNew?' new-entry':'')+amStatusCls+'" style="background:'+c[0]+';color:'+c[1]+';cursor:pointer;" '+clickAttr+' title="'+p.name+' 上午 '+day.ams+'–'+day.ame+(day.amNew?'（新增班次）':'')+'　'+(at.amConfirmed?'✓已確認出勤':at.amAbsent?'✗已標記缺席':'尚未確認')+'（點擊編輯）"><span class="cal-dot" style="background:'+c[1]+';"></span>'+p.name+'</div>');
+      }else if(day.amCancelled)entries.push('<div class="cal-entry cancelled" style="cursor:pointer;" '+clickAttr+' title="'+p.name+' 原排 '+day.amCancelledLabel+'（已取消）"><span class="cal-dot" style="background:#ccc;"></span>'+p.name+'</div>');
+      if(day.pm&&calcH(day.pms,day.pme)>0){
+        var pmStatusCls=at.pmConfirmed?' status-confirmed':(at.pmAbsent?' status-absent':'');
+        entries.push('<div class="cal-entry'+(day.pmNew?' new-entry':'')+pmStatusCls+'" style="background:'+c[0]+';color:'+c[1]+';cursor:pointer;" '+clickAttr+' title="'+p.name+' 下午 '+day.pms+'–'+day.pme+(day.pmNew?'（新增班次）':'')+'　'+(at.pmConfirmed?'✓已確認出勤':at.pmAbsent?'✗已標記缺席':'尚未確認')+'（點擊編輯）"><span class="cal-dot" style="background:'+c[1]+';"></span>'+p.name+'</div>');
+      }else if(day.pmCancelled)entries.push('<div class="cal-entry cancelled" style="cursor:pointer;" '+clickAttr+' title="'+p.name+' 原排 '+day.pmCancelledLabel+'（已取消）"><span class="cal-dot" style="background:#ccc;"></span>'+p.name+'</div>');
     });
     var amGap=gapLabel(d,'am',y,m),pmGap=gapLabel(d,'pm',y,m);
     if(amGap)entries.push('<div class="cal-more" style="color:var(--amber-text);">上'+amGap.text+'</div>');
