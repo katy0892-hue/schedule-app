@@ -789,6 +789,13 @@ function getPersonTarget(pid,y,m){
   var proratedSalary=MONTHLY_SALARY/daysInMonth*workDays;
   return Math.ceil(proratedSalary/HOURLY_RATE);
 }
+// 時數差額：多做顯示 +X.Xh（多做，綠色），少做顯示 -X.Xh（少做，橘色），剛好打平顯示 ±0h（達標）
+function formatHoursDiff(confHrs,target,compact){
+  var diff=confHrs-target;
+  if(Math.abs(diff)<0.05)return{text:compact?'±0':'±0h（達標）',color:'#0F6E56'};
+  if(diff>0)return{text:(compact?'+':'+')+diff.toFixed(1)+(compact?'':'h（多做）'),color:'#0F6E56'};
+  return{text:'-'+Math.abs(diff).toFixed(1)+(compact?'':'h（少做）'),color:'#854F0B'};
+}
 var PERSON_COLORS=[
   ['#DBEAFE','#1e40af'],['#D1FAE5','#065f46'],['#FCE7F3','#831843'],
   ['#EDE9FE','#4c1d95'],['#FEF3C7','#78350f'],['#FFE4E6','#881337'],
@@ -1455,21 +1462,22 @@ async function buildYearlyTableHtml(year,names,isAdmin){
     }
     html+='<td style="font-weight:700;">'+yearTotal.toFixed(1)+'h</td></tr>';
 
-    // 尚缺時數子列（依該人該月的目標時數，若入職日造成當月目標按比例調整，這裡會反映出來）
-    html+='<tr><td class="name-cell" style="font-weight:400;color:var(--muted);font-size:10px;padding-left:12px;">└ 尚缺</td>';
-    var yearShortfall=0;
+    // 時數差額子列（依該人該月的目標時數，若入職日造成當月目標按比例調整，這裡會反映出來；正值=多做，負值=少做）
+    html+='<tr><td class="name-cell" style="font-weight:400;color:var(--muted);font-size:10px;padding-left:12px;">└ 差額</td>';
+    var yearDiff=0;
     for(var mo3=0;mo3<12;mo3++){
       var cell2=row[mo3];
       if(!cell2){html+='<td class="empty-cell">—</td>';continue;}
       var monthTarget=cell2.target!=null?cell2.target:(pObj?getPersonTarget(pObj.id,year,mo3):TARGET);
-      var shortfall=Math.max(0,monthTarget-cell2.conf);
-      yearShortfall+=shortfall;
-      html+='<td style="font-size:10px;color:'+(shortfall<=0?'#0F6E56':'#854F0B')+';" title="目標 '+monthTarget+'h">'+(shortfall<=0?'✓':shortfall.toFixed(1))+'</td>';
+      var d3=formatHoursDiff(cell2.conf,monthTarget,true);
+      yearDiff+=(cell2.conf-monthTarget);
+      html+='<td style="font-size:10px;color:'+d3.color+';" title="目標 '+monthTarget+'h">'+d3.text+'</td>';
     }
-    html+='<td style="font-size:10px;font-weight:700;color:'+(yearShortfall<=0?'#0F6E56':'#854F0B')+';">'+yearShortfall.toFixed(1)+'h</td></tr>';
+    var yearDiffFmt=yearDiff>=0?'+'+yearDiff.toFixed(1):yearDiff.toFixed(1);
+    html+='<td style="font-size:10px;font-weight:700;color:'+(yearDiff>=0?'#0F6E56':'#854F0B')+';">'+yearDiffFmt+'h</td></tr>';
   });
   html+='</tbody></table>';
-  html+='<div style="font-size:11px;color:var(--muted);margin-top:8px;">每格顯示該月已確認出勤時數（滑鼠移過可看預排時數），下方「尚缺」列顯示距離該月目標時數還差多少（若有設定入職日，目標時數會按比例調整）。<span style="background:var(--green-bg);color:#0F6E56;padding:1px 5px;border-radius:3px;">綠色</span>＝已達標，<span style="background:var(--amber-bg);color:#854F0B;padding:1px 5px;border-radius:3px;">橘色</span>＝未達標。'+(isAdmin?'點格子可直接跳到該月份。':'')+'</div>';
+  html+='<div style="font-size:11px;color:var(--muted);margin-top:8px;">每格顯示該月已確認出勤時數（滑鼠移過可看預排時數），下方「差額」列顯示跟該月目標時數的差距（若有設定入職日，目標時數會按比例調整）。<span style="background:var(--green-bg);color:#0F6E56;padding:1px 5px;border-radius:3px;">+ 綠色</span>＝多做，<span style="background:var(--amber-bg);color:#854F0B;padding:1px 5px;border-radius:3px;">- 橘色</span>＝少做。'+(isAdmin?'點格子可直接跳到該月份。':'')+'</div>';
   return html;
 }
 
@@ -1800,7 +1808,7 @@ function updateStaffStats(){
   var confirmedHrs=monthHrs(currentUser.pid,staffY,staffM);
   var scheduledH=scheduledHrs(currentUser.pid,staffY,staffM);
   var remain=Math.max(0,target-scheduledH);
-  var shortfall=Math.max(0,target-confirmedHrs);
+  var diff=formatHoursDiff(confirmedHrs,target);
   var sub=isSubmitted(currentUser.pid,staffY,staffM);
   var attn=getAttn(currentUser.pid,staffY,staffM),absentCount=0;
   var dim=new Date(staffY,staffM+1,0).getDate();
@@ -1809,7 +1817,7 @@ function updateStaffStats(){
   document.getElementById('staffStats').innerHTML=
     '<div class="stat"><div class="stat-lbl">已排時數</div><div class="stat-val '+schedColor+'">'+scheduledH.toFixed(1)+'h</div><div style="font-size:10px;color:#aaa;margin-top:1px;">目標 '+target+'h'+(remain>0?' 差'+remain.toFixed(1)+'h':'  ✓')+'</div></div>'+
     '<div class="stat"><div class="stat-lbl">已確認時數</div><div class="stat-val '+(confirmedHrs>=target?'ok':confirmedHrs>0?'warn':'')+'">'+confirmedHrs.toFixed(1)+'h</div></div>'+
-    '<div class="stat"><div class="stat-lbl">還需補時數</div><div class="stat-val '+(shortfall<=0?'ok':'warn')+'">'+(shortfall<=0?'✓ 已達標':shortfall.toFixed(1)+'h')+'</div></div>'+
+    '<div class="stat"><div class="stat-lbl">時數差額</div><div class="stat-val" style="color:'+diff.color+';">'+diff.text+'</div></div>'+
     '<div class="stat"><div class="stat-lbl">缺席天數</div><div class="stat-val '+(absentCount>0?'warn':'')+'">'+absentCount+'</div></div>'+
     '<div class="stat"><div class="stat-lbl">送出狀態</div><div style="padding-top:6px;">'+(sub?'<span class="badge badge-green">已送出</span>':'<span class="badge badge-gray">未送出</span>')+'</div></div>';
 }
@@ -2462,12 +2470,12 @@ function renderAdminPeople(){
     var target=getPersonTarget(p.id,vy,vm);
     var schedHrs=scheduledHrs(p.id,vy,vm);
     var confHrs=monthHrs(p.id,vy,vm);
-    var shortfall=Math.max(0,target-confHrs);
+    var diff=formatHoursDiff(confHrs,target);
     var pct=Math.min(100,schedHrs/target*100),sub=isSubmitted(p.id,vy,vm);
     var fc=schedHrs>=target?'#1D9E75':schedHrs>0?'#BA7517':'#999';
     var badge=sub?'<span class="badge badge-green">已送出</span>':schedHrs>=target?'<span class="badge badge-teal">已排達標</span>':schedHrs>0?'<span class="badge badge-amber">填報中</span>':'<span class="badge badge-gray">未填報</span>';
     var c=getPersonColor(i);
-    var shortfallHtml=shortfall<=0?'<span style="color:#0F6E56;font-weight:600;">✓ 已達標</span>':'<span style="color:#BA7517;font-weight:600;">還需補 '+shortfall.toFixed(1)+'h</span>';
+    var shortfallHtml='<span style="color:'+diff.color+';font-weight:600;">'+diff.text+'</span>';
     var hireNote=p.hireDate?' <span style="color:#0C447C;">（入職 '+p.hireDate+'）</span>':'';
     html+='<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #f0f0ee;flex-wrap:wrap;"><div style="width:32px;height:32px;border-radius:50%;background:'+c[0]+';color:'+c[1]+';display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0;">'+p.name[0]+'</div><div style="flex:1;min-width:140px;"><div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;"><span style="font-size:14px;font-weight:700;">'+p.name+'</span>'+badge+'</div><div style="display:flex;align-items:center;gap:8px;"><div class="progress-bar" style="flex:1;"><div class="progress-fill" style="width:'+pct.toFixed(0)+'%;background:'+fc+';"></div></div><span style="font-size:12px;color:var(--muted);white-space:nowrap;">已排 '+schedHrs.toFixed(1)+'/'+target+'h</span></div><div style="font-size:11px;color:#999;margin-top:2px;">已確認出勤：'+confHrs.toFixed(1)+'h　'+shortfallHtml+hireNote+(p.projectCode?'':' · <span style="color:#BA7517;">尚未填寫簽到表資料</span>')+'</div></div><div style="display:flex;gap:6px;flex-wrap:wrap;"><button class="btn-teal" style="font-size:12px;padding:4px 10px;" onclick="openProfileModal(\''+p.id+'\')">📋 簽到表資料</button><button class="btn-blue" style="font-size:12px;padding:4px 10px;" onclick="resetStaffPwd(\''+p.id+'\')">重設密碼</button><button class="btn-red" style="font-size:12px;padding:4px 10px;" onclick="removeStaff(\''+p.id+'\')">移除</button></div></div>';
   });
