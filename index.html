@@ -315,8 +315,8 @@ input:focus,select:focus{box-shadow:0 0 0 2px var(--blue-border);}
         </div>
         <div class="field-row">
           <label>密碼</label>
-          <input type="password" id="loginPwd" maxlength="5" placeholder="請輸入密碼" onkeydown="if(event.key==='Enter')doLogin()">
-          <div class="field-hint">預設密碼為：身分證字號末五碼</div>
+          <input type="password" id="loginPwd" maxlength="3" placeholder="請輸入密碼" onkeydown="if(event.key==='Enter')doLogin()">
+          <div class="field-hint">預設密碼為：身分證字號末三碼</div>
         </div>
         <div id="loginErr" style="color:var(--red-text);font-size:12px;margin-bottom:8px;"></div>
         <button class="btn-blue" style="width:100%;padding:11px;font-size:15px;" onclick="doLogin()">登入</button>
@@ -480,7 +480,7 @@ input:focus,select:focus{box-shadow:0 0 0 2px var(--blue-border);}
       </div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;">
         <input type="text" id="newName" placeholder="新增人員姓名" style="width:110px;">
-        <input type="text" id="newPwd" placeholder="身分證末5碼" maxlength="5" style="width:100px;">
+        <input type="text" id="newPwd" placeholder="身分證末3碼" maxlength="3" style="width:100px;">
         <button class="btn-teal" onclick="addStaff()">新增</button>
       </div>
       <div id="adminPeople"></div>
@@ -949,8 +949,8 @@ async function hashPwd(pwd){
   return Array.from(new Uint8Array(buf)).map(function(b){return b.toString(16).padStart(2,'0');}).join('');
 }
 async function resetStaffPwd(pid){
-  var newPwd=prompt('請輸入該人員的身分證末5碼：');if(!newPwd)return;
-  if(!/^[0-9A-Za-z]{5}$/.test(newPwd)){alert('請輸入5碼');return;}
+  var newPwd=prompt('請輸入該人員的身分證末3碼：');if(!newPwd)return;
+  if(!/^[0-9A-Za-z]{3}$/.test(newPwd)){alert('請輸入3碼');return;}
   var p=state.staff.find(function(x){return x.id===pid;});if(!p)return;
   var h=await hashPwd(newPwd);
   try{
@@ -2501,8 +2501,8 @@ function savePrefN(d,slot){var pr=getPref(d,vy,vm),u={am:pr.am,amN:pr.amN||1,pm:
 async function addStaff(){
   var inp=document.getElementById('newName'),name=inp.value.trim();
   var pwdInp=document.getElementById('newPwd'),initPwd=pwdInp?pwdInp.value.trim():'';
-  if(!name||!initPwd){alert('請填寫姓名與身分證末5碼');return;}
-  if(!/^[0-9A-Za-z]{5}$/.test(initPwd)){alert('請輸入5碼');return;}
+  if(!name||!initPwd){alert('請填寫姓名與身分證末3碼');return;}
+  if(!/^[0-9A-Za-z]{3}$/.test(initPwd)){alert('請輸入3碼');return;}
   var status=document.getElementById('staffSyncStatus');status.textContent='新增中…';
   try{
     var pwdHash=await hashPwd(initPwd);
