@@ -48,7 +48,7 @@ input:focus,select:focus{box-shadow:0 0 0 2px var(--blue-border);}
 .badge-green{background:var(--green-bg);color:var(--green-text);}
 .badge-red{background:var(--red-bg);color:var(--red-text);}
 .badge-blue{background:var(--blue-bg);color:var(--blue-text);}
-.stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:1rem;}
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(72px,1fr));gap:8px;margin-bottom:1rem;}
 .stat{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:10px;text-align:center;}
 .stat-lbl{font-size:11px;color:var(--muted);margin-bottom:3px;}
 .stat-val{font-size:20px;font-weight:700;}
@@ -213,6 +213,17 @@ input:focus,select:focus{box-shadow:0 0 0 2px var(--blue-border);}
 .confirm-slot-label.am{color:var(--am-text);}
 .confirm-slot-label.pm{color:var(--pm-text);}
 
+/* ====== YEARLY OVERVIEW TABLE ====== */
+.yearly-table{width:100%;border-collapse:collapse;font-size:11px;}
+.yearly-table th,.yearly-table td{border:1px solid var(--border);padding:5px 4px;text-align:center;white-space:nowrap;}
+.yearly-table th{background:#F7F6F2;font-weight:700;color:var(--muted);position:sticky;top:0;}
+.yearly-table td.name-cell{text-align:left;font-weight:700;background:#FAFAF8;position:sticky;left:0;}
+.yearly-table td.hit{color:#0F6E56;font-weight:700;background:#EAF3DE;}
+.yearly-table td.miss{color:#854F0B;background:#FEF3C7;}
+.yearly-table td.empty-cell{color:#ccc;}
+.yearly-table td.clickable{cursor:pointer;}
+.yearly-table td.clickable:hover{outline:2px solid var(--blue-border);outline-offset:-2px;}
+
 /* ====== MONTH CALENDAR GRID ====== */
 .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:1px;background:var(--border);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;}
 .cal-head{background:#F7F6F2;padding:6px 2px;text-align:center;font-size:10px;font-weight:700;color:var(--muted);}
@@ -359,6 +370,19 @@ input:focus,select:focus{box-shadow:0 0 0 2px var(--blue-border);}
   </div>
   <div class="stat-grid" id="staffStats"></div>
 
+  <!-- 歷史時數（直接顯示，不用另外打開） -->
+  <div class="card" style="padding:.75rem 1rem;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem;flex-wrap:wrap;gap:6px;">
+      <div style="font-size:13px;font-weight:700;">📊 歷史時數</div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <button onclick="prevStaffYearlyYear()">‹</button>
+        <span id="staffYearlyYearLbl" style="font-size:12px;font-weight:700;min-width:50px;text-align:center;"></span>
+        <button onclick="nextStaffYearlyYear()">›</button>
+      </div>
+    </div>
+    <div id="staffYearlyBody" style="overflow-x:auto;"></div>
+  </div>
+
   <!-- 換班 -->
   <div class="card" style="padding:.75rem 1rem;">
     <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;">
@@ -452,11 +476,12 @@ input:focus,select:focus{box-shadow:0 0 0 2px var(--blue-border);}
     <div class="card" style="padding:.75rem 1rem;">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
         <div style="font-size:13px;font-weight:700;">人員列表</div>
-        <div style="display:flex;gap:6px;flex-wrap:wrap;">
-          <input type="text" id="newName" placeholder="新增人員姓名" style="width:110px;">
-          <input type="text" id="newPwd" placeholder="身分證末5碼" maxlength="5" style="width:100px;">
-          <button class="btn-teal" onclick="addStaff()">新增</button>
-        </div>
+        <button class="btn-blue" onclick="openYearlyOverview()" style="font-size:12px;padding:5px 10px;">📊 年度時數總表</button>
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;">
+        <input type="text" id="newName" placeholder="新增人員姓名" style="width:110px;">
+        <input type="text" id="newPwd" placeholder="身分證末5碼" maxlength="5" style="width:100px;">
+        <button class="btn-teal" onclick="addStaff()">新增</button>
       </div>
       <div id="adminPeople"></div>
       <div id="staffSyncStatus" style="margin-top:8px;font-size:12px;color:var(--muted);"></div>
@@ -587,6 +612,24 @@ input:focus,select:focus{box-shadow:0 0 0 2px var(--blue-border);}
   </div>
 </div>
 
+<!-- YEARLY OVERVIEW MODAL (年度時數總表) -->
+<div id="yearlyOverlay" class="overlay" onclick="yearlyOverlayBg(event)">
+  <div class="modal-box" style="max-width:600px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem;">
+      <div class="modal-title">📊 年度時數總表</div>
+      <button onclick="closeYearlyOverview()" style="font-size:18px;padding:2px 8px;line-height:1;">✕</button>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:.75rem;">
+      <button onclick="prevYearlyYear()">‹</button>
+      <span id="yearlyYearLbl" style="font-size:13px;font-weight:700;min-width:60px;text-align:center;"></span>
+      <button onclick="nextYearlyYear()">›</button>
+    </div>
+    <div id="yearlyBody" style="overflow-x:auto;">
+      <div class="loading-screen" style="min-height:80px;"><div class="spinner"></div><div style="font-size:12px;color:var(--muted);">讀取中…</div></div>
+    </div>
+  </div>
+</div>
+
 <!-- PROFILE MODAL (簽到表個人資料) -->
 <div id="profileOverlay" class="overlay" onclick="profileOverlayBg(event)">
   <div class="modal-box">
@@ -594,7 +637,11 @@ input:focus,select:focus{box-shadow:0 0 0 2px var(--blue-border);}
       <div class="modal-title">📋 簽到表資料 — <span id="profileModalName"></span></div>
       <button onclick="closeProfileModal()" style="font-size:18px;padding:2px 8px;line-height:1;">✕</button>
     </div>
-    <div style="font-size:12px;color:var(--muted);margin-bottom:10px;">這些資料用於列印「外派/出勤簽到表」，同一單位的人員通常大多欄位一致，可直接沿用預設值。</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:10px;">「入職日」用於按比例計算目標工時，其餘欄位用於列印「外派/出勤簽到表」，同一單位的人員通常大多欄位一致，可直接沿用預設值。</div>
+    <div class="field-row"><label>入職日</label><input type="date" id="prof_hireDate" style="width:100%;">
+      <div class="field-hint">若某個月入職日落在當月中，該月目標時數會自動按比例計算（6000÷當月天數×可工作天數÷196，無條件進位）；留空則所有月份都以31小時計算。</div>
+    </div>
+    <div style="height:1px;background:var(--border);margin:10px 0;"></div>
     <div class="field-row"><label>身分別</label>
       <select id="prof_roleType" style="width:100%;">
         <option value="臨床研究人員">臨床研究人員</option>
@@ -724,6 +771,24 @@ input:focus,select:focus{box-shadow:0 0 0 2px var(--blue-border);}
 // 常數與狀態
 // ============================================================
 var TARGET=31;
+var MONTHLY_SALARY=6000;
+var HOURLY_RATE=196;
+// 依入職日按比例計算該月目標時數：入職日在當月之前 → 全月31h；入職日在當月之後（尚未入職）→ 0h；
+// 入職日落在當月中 → 6000÷當月天數×可工作天數 ÷ 196，無條件進位到整數小時
+function getPersonTarget(pid,y,m){
+  var p=state.staff.find(function(x){return x.id===pid;});
+  if(!p||!p.hireDate)return TARGET;
+  var hd=new Date(p.hireDate+'T00:00:00');
+  if(isNaN(hd.getTime()))return TARGET;
+  var monthStart=new Date(y,m,1),monthEnd=new Date(y,m+1,0);
+  if(hd<=monthStart)return TARGET;
+  if(hd>monthEnd)return 0;
+  var daysInMonth=monthEnd.getDate();
+  var hireDay=hd.getDate();
+  var workDays=daysInMonth-hireDay+1;
+  var proratedSalary=MONTHLY_SALARY/daysInMonth*workDays;
+  return Math.ceil(proratedSalary/HOURLY_RATE);
+}
 var PERSON_COLORS=[
   ['#DBEAFE','#1e40af'],['#D1FAE5','#065f46'],['#FCE7F3','#831843'],
   ['#EDE9FE','#4c1d95'],['#FEF3C7','#78350f'],['#FFE4E6','#881337'],
@@ -903,6 +968,7 @@ function openProfileModal(pid){
   var p=state.staff.find(function(x){return x.id===pid;});if(!p)return;
   profileTargetPid=pid;
   document.getElementById('profileModalName').textContent=p.name;
+  document.getElementById('prof_hireDate').value=p.hireDate||'';
   document.getElementById('prof_roleType').value=p.roleType||'研究助理';
   document.getElementById('prof_employType').value=p.employType||'兼任';
   document.getElementById('prof_phone').value=p.phone||'';
@@ -920,6 +986,7 @@ function profileOverlayBg(e){if(e.target===document.getElementById('profileOverl
 async function saveProfileModal(){
   if(!profileTargetPid)return;
   var profile={
+    hireDate:document.getElementById('prof_hireDate').value,
     roleType:document.getElementById('prof_roleType').value,
     employType:document.getElementById('prof_employType').value,
     phone:document.getElementById('prof_phone').value.trim(),
@@ -936,6 +1003,7 @@ async function saveProfileModal(){
     await updateStaffProfile(profileTargetPid,profile);
     msgEl.innerHTML='<div class="at-status ok">✓ 已儲存</div>';
     renderAdminPeople();
+    renderAdminStats();
     setTimeout(closeProfileModal,700);
   }catch(e){msgEl.innerHTML='<div class="at-status err">儲存失敗：'+e.message+'</div>';}
 }
@@ -1168,6 +1236,7 @@ async function loadStaffFromAirtable(){
     var f=r.fields;
     return{
       id:r.id,atId:r.id,name:f['姓名']||'',pwdHash:f['密碼雜湊']||'',idx:i,
+      hireDate:f['入職日']||'',
       roleType:f['身分別']||'研究助理',
       employType:f['類別']||'兼任',
       phone:f['聯絡電話']||'',
@@ -1186,7 +1255,7 @@ async function deleteStaffFromAirtable(atId){await fetch('https://api.airtable.c
 async function updateStaffProfile(pid,profile){
   var p=state.staff.find(function(x){return x.id===pid;});if(!p)return;
   var fields={
-    '身分別':profile.roleType,'類別':profile.employType,'聯絡電話':profile.phone,
+    '入職日':profile.hireDate||'','身分別':profile.roleType,'類別':profile.employType,'聯絡電話':profile.phone,
     '所屬部門':profile.dept,'部門代號':profile.deptCode,'外派單位地點':profile.unit,'工作內容':profile.workContent,
     '執行計畫編號':profile.projectCode,'外派單位負責人':profile.supervisor
   };
@@ -1320,14 +1389,119 @@ async function pushHrsSummaryToAT(pid,y,m){
   var p=state.staff.find(function(x){return x.id===pid;});if(!p)return;
   var monthLabel=y+'年'+(m+1)+'月';
   var schedHrs=scheduledHrs(pid,y,m),confHrs=monthHrs(pid,y,m);
+  var target=getPersonTarget(pid,y,m);
   try{
     await upsertHrsRecord({
       '姓名':p.name,'月份':monthLabel,
       '預排時數':parseFloat(schedHrs.toFixed(1)),
       '總工時':parseFloat(confHrs.toFixed(1)),
-      '是否達標':confHrs>=TARGET
+      '目標時數':target,
+      '是否達標':confHrs>=target
     },p.name+'_'+monthLabel);
   }catch(e){console.error('人員工時同步失敗:',e);showATSyncToast('⚠️ 人員工時同步到 Airtable 失敗：'+e.message,true);}
+}
+
+// ============================================================
+// 年度時數總表 — 直接讀 Airtable「人員工時」表，不用切月份逐一查看
+// 管理者：開啟彈窗查看所有人；人員自己：直接顯示在排班頁面下方，不用另外打開
+// ============================================================
+var yearlyOverviewYear=today.getFullYear();
+var staffYearlyYear=today.getFullYear();
+
+function openYearlyOverview(){
+  yearlyOverviewYear=today.getFullYear();
+  document.getElementById('yearlyOverlay').classList.add('show');
+  renderYearlyOverview();
+}
+function closeYearlyOverview(){document.getElementById('yearlyOverlay').classList.remove('show');}
+function yearlyOverlayBg(e){if(e.target===document.getElementById('yearlyOverlay'))closeYearlyOverview();}
+function prevYearlyYear(){yearlyOverviewYear--;renderYearlyOverview();}
+function nextYearlyYear(){yearlyOverviewYear++;renderYearlyOverview();}
+
+function prevStaffYearlyYear(){staffYearlyYear--;renderStaffYearlyOverview();}
+function nextStaffYearlyYear(){staffYearlyYear++;renderStaffYearlyOverview();}
+
+// 共用：組出年度表格 HTML（含每人一行「尚缺時數」子列）
+async function buildYearlyTableHtml(year,names,isAdmin){
+  var formula=names.length===1
+    ?'AND(FIND("'+year+'年",{月份})=1,{姓名}="'+names[0]+'")'
+    :'FIND("'+year+'年",{月份})=1';
+  var recs=await atGetAll(AT.hrsTable,formula);
+  var byNameMonth={};
+  recs.forEach(function(r){
+    var f=r.fields,name=f['姓名'],ml=f['月份']||'';
+    var mMatch=ml.match(/(\d+)月/);
+    if(!name||!mMatch)return;
+    var mi=parseInt(mMatch[1])-1;
+    if(!byNameMonth[name])byNameMonth[name]={};
+    byNameMonth[name][mi]={sched:f['預排時數']||0,conf:f['總工時']||0,hit:!!f['是否達標'],target:(f['目標時數']!=null?f['目標時數']:null)};
+  });
+
+  var html='<table class="yearly-table"><thead><tr><th class="name-cell">姓名</th>';
+  for(var mo=0;mo<12;mo++)html+='<th>'+(mo+1)+'月</th>';
+  html+='<th>全年總計</th></tr></thead><tbody>';
+
+  names.forEach(function(name){
+    var pObj=state.staff.find(function(x){return x.name===name;});
+    var row=byNameMonth[name]||{};
+    html+='<tr><td class="name-cell">'+name+'</td>';
+    var yearTotal=0;
+    for(var mo2=0;mo2<12;mo2++){
+      var cell=row[mo2];
+      if(!cell){html+='<td class="empty-cell">—</td>';continue;}
+      yearTotal+=cell.conf;
+      var cls=cell.hit?'hit':(cell.conf>0?'miss':'empty-cell');
+      html+='<td class="'+cls+(isAdmin?' clickable':'')+'" '+(isAdmin?'onclick="jumpToYearlyMonth(\''+year+'\',\''+mo2+'\')"':'')+' title="預排 '+cell.sched.toFixed(1)+'h／確認 '+cell.conf.toFixed(1)+'h">'+cell.conf.toFixed(1)+'</td>';
+    }
+    html+='<td style="font-weight:700;">'+yearTotal.toFixed(1)+'h</td></tr>';
+
+    // 尚缺時數子列（依該人該月的目標時數，若入職日造成當月目標按比例調整，這裡會反映出來）
+    html+='<tr><td class="name-cell" style="font-weight:400;color:var(--muted);font-size:10px;padding-left:12px;">└ 尚缺</td>';
+    var yearShortfall=0;
+    for(var mo3=0;mo3<12;mo3++){
+      var cell2=row[mo3];
+      if(!cell2){html+='<td class="empty-cell">—</td>';continue;}
+      var monthTarget=cell2.target!=null?cell2.target:(pObj?getPersonTarget(pObj.id,year,mo3):TARGET);
+      var shortfall=Math.max(0,monthTarget-cell2.conf);
+      yearShortfall+=shortfall;
+      html+='<td style="font-size:10px;color:'+(shortfall<=0?'#0F6E56':'#854F0B')+';" title="目標 '+monthTarget+'h">'+(shortfall<=0?'✓':shortfall.toFixed(1))+'</td>';
+    }
+    html+='<td style="font-size:10px;font-weight:700;color:'+(yearShortfall<=0?'#0F6E56':'#854F0B')+';">'+yearShortfall.toFixed(1)+'h</td></tr>';
+  });
+  html+='</tbody></table>';
+  html+='<div style="font-size:11px;color:var(--muted);margin-top:8px;">每格顯示該月已確認出勤時數（滑鼠移過可看預排時數），下方「尚缺」列顯示距離該月目標時數還差多少（若有設定入職日，目標時數會按比例調整）。<span style="background:var(--green-bg);color:#0F6E56;padding:1px 5px;border-radius:3px;">綠色</span>＝已達標，<span style="background:var(--amber-bg);color:#854F0B;padding:1px 5px;border-radius:3px;">橘色</span>＝未達標。'+(isAdmin?'點格子可直接跳到該月份。':'')+'</div>';
+  return html;
+}
+
+async function renderYearlyOverview(){
+  document.getElementById('yearlyYearLbl').textContent=yearlyOverviewYear+'年';
+  var bodyEl=document.getElementById('yearlyBody');
+  bodyEl.innerHTML='<div class="loading-screen" style="min-height:80px;"><div class="spinner"></div><div style="font-size:12px;color:var(--muted);">讀取中…</div></div>';
+  try{
+    var names=state.staff.map(function(p){return p.name;});
+    bodyEl.innerHTML=await buildYearlyTableHtml(yearlyOverviewYear,names,true);
+  }catch(e){
+    bodyEl.innerHTML='<div class="at-status err">讀取失敗：'+e.message+'</div>';
+  }
+}
+async function jumpToYearlyMonth(y,mo){
+  vy=parseInt(y);vm=parseInt(mo);
+  closeYearlyOverview();
+  await syncScheduleFromAT(vy,vm);
+  renderAdmin();
+}
+
+// 人員自己：直接顯示在排班頁面下方，不用另外打開
+async function renderStaffYearlyOverview(){
+  var el=document.getElementById('staffYearlyBody');if(!el||!currentUser||currentUser.role!=='staff')return;
+  document.getElementById('staffYearlyYearLbl').textContent=staffYearlyYear+'年';
+  el.innerHTML='<div class="loading-screen" style="min-height:60px;"><div class="spinner"></div><div style="font-size:12px;color:var(--muted);">讀取中…</div></div>';
+  try{
+    var p=state.staff.find(function(x){return x.id===currentUser.pid;});if(!p)return;
+    el.innerHTML=await buildYearlyTableHtml(staffYearlyYear,[p.name],false);
+  }catch(e){
+    el.innerHTML='<div class="at-status err">讀取失敗：'+e.message+'</div>';
+  }
 }
 
 // ============================================================
@@ -1591,6 +1765,7 @@ function renderStaff(){
   else{banner.style.background='var(--green-bg)';btn.style.display='';btn.textContent='送出本月排班';btn.disabled=false;document.getElementById('submitBannerTitle').textContent='排班填寫完成了嗎？';document.getElementById('submitBannerSub').textContent='送出後資料將同步到 Airtable';}
 
   document.getElementById('staffDayList').innerHTML=buildMonthListHtml(p.id,y,m);
+  renderStaffYearlyOverview();
 }
 
 var _calListPid=null;
@@ -1621,17 +1796,20 @@ function buildMonthListHtml(pid,y,m){
 
 function updateStaffStats(){
   if(!currentUser||currentUser.role!=='staff')return;
+  var target=getPersonTarget(currentUser.pid,staffY,staffM);
   var confirmedHrs=monthHrs(currentUser.pid,staffY,staffM);
   var scheduledH=scheduledHrs(currentUser.pid,staffY,staffM);
-  var remain=Math.max(0,TARGET-scheduledH);
+  var remain=Math.max(0,target-scheduledH);
+  var shortfall=Math.max(0,target-confirmedHrs);
   var sub=isSubmitted(currentUser.pid,staffY,staffM);
   var attn=getAttn(currentUser.pid,staffY,staffM),absentCount=0;
   var dim=new Date(staffY,staffM+1,0).getDate();
   for(var d=1;d<=dim;d++){var at=attn[d]||{};if(at.amAbsent||at.pmAbsent)absentCount++;}
-  var schedColor=scheduledH>=TARGET?'ok':remain<=4?'warn':'';
+  var schedColor=scheduledH>=target?'ok':remain<=4?'warn':'';
   document.getElementById('staffStats').innerHTML=
-    '<div class="stat"><div class="stat-lbl">已排時數</div><div class="stat-val '+schedColor+'">'+scheduledH.toFixed(1)+'h</div><div style="font-size:10px;color:#aaa;margin-top:1px;">目標 '+TARGET+'h'+(remain>0?' 差'+remain.toFixed(1)+'h':'  ✓')+'</div></div>'+
-    '<div class="stat"><div class="stat-lbl">已確認時數</div><div class="stat-val '+(confirmedHrs>=TARGET?'ok':confirmedHrs>0?'warn':'')+'">'+confirmedHrs.toFixed(1)+'h</div></div>'+
+    '<div class="stat"><div class="stat-lbl">已排時數</div><div class="stat-val '+schedColor+'">'+scheduledH.toFixed(1)+'h</div><div style="font-size:10px;color:#aaa;margin-top:1px;">目標 '+target+'h'+(remain>0?' 差'+remain.toFixed(1)+'h':'  ✓')+'</div></div>'+
+    '<div class="stat"><div class="stat-lbl">已確認時數</div><div class="stat-val '+(confirmedHrs>=target?'ok':confirmedHrs>0?'warn':'')+'">'+confirmedHrs.toFixed(1)+'h</div></div>'+
+    '<div class="stat"><div class="stat-lbl">還需補時數</div><div class="stat-val '+(shortfall<=0?'ok':'warn')+'">'+(shortfall<=0?'✓ 已達標':shortfall.toFixed(1)+'h')+'</div></div>'+
     '<div class="stat"><div class="stat-lbl">缺席天數</div><div class="stat-val '+(absentCount>0?'warn':'')+'">'+absentCount+'</div></div>'+
     '<div class="stat"><div class="stat-lbl">送出狀態</div><div style="padding-top:6px;">'+(sub?'<span class="badge badge-green">已送出</span>':'<span class="badge badge-gray">未送出</span>')+'</div></div>';
 }
@@ -2237,7 +2415,7 @@ function renderAdminStats(){
   var k=mkey(vy,vm);
   state.staff.forEach(function(p){
     var h=scheduledHrs(p.id,vy,vm);
-    if(h>=TARGET)met++;else if(h>0)part++;else none2++;
+    if(h>=getPersonTarget(p.id,vy,vm))met++;else if(h>0)part++;else none2++;
     var dim=new Date(vy,vm+1,0).getDate(),pd=getPdata(p.id,vy,vm),attn=getAttn(p.id,vy,vm);
     for(var d=1;d<=dim;d++){
       var day=pd[d];if(!day)continue;
@@ -2281,13 +2459,17 @@ function buildMonthAdminHtml(y,m){
 function renderAdminPeople(){
   var el=document.getElementById('adminPeople');if(!el)return;var html='';
   state.staff.forEach(function(p,i){
+    var target=getPersonTarget(p.id,vy,vm);
     var schedHrs=scheduledHrs(p.id,vy,vm);
     var confHrs=monthHrs(p.id,vy,vm);
-    var pct=Math.min(100,schedHrs/TARGET*100),sub=isSubmitted(p.id,vy,vm);
-    var fc=schedHrs>=TARGET?'#1D9E75':schedHrs>0?'#BA7517':'#999';
-    var badge=sub?'<span class="badge badge-green">已送出</span>':schedHrs>=TARGET?'<span class="badge badge-teal">已排達標</span>':schedHrs>0?'<span class="badge badge-amber">填報中</span>':'<span class="badge badge-gray">未填報</span>';
+    var shortfall=Math.max(0,target-confHrs);
+    var pct=Math.min(100,schedHrs/target*100),sub=isSubmitted(p.id,vy,vm);
+    var fc=schedHrs>=target?'#1D9E75':schedHrs>0?'#BA7517':'#999';
+    var badge=sub?'<span class="badge badge-green">已送出</span>':schedHrs>=target?'<span class="badge badge-teal">已排達標</span>':schedHrs>0?'<span class="badge badge-amber">填報中</span>':'<span class="badge badge-gray">未填報</span>';
     var c=getPersonColor(i);
-    html+='<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #f0f0ee;flex-wrap:wrap;"><div style="width:32px;height:32px;border-radius:50%;background:'+c[0]+';color:'+c[1]+';display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0;">'+p.name[0]+'</div><div style="flex:1;min-width:140px;"><div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;"><span style="font-size:14px;font-weight:700;">'+p.name+'</span>'+badge+'</div><div style="display:flex;align-items:center;gap:8px;"><div class="progress-bar" style="flex:1;"><div class="progress-fill" style="width:'+pct.toFixed(0)+'%;background:'+fc+';"></div></div><span style="font-size:12px;color:var(--muted);white-space:nowrap;">已排 '+schedHrs.toFixed(1)+'/'+TARGET+'h</span></div><div style="font-size:11px;color:#999;margin-top:2px;">已確認出勤：'+confHrs.toFixed(1)+'h'+(p.projectCode?'':' · <span style="color:#BA7517;">尚未填寫簽到表資料</span>')+'</div></div><div style="display:flex;gap:6px;flex-wrap:wrap;"><button class="btn-teal" style="font-size:12px;padding:4px 10px;" onclick="openProfileModal(\''+p.id+'\')">📋 簽到表資料</button><button class="btn-blue" style="font-size:12px;padding:4px 10px;" onclick="resetStaffPwd(\''+p.id+'\')">重設密碼</button><button class="btn-red" style="font-size:12px;padding:4px 10px;" onclick="removeStaff(\''+p.id+'\')">移除</button></div></div>';
+    var shortfallHtml=shortfall<=0?'<span style="color:#0F6E56;font-weight:600;">✓ 已達標</span>':'<span style="color:#BA7517;font-weight:600;">還需補 '+shortfall.toFixed(1)+'h</span>';
+    var hireNote=p.hireDate?' <span style="color:#0C447C;">（入職 '+p.hireDate+'）</span>':'';
+    html+='<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #f0f0ee;flex-wrap:wrap;"><div style="width:32px;height:32px;border-radius:50%;background:'+c[0]+';color:'+c[1]+';display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0;">'+p.name[0]+'</div><div style="flex:1;min-width:140px;"><div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;"><span style="font-size:14px;font-weight:700;">'+p.name+'</span>'+badge+'</div><div style="display:flex;align-items:center;gap:8px;"><div class="progress-bar" style="flex:1;"><div class="progress-fill" style="width:'+pct.toFixed(0)+'%;background:'+fc+';"></div></div><span style="font-size:12px;color:var(--muted);white-space:nowrap;">已排 '+schedHrs.toFixed(1)+'/'+target+'h</span></div><div style="font-size:11px;color:#999;margin-top:2px;">已確認出勤：'+confHrs.toFixed(1)+'h　'+shortfallHtml+hireNote+(p.projectCode?'':' · <span style="color:#BA7517;">尚未填寫簽到表資料</span>')+'</div></div><div style="display:flex;gap:6px;flex-wrap:wrap;"><button class="btn-teal" style="font-size:12px;padding:4px 10px;" onclick="openProfileModal(\''+p.id+'\')">📋 簽到表資料</button><button class="btn-blue" style="font-size:12px;padding:4px 10px;" onclick="resetStaffPwd(\''+p.id+'\')">重設密碼</button><button class="btn-red" style="font-size:12px;padding:4px 10px;" onclick="removeStaff(\''+p.id+'\')">移除</button></div></div>';
   });
   el.innerHTML=html||'<p style="font-size:13px;color:#bbb;">尚無人員</p>';
 }
