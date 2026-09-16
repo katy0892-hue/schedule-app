@@ -2590,25 +2590,80 @@ function showSubmitStatus(type,msg){var cls='at-status '+(type==='ok'?'ok':type=
 // 列印
 // ============================================================
 function buildMonthlyScheduleBodyHTML(y,m){
-  var dim=new Date(y,m+1,0).getDate(),k=mkey(y,m);
-  var PC=PERSON_COLORS,dayNames=['日','一','二','三','四','五','六'];
-  function slotHtml(arr){if(!arr.length)return '<span style="color:#ccc;font-size:7pt;">—</span>';return arr.map(function(p){var c=PC[p.i%PC.length];return '<div style="white-space:nowrap;margin-bottom:1px;"><span style="background:'+c[0]+';color:'+c[1]+';border-radius:3px;padding:0 4px;font-size:7.5pt;font-weight:700;">'+p.name+'</span><span style="font-size:7pt;color:#444;margin-left:2px;">'+p.s+'–'+p.e+'</span></div>';}).join('');}
-  function dayData(d){var dow=new Date(y,m,d).getDay(),isWE=dow===0||dow===6,isSun=dow===0;var dateColor=isSun?'#b91c1c':dow===6?'#1d4ed8':'#333';var rowBg=isWE?'#fdf4f4':'#fff';var amArr=[],pmArr=[];state.staff.forEach(function(p,i){var day=((state.schedule[k]||{})[p.id]||{})[d];if(!day)return;if(day.am&&calcH(day.ams,day.ame)>0)amArr.push({name:p.name,s:day.ams,e:day.ame,i:i});if(day.pm&&calcH(day.pms,day.pme)>0)pmArr.push({name:p.name,s:day.pms,e:day.pme,i:i});});return{dateColor:dateColor,rowBg:rowBg,isWE:isWE,amArr:amArr,pmArr:pmArr,dateHtml:d+'<br><span style="font-size:6pt;font-weight:400;">'+dayNames[dow]+'</span>'};}
-  var CELL='border:0.5px solid #ddd;padding:2px 4px;vertical-align:top;';var DATE_CELL=CELL+'text-align:center;';var SEP='border-left:2px solid #999;';
-  function rowHtml(dL,dR){var L=dayData(dL);var html='<tr>';html+='<td style="'+DATE_CELL+'background:'+L.rowBg+';color:'+L.dateColor+';font-weight:'+(L.isWE?700:500)+';white-space:nowrap;font-size:8pt;">'+L.dateHtml+'</td>';html+='<td style="'+CELL+'background:'+L.rowBg+';">'+slotHtml(L.amArr)+'</td>';html+='<td style="'+CELL+'background:'+L.rowBg+';border-right:2px solid #999;">'+slotHtml(L.pmArr)+'</td>';if(dR<=dim){var R=dayData(dR);html+='<td style="'+DATE_CELL+SEP+'background:'+R.rowBg+';color:'+R.dateColor+';font-weight:'+(R.isWE?700:500)+';white-space:nowrap;font-size:8pt;">'+R.dateHtml+'</td>';html+='<td style="'+CELL+'background:'+R.rowBg+';">'+slotHtml(R.amArr)+'</td>';html+='<td style="'+CELL+'background:'+R.rowBg+';">'+slotHtml(R.pmArr)+'</td>';}else{html+='<td colspan="3" style="background:#fafafa;border:0.5px solid #eee;"></td>';}html+='</tr>';return html;}
-  var half=Math.ceil(dim/2),rows='';for(var r=0;r<half;r++)rows+=rowHtml(r+1,r+1+half);
-  var legend='';state.staff.forEach(function(p,i){var c=PC[i%PC.length];legend+='<span style="background:'+c[0]+';color:'+c[1]+';border-radius:3px;padding:1px 7px;font-size:7.5pt;font-weight:700;margin-right:4px;">'+p.name+'</span>';});
-  return '<h1 style="font-size:11.5pt;font-weight:700;margin-bottom:1.5mm;">'+y+' 年 '+(m+1)+'月　預排班表</h1>'+
-    '<div style="font-size:7pt;color:#888;margin-bottom:2mm;display:flex;justify-content:space-between;"><span>'+state.staff.length+' 位人員　共 '+dim+' 天</span><span>'+new Date().toLocaleDateString('zh-TW')+'</span></div>'+
-    '<table style="width:100%;border-collapse:collapse;table-layout:fixed;"><colgroup><col style="width:6.5%;"><col style="width:14.5%;"><col style="width:14.5%;"><col style="width:6.5%;"><col style="width:14.5%;"><col style="width:14.5%;"></colgroup>'+
-    '<thead><tr><th style="background:#444;color:#fff;font-size:8pt;padding:3px 4px;text-align:center;border:0.5px solid #555;">日期</th><th style="background:#444;color:#fff;font-size:8pt;padding:3px 4px;text-align:center;border:0.5px solid #555;">上午</th><th style="background:#444;color:#fff;font-size:8pt;padding:3px 4px;text-align:center;border:0.5px solid #555;">下午</th><th style="background:#333;color:#fff;font-size:8pt;padding:3px 4px;text-align:center;border:0.5px solid #555;border-left:2px solid #999;">日期</th><th style="background:#444;color:#fff;font-size:8pt;padding:3px 4px;text-align:center;border:0.5px solid #555;">上午</th><th style="background:#444;color:#fff;font-size:8pt;padding:3px 4px;text-align:center;border:0.5px solid #555;">下午</th></tr></thead>'+
-    '<tbody>'+rows+'</tbody></table>'+
-    '<div style="margin-top:2mm;font-size:7pt;color:#666;">人員：'+legend+'</div>';
+  var dim=new Date(y,m+1,0).getDate();
+  var PC=PERSON_COLORS,dayNames=DW;
+
+  // 計算涵蓋整月的完整週區塊（週日為每週起始），比照範例格式，前後補齊到整週
+  var firstOfMonth=new Date(y,m,1);
+  var gridStart=new Date(y,m,1-firstOfMonth.getDay());
+  var lastOfMonth=new Date(y,m,dim);
+  var gridEnd=new Date(y,m,dim+(6-lastOfMonth.getDay()));
+  var totalDays=Math.round((gridEnd-gridStart)/86400000)+1;
+  var totalWeeks=totalDays/7;
+
+  function dayInfo(dateObj){
+    var dy=dateObj.getFullYear(),dm=dateObj.getMonth(),dd=dateObj.getDate();
+    var dow=dateObj.getDay();
+    var dk=mkey(dy,dm);
+    var amArr=[],pmArr=[];
+    state.staff.forEach(function(p,i){
+      var day=((state.schedule[dk]||{})[p.id]||{})[dd];if(!day)return;
+      var at=((state.attendance[dk]||{})[p.id]||{})[dd]||{};
+      if(day.am&&calcH(day.ams,day.ame)>0)amArr.push({name:p.name,s:day.ams,e:day.ame,i:i,confirmed:at.amConfirmed,absent:at.amAbsent});
+      if(day.pm&&calcH(day.pms,day.pme)>0)pmArr.push({name:p.name,s:day.pms,e:day.pme,i:i,confirmed:at.pmConfirmed,absent:at.pmAbsent});
+    });
+    return{dm:dm,dd:dd,dow:dow,amArr:amArr,pmArr:pmArr};
+  }
+  function entryHtml(p){
+    var c=PC[p.i%PC.length];
+    var statusHtml='';
+    if(p.confirmed)statusHtml='<br><span style="color:#c0392b;font-size:8.5pt;font-weight:700;">（出席）</span>';
+    else if(p.absent)statusHtml='<br><span style="color:#c0392b;font-size:8.5pt;font-weight:700;">（請假）</span>';
+    return '<div style="margin-bottom:4px;white-space:nowrap;"><span style="color:'+c[1]+';font-weight:700;font-size:10pt;">'+p.name+'</span><span style="font-size:9pt;color:#444;margin-left:3px;">'+p.s+'-'+p.e+'</span>'+statusHtml+'</div>';
+  }
+  function cellHtml(arr){return arr.map(entryHtml).join('');}
+
+  var weeksHtml='';
+  for(var w=0;w<totalWeeks;w++){
+    var days=[];
+    for(var i=0;i<7;i++){
+      var d=new Date(gridStart);d.setDate(d.getDate()+w*7+i);
+      days.push(dayInfo(d));
+    }
+    var headerCells='<th style="background:#DCE9F5;color:#1a3a5c;font-size:9.5pt;padding:5px;border:0.5px solid #aac4de;width:8%;">時間</th>';
+    days.forEach(function(dinfo){
+      headerCells+='<th style="background:#DCE9F5;color:#1a3a5c;font-size:9.5pt;padding:5px;border:0.5px solid #aac4de;">'+(dinfo.dm+1)+'/'+dinfo.dd+'（'+dayNames[dinfo.dow]+'）</th>';
+    });
+    var amRow='<td style="background:#F0F5FA;font-size:9.5pt;font-weight:700;padding:5px;border:0.5px solid #ccc;text-align:center;">上午<br><span style="font-weight:400;font-size:8pt;">(09:00-12:00)</span></td>';
+    var pmRow='<td style="background:#F0F5FA;font-size:9.5pt;font-weight:700;padding:5px;border:0.5px solid #ccc;text-align:center;">下午<br><span style="font-weight:400;font-size:8pt;">(13:00-16:00)</span></td>';
+    days.forEach(function(dinfo){
+      amRow+='<td style="border:0.5px solid #ccc;padding:4px 5px;vertical-align:top;">'+cellHtml(dinfo.amArr)+'</td>';
+      pmRow+='<td style="border:0.5px solid #ccc;padding:4px 5px;vertical-align:top;">'+cellHtml(dinfo.pmArr)+'</td>';
+    });
+    weeksHtml+='<table style="width:100%;border-collapse:collapse;table-layout:fixed;margin-bottom:3mm;"><thead><tr>'+headerCells+'</tr></thead><tbody><tr>'+amRow+'</tr><tr>'+pmRow+'</tr></tbody></table>';
+  }
+
+  var legend='';state.staff.forEach(function(p,i){var c=PC[i%PC.length];legend+='<span style="color:'+c[1]+';font-weight:700;margin-right:12px;">'+p.name+'</span>';});
+
+  return '<h1 style="text-align:center;font-size:16pt;font-weight:700;margin-bottom:2mm;">深耕計畫志工學生班表</h1>'+
+    '<div style="text-align:center;font-size:12pt;font-weight:600;color:#333;margin-bottom:4mm;">'+y+'年'+(m+1)+'月</div>'+
+    weeksHtml+
+    '<div style="margin-top:2mm;font-size:9.5pt;color:#333;">人員：'+legend+'</div>';
 }
 function doPrint(){
   var bodyHtml=buildMonthlyScheduleBodyHTML(vy,vm);
   var w=window.open('','_blank');
-  w.document.write('<!DOCTYPE html><html><head><meta charset="utf-8"><title>'+vy+'年'+(vm+1)+'月排班表</title><style>*{box-sizing:border-box;margin:0;padding:0;}body{font-family:"Noto Sans TC",Arial,sans-serif;background:#fff;}.page{width:190mm;margin:0 auto;padding:5mm;}@media print{body{margin:0;}@page{size:A4 portrait;margin:5mm;}.page{width:100%;padding:0;}}</style></head><body><div class="page">'+bodyHtml+'</div><scr'+'ipt>window.onload=function(){window.print()};<\/script></body></html>');
+  w.document.write('<!DOCTYPE html><html><head><meta charset="utf-8"><title>'+vy+'年'+(vm+1)+'月排班表</title><style>*{box-sizing:border-box;margin:0;padding:0;-webkit-print-color-adjust:exact;print-color-adjust:exact;color-adjust:exact;}body{font-family:"Noto Sans TC",Arial,sans-serif;background:#fff;}.page{width:277mm;margin:0 auto;padding:5mm;}table{page-break-inside:avoid;}@media print{body{margin:0;-webkit-print-color-adjust:exact;print-color-adjust:exact;}@page{size:A4 landscape;margin:5mm;}.page{width:100%;padding:0;}}</style></head><body><div class="page"><div id="printContent">'+bodyHtml+'</div></div><scr'+'ipt>'+
+    'window.onload=function(){'+
+    '  var probe=document.createElement("div");probe.style.cssText="position:absolute;visibility:hidden;height:190mm;width:1mm;";document.body.appendChild(probe);'+
+    '  var pxPerMm=probe.offsetHeight/190;document.body.removeChild(probe);'+
+    '  var targetPx=190*pxPerMm;'+
+    '  var content=document.getElementById("printContent");'+
+    '  var actualPx=content.scrollHeight;'+
+    '  if(actualPx>targetPx){var scale=targetPx/actualPx;content.style.zoom=scale;}'+
+    '  setTimeout(function(){window.print();},100);'+
+    '};'+
+    '<\/script></body></html>');
   w.document.close();
 }
 
