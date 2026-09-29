@@ -289,6 +289,7 @@ input:focus,select:focus{box-shadow:0 0 0 2px var(--blue-border);}
           <div class="field-row"><label>人員名單</label><input type="text" id="setup_staff" placeholder="人員名單"></div>
           <div class="field-row"><label>出勤確認表</label><input type="text" id="setup_attn" placeholder="出勤確認表"></div>
           <div class="field-row"><label>異動紀錄表</label><input type="text" id="setup_changelog" placeholder="異動紀錄表"></div>
+          <div class="field-row"><label>每日簽到碼</label><input type="text" id="setup_checkin" placeholder="每日簽到碼"></div>
         </div>
       </details>
       <button class="btn-blue" style="width:100%;padding:11px;font-size:15px;" onclick="doSetup()">連線並啟動</button>
@@ -498,8 +499,11 @@ input:focus,select:focus{box-shadow:0 0 0 2px var(--blue-border);}
 
   <div id="tab-confirm" class="tsec">
     <div class="card" style="padding:.75rem 1rem;">
-      <div style="font-size:15px;font-weight:700;margin-bottom:4px;">📍 簽到碼管理</div>
-      <div style="font-size:12px;color:var(--muted);margin-bottom:16px;">每日產生一組6位簽到碼，人員可用此碼自行報到，或管理者手動確認。同步月曆時，簽到碼會寫入當日事件的備註欄，管理者用手機月曆點開就能看到，不用另外開系統。</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:4px;">
+        <div style="font-size:15px;font-weight:700;">📍 簽到碼管理</div>
+        <button class="btn-blue" style="font-size:11px;padding:4px 10px;" onclick="reloadAttendanceFromAT(true)">🔄 從 Airtable 重新載入</button>
+      </div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:16px;">每日產生一組6位簽到碼（存在 Airtable，所有裝置共用同一組），人員可用此碼自行報到，或管理者手動確認。同步月曆時，簽到碼會寫入當日事件的備註欄。</div>
 
       <div class="checkin-card">
         <div style="font-size:13px;font-weight:700;color:var(--muted);margin-bottom:4px;">今日簽到碼</div>
@@ -828,13 +832,20 @@ var state={
   submitted:{},
   attendance:{},
   weekTpl:[0,1,2,3,4,5,6].map(function(){return{am:false,amN:1,pm:false,pmN:1};}),
-  checkinCodes:{},  // {date: code}
-  checkinRecords:[], // [{pid,name,date,slot,time,code}]
+  checkinCodes:{},  // {date: code}（本機快取，正式來源為 Airtable「每日簽到碼」表）
+  checkinRecords:[], // 舊版本機紀錄（保留相容），今日簽到清單改由出勤資料產生
   changeLog:[] // [{id,pid,name,dateStr,changeType,before,after,changedAt,changedBy}]
 };
-var AT={token:'',base:'',dailyTable:'每日班表',hrsTable:'人員工時',staffTable:'人員名單',attnTable:'出勤確認表',changeLogTable:'異動紀錄表'};
+var AT={token:'',base:'',dailyTable:'每日班表',hrsTable:'人員工時',staffTable:'人員名單',attnTable:'出勤確認表',changeLogTable:'異動紀錄表',checkinTable:'每日簽到碼'};
 var gcalState={accessToken:null,refreshToken:null,expiresAt:0,userEmail:null,codeVerifier:null,calId:null};
 var autoSyncSettings={enabled:false,lastSync:null,lastFingerprint:null};
+
+// Airtable 勾選欄位的寬鬆判讀：核取方塊回傳 true；若欄位仍是單選/文字（CSV 匯入），值可能是 "checked"/"true"/"1"
+function atBool(v){
+  if(v===true||v===1)return true;
+  if(typeof v==='string'){var s=v.trim().toLowerCase();return s==='checked'||s==='true'||s==='1'||s==='yes'||s==='✓';}
+  return false;
+}
 
 // ============================================================
 // 示範模式（DEMO_MODE）— 攔截對 api.airtable.com 的請求，改成讀寫瀏覽器記憶體中的假資料庫，
@@ -948,6 +959,9 @@ function saveLocal(){
 function loadLocal(){
   try{
     var c=localStorage.getItem('at_config');if(c)AT=Object.assign(AT,JSON.parse(c));
+    // 舊版設定可能沒有這兩個表名，或仍指向舊的「簽到碼」表
+    if(!AT.changeLogTable)AT.changeLogTable='異動紀錄表';
+    if(!AT.checkinTable||AT.checkinTable==='簽到碼')AT.checkinTable='每日簽到碼';
     var s=localStorage.getItem('at_state');
     if(s){var d=JSON.parse(s);state.pref=d.pref||{};state.submitted=d.submitted||{};state.weekTpl=d.weekTpl||state.weekTpl;state.schedule=d.schedule||{};state.attendance=d.attendance||{};state.checkinCodes=d.checkinCodes||{};state.checkinRecords=d.checkinRecords||[];state.changeLog=d.changeLog||[];}
     var a=localStorage.getItem('autoSync');if(a)autoSyncSettings=Object.assign(autoSyncSettings,JSON.parse(a));
@@ -1024,52 +1038,87 @@ async function saveProfileModal(){
 }
 
 // ============================================================
-// 簽到碼管理
+// 簽到碼管理 — 存在 Airtable「每日簽到碼」表，所有裝置共用同一組碼
 // ============================================================
 function todayKey(){return today.getFullYear()+'-'+pad(today.getMonth()+1)+'-'+pad(today.getDate());}
 function generateCode(){return Math.floor(100000+Math.random()*900000).toString();}
+var _todayCodeCache={date:null,code:null};
+// 同步版：只讀快取，不會自行產生新碼（避免每台裝置各自產生不同的碼）
 function getTodayCode(){
   var k=todayKey();
-  if(!state.checkinCodes[k]){state.checkinCodes[k]=generateCode();saveLocal();}
-  return state.checkinCodes[k];
+  if(_todayCodeCache.date===k&&_todayCodeCache.code)return _todayCodeCache.code;
+  return state.checkinCodes[k]||'';
 }
-function refreshCheckinCode(){
-  var k=todayKey();state.checkinCodes[k]=generateCode();saveLocal();
+// 從 Airtable 讀今日簽到碼；createIfMissing=true（管理者）時，若今日尚無碼則產生並寫入
+async function loadTodayCodeFromAT(createIfMissing){
+  var k=todayKey(),code='';
+  try{
+    var recs=await atGetAll(AT.checkinTable,'FIND("'+k+'",{唯一鍵})=1');
+    if(recs.length&&recs[0].fields['簽到碼'])code=String(recs[0].fields['簽到碼']);
+    else if(createIfMissing){
+      code=generateCode();
+      await upsertHrsRecord({'日期':k,'簽到碼':Number(code),'更新時間':new Date().toISOString()},k,AT.checkinTable);
+    }
+  }catch(e){
+    console.error('簽到碼同步失敗:',e);
+    showATSyncToast('⚠️ 簽到碼無法與 Airtable 同步：'+e.message,true);
+    code=state.checkinCodes[k]||(createIfMissing?generateCode():'');
+  }
+  if(code){_todayCodeCache={date:k,code:code};state.checkinCodes[k]=code;saveLocal();}
+  return code;
+}
+async function refreshCheckinCode(){
+  var k=todayKey(),code=generateCode();
+  try{await upsertHrsRecord({'日期':k,'簽到碼':Number(code),'更新時間':new Date().toISOString()},k,AT.checkinTable);}
+  catch(e){showATSyncToast('⚠️ 新簽到碼未能寫入 Airtable：'+e.message,true);}
+  _todayCodeCache={date:k,code:code};state.checkinCodes[k]=code;saveLocal();
   renderCheckinCodeDisplay();renderCheckinTab();
 }
 function copyCheckinCode(){
   var code=getTodayCode();
+  if(!code){alert('今日簽到碼尚未載入');return;}
   navigator.clipboard&&navigator.clipboard.writeText(code).then(function(){alert('簽到碼已複製：'+code);}).catch(function(){prompt('複製此碼：',code);});
 }
 function renderCheckinCodeDisplay(){
   var code=getTodayCode();
-  var el=document.getElementById('bigCheckinCode');if(el)el.textContent=code;
-  var el2=document.getElementById('checkinCodeDisplay');if(el2)el2.textContent=code;
+  var el=document.getElementById('bigCheckinCode');if(el)el.textContent=code||'——';
+  var el2=document.getElementById('checkinCodeDisplay');if(el2)el2.textContent=code||'——';
   var dateEl=document.getElementById('checkinCodeDate');if(dateEl)dateEl.textContent='有效日期：'+(today.getMonth()+1)+'/'+today.getDate();
   var card=document.getElementById('todayCheckinCode');if(card)card.style.display='';
 }
+// 今日簽到紀錄：直接由出勤資料（selfAm/selfPm）產生，資料來自 Airtable，所有裝置一致
 function renderCheckinTab(){
-  var recs=state.checkinRecords.filter(function(r){return r.date===todayKey();});
   var el=document.getElementById('checkinRecords');if(!el)return;
+  var y=today.getFullYear(),m=today.getMonth(),d=today.getDate(),k=mkey(y,m);
+  var recs=[];
+  state.staff.forEach(function(p){
+    var at=((state.attendance[k]||{})[p.id]||{})[d]||{};
+    if(at.selfAm)recs.push({pid:p.id,name:p.name,slot:'am',time:at.actualAms||''});
+    if(at.selfPm)recs.push({pid:p.id,name:p.name,slot:'pm',time:at.actualPms||''});
+  });
   if(!recs.length){el.innerHTML='<p style="font-size:13px;color:#aaa;text-align:center;padding:1rem;">今日尚無簽到紀錄</p>';return;}
   var html='';
   recs.forEach(function(r){
     var p=state.staff.find(function(s){return s.id===r.pid;});
     var c=p?getPersonColor(state.staff.indexOf(p)):['#f0f0ee','#666'];
-    var slotLabel=r.slot==='am'?'上午':'下午';
     html+='<div style="display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid #f0f0ee;">';
-    html+='<span style="background:'+c[0]+';color:'+c[1]+';padding:2px 8px;border-radius:8px;font-size:12px;font-weight:600;">'+(r.name?r.name[0]:'?')+' '+r.name+'</span>';
-    html+='<span style="font-size:12px;color:var(--muted);">'+slotLabel+'</span>';
+    html+='<span style="background:'+c[0]+';color:'+c[1]+';padding:2px 8px;border-radius:8px;font-size:12px;font-weight:600;">'+r.name+'</span>';
+    html+='<span style="font-size:12px;color:var(--muted);">'+(r.slot==='am'?'上午':'下午')+'</span>';
     html+='<span style="font-size:12px;font-weight:700;">'+r.time+'</span>';
     html+='<span class="attn-confirmed">✓ 自簽</span>';
-    html+='<button class="btn-red" style="margin-left:auto;font-size:11px;padding:3px 8px;" onclick="deleteSelfCheckinRecord(\''+r.id+'\')">刪除</button>';
+    html+='<button class="btn-red" style="margin-left:auto;font-size:11px;padding:3px 8px;" onclick="deleteSelfCheckinRecord(\''+r.pid+'\',\''+r.slot+'\')">刪除</button>';
     html+='</div>';
   });
   el.innerHTML=html;
 }
-function deleteSelfCheckinRecord(id){
-  state.checkinRecords=state.checkinRecords.filter(function(r){return r.id!==id;});
-  saveLocal();renderCheckinTab();
+function deleteSelfCheckinRecord(pid,slot){
+  if(!confirm('確定刪除這筆自行簽到？該時段的出勤確認也會一併取消。'))return;
+  var y=today.getFullYear(),m=today.getMonth(),d=today.getDate();
+  var at=getAttn(pid,y,m)[d];if(!at)return;
+  if(slot==='am'){at.selfAm=false;at.amConfirmed=false;at.actualAms='';}
+  else{at.selfPm=false;at.pmConfirmed=false;at.actualPms='';}
+  saveLocal();renderCheckinTab();refreshAdminAllViews();
+  pushAttendanceToAT(pid,d,y,m);
 }
 
 // ============================================================
@@ -1081,7 +1130,7 @@ function showSelfCheckin(){
   state.staff.forEach(function(p){var o=document.createElement('option');o.value=p.id;o.textContent=p.name;sel.appendChild(o);});
   var timeSel=document.getElementById('selfCheckinTime');
   timeSel.innerHTML='';TIMES.forEach(function(t){var o=document.createElement('option');o.value=t;o.textContent=t;timeSel.appendChild(o);});
-  var nowH=today.getHours(),nowMin=today.getMinutes(),rounded=pad(nowH)+':'+(nowMin<30?'00':'30');
+  var now=new Date(),nowH=now.getHours(),nowMin=now.getMinutes(),rounded=pad(nowH)+':'+(nowMin<30?'00':'30');
   if(TIMES.indexOf(rounded)>=0)timeSel.value=rounded;
   document.getElementById('selfCheckinCode').value='';
   document.getElementById('selfCheckinMsg').innerHTML='';
@@ -1098,39 +1147,44 @@ async function doSelfCheckin(){
   var msgEl=document.getElementById('selfCheckinMsg');
 
   if(!code||!pid||!time){msgEl.innerHTML='<div class="at-status err">請填寫完整資料</div>';return;}
-  var todayCode=getTodayCode();
+  msgEl.innerHTML='<div class="at-status loading">驗證中…</div>';
+  var todayCode=await loadTodayCodeFromAT(false);
+  if(!todayCode){msgEl.innerHTML='<div class="at-status err">管理者今日尚未產生簽到碼</div>';return;}
   if(code!==todayCode){msgEl.innerHTML='<div class="at-status err">簽到碼不正確，請向管理者確認</div>';return;}
 
   var p=state.staff.find(function(s){return s.id===pid;});if(!p)return;
-  var k=mkey(today.getFullYear(),today.getMonth()),d=today.getDate();
+  var ty=today.getFullYear(),tm=today.getMonth();
+  var k=mkey(ty,tm),d=today.getDate();
+  // 取得最新的班表與出勤狀態（避免在別台裝置已簽過卻重複簽到）
+  await syncScheduleFromAT(ty,tm);
   var day=((state.schedule[k]||{})[pid]||{})[d];
   if(!day||(slot==='am'&&!day.am)||(slot==='pm'&&!day.pm)){
     msgEl.innerHTML='<div class="at-status err">您今日無此時段的排班，請聯繫管理者</div>';return;
   }
 
-  // 已簽過的檢查
-  var alreadySigned=state.checkinRecords.some(function(r){return r.pid===pid&&r.date===todayKey()&&r.slot===slot;});
-  if(alreadySigned){msgEl.innerHTML='<div class="at-status err">您今日'+( slot==='am'?'上午':'下午')+'已完成簽到</div>';return;}
+  // 已簽過的檢查（以 Airtable 出勤確認表為準）
+  var curAt=getAttn(pid,ty,tm)[d]||{};
+  var alreadySigned=slot==='am'?!!curAt.selfAm:!!curAt.selfPm;
+  if(alreadySigned){msgEl.innerHTML='<div class="at-status err">您今日'+(slot==='am'?'上午':'下午')+'已完成簽到</div>';return;}
 
-  // 記錄自簽
-  var rec={id:Date.now().toString(),pid:pid,name:p.name,date:todayKey(),slot:slot,time:time,code:code};
-  state.checkinRecords.push(rec);
+  // 本機紀錄（相容用）
+  state.checkinRecords.push({id:Date.now().toString(),pid:pid,name:p.name,date:todayKey(),slot:slot,time:time,code:code});
 
-  // 自動更新 attendance
+  // 更新 attendance
   if(!state.attendance[k])state.attendance[k]={};
   if(!state.attendance[k][pid])state.attendance[k][pid]={};
   if(!state.attendance[k][pid][d])state.attendance[k][pid][d]={};
   var at=state.attendance[k][pid][d];
-  if(slot==='am'){at.selfAm=true;at.amConfirmed=true;at.actualAms=time;}
-  if(slot==='pm'){at.selfPm=true;at.pmConfirmed=true;at.actualPms=time;}
+  if(slot==='am'){at.selfAm=true;at.amConfirmed=true;at.amAbsent=false;at.actualAms=time;}
+  if(slot==='pm'){at.selfPm=true;at.pmConfirmed=true;at.pmAbsent=false;at.actualPms=time;}
 
   saveLocal();
-  msgEl.innerHTML='<div class="at-status ok">✓ 簽到成功！'+p.name+' 已完成'+( slot==='am'?'上午':'下午')+'簽到（'+time+'）</div>';
+  msgEl.innerHTML='<div class="at-status ok">✓ 簽到成功！'+p.name+' 已完成'+(slot==='am'?'上午':'下午')+'簽到（'+time+'）</div>';
   setTimeout(closeSelfCheckin,2000);
   renderCheckinTab();
 
   // 寫回 Airtable 出勤確認表（含簽到方式欄位）
-  pushAttendanceToAT(pid,d,k.split('-')[0]*1,k.split('-')[1]*1-1);
+  pushAttendanceToAT(pid,d,ty,tm);
 }
 
 // ============================================================
@@ -1210,7 +1264,11 @@ async function atFetch(method,table,body,params){
   var url='https://api.airtable.com/v0/'+AT.base+'/'+encodeURIComponent(table);
   if(params)url+='?'+params;
   var opts={method:method,headers:{Authorization:'Bearer '+AT.token,'Content-Type':'application/json'}};
-  if(body)opts.body=JSON.stringify(body);
+  if(body){
+    // typecast：讓單選欄位（時間、月份、姓名等）遇到新值時自動新增選項，而不是被拒絕
+    if(method==='POST'||method==='PATCH')body.typecast=true;
+    opts.body=JSON.stringify(body);
+  }
   var res=await fetch(url,opts);
   var json=await res.json();
   if(!res.ok)throw new Error((json.error&&json.error.message)||'HTTP '+res.status);
@@ -1235,15 +1293,53 @@ async function syncScheduleFromAT(y,m){
       if(!staff)return;
       var pid=staff.id;if(!state.schedule[k][pid])state.schedule[k][pid]={};
       var d=parseInt((f['日期']||'').split('-')[2]);
+      if(!d)return;
       state.schedule[k][pid][d]={am:!!f['上午開始'],ams:f['上午開始']||'09:00',ame:f['上午結束']||'12:00',pm:!!f['下午開始'],pms:f['下午開始']||'13:00',pme:f['下午結束']||'16:00'};
-      if(f['上午新增'])state.schedule[k][pid][d].amNew=true;
-      if(f['下午新增'])state.schedule[k][pid][d].pmNew=true;
-      if(f['上午取消']){state.schedule[k][pid][d].amCancelled=true;state.schedule[k][pid][d].amCancelledLabel=f['上午取消前時間']||'';}
-      if(f['下午取消']){state.schedule[k][pid][d].pmCancelled=true;state.schedule[k][pid][d].pmCancelledLabel=f['下午取消前時間']||'';}
+      if(atBool(f['上午新增']))state.schedule[k][pid][d].amNew=true;
+      if(atBool(f['下午新增']))state.schedule[k][pid][d].pmNew=true;
+      if(atBool(f['上午取消'])){state.schedule[k][pid][d].amCancelled=true;state.schedule[k][pid][d].amCancelledLabel=f['上午取消前時間']||'';}
+      if(atBool(f['下午取消'])){state.schedule[k][pid][d].pmCancelled=true;state.schedule[k][pid][d].pmCancelledLabel=f['下午取消前時間']||'';}
       state.submitted[pid+'-'+k]=true;
     });
     saveLocal();
   }catch(e){console.error('同步班表失敗:',e);}
+  await syncAttendanceFromAT(y,m);
+}
+// 從 Airtable「出勤確認表」讀回整月的確認／缺席／簽到狀態 — 讓每台裝置看到一致的出勤資料
+async function syncAttendanceFromAT(y,m){
+  var k=mkey(y,m),dim=new Date(y,m+1,0).getDate();
+  var start=y+'-'+pad(m+1)+'-01',end=y+'-'+pad(m+1)+'-'+pad(dim);
+  var formula='AND(IS_AFTER({日期},"'+addOneDay(start)+'"),IS_BEFORE({日期},"'+subOneDay(end)+'"))';
+  try{
+    var recs=await atGetAll(AT.attnTable,formula);
+    var fresh={};
+    recs.forEach(function(r){
+      var f=r.fields,staff=state.staff.find(function(s){return s.name===f['姓名'];});
+      if(!staff)return;
+      var d=parseInt(String(f['日期']||'').split('-')[2]);if(!d)return;
+      if(!fresh[staff.id])fresh[staff.id]={};
+      fresh[staff.id][d]={
+        amConfirmed:atBool(f['上午確認']),amAbsent:atBool(f['上午缺席']),
+        pmConfirmed:atBool(f['下午確認']),pmAbsent:atBool(f['下午缺席']),
+        actualAms:f['實際上午簽到']||'',actualAme:f['實際上午簽退']||'',
+        actualPms:f['實際下午簽到']||'',actualPme:f['實際下午簽退']||'',
+        selfAm:f['上午簽到方式']==='自行簽到',selfPm:f['下午簽到方式']==='自行簽到'
+      };
+    });
+    state.attendance[k]=fresh; // 以 Airtable 為準
+    saveLocal();
+  }catch(e){
+    console.error('讀取出勤確認失敗:',e);
+    showATSyncToast('⚠️ 無法從 Airtable 讀取出勤確認：'+e.message,true);
+  }
+}
+// 管理者：重新從 Airtable 載入班表、出勤與簽到碼
+async function reloadAttendanceFromAT(showToast){
+  await syncScheduleFromAT(vy,vm);
+  if(vy!==today.getFullYear()||vm!==today.getMonth())await syncAttendanceFromAT(today.getFullYear(),today.getMonth());
+  await loadTodayCodeFromAT(true);
+  refreshAdminAllViews();renderCheckinCodeDisplay();renderCheckinTab();
+  if(showToast)showATSyncToast('✓ 已從 Airtable 重新載入',false);
 }
 async function loadStaffFromAirtable(){
   var records=await atGetAll(AT.staffTable);
@@ -1254,7 +1350,7 @@ async function loadStaffFromAirtable(){
       hireDate:f['入職日']||'',
       roleType:f['身分別']||'研究助理',
       employType:f['類別']||'兼任',
-      phone:f['聯絡電話']||'',
+      phone:f['聯絡電話']!=null?String(f['聯絡電話']):'',
       dept:f['所屬部門']||'醫研部',
       deptCode:f['部門代號']||'8S00S',
       unit:f['外派單位地點']||'急診室',
@@ -1382,7 +1478,6 @@ async function pushDailyScheduleToAT(pid,y,m,d){
 async function pushAttendanceToAT(pid,d,y,m){
   var p=state.staff.find(function(x){return x.id===pid;});if(!p)return;
   var at=getAttn(pid,y,m)[d]||{};
-  var day=getPdata(pid,y,m)[d]||{};
   var dateStr=y+'-'+pad(m+1)+'-'+pad(d);
   var key=p.name+'_'+dateStr;
   try{
@@ -1449,7 +1544,7 @@ async function buildYearlyTableHtml(year,names,isAdmin){
     if(!name||!mMatch)return;
     var mi=parseInt(mMatch[1])-1;
     if(!byNameMonth[name])byNameMonth[name]={};
-    byNameMonth[name][mi]={sched:f['預排時數']||0,conf:f['總工時']||0,hit:!!f['是否達標'],target:(f['目標時數']!=null?f['目標時數']:null)};
+    byNameMonth[name][mi]={sched:f['預排時數']||0,conf:f['總工時']||0,hit:atBool(f['是否達標']),target:(f['目標時數']!=null?f['目標時數']:null)};
   });
 
   var html='<table class="yearly-table"><thead><tr><th class="name-cell">姓名</th>';
@@ -1527,7 +1622,7 @@ async function startDemo(){
   DEMO_MODE=true;
   window.fetch=demoFetchInterceptor;
   demoDB={};
-  AT={token:'DEMO',base:'DEMO',dailyTable:'每日班表',hrsTable:'人員工時',staffTable:'人員名單',attnTable:'出勤確認表'};
+  AT={token:'DEMO',base:'DEMO',dailyTable:'每日班表',hrsTable:'人員工時',staffTable:'人員名單',attnTable:'出勤確認表',changeLogTable:'異動紀錄表',checkinTable:'每日簽到碼'};
 
   var adminPwd='admin',staffPwd='12345';
   ADMIN_MASTER_HASH=await hashPwd(adminPwd);
@@ -1620,13 +1715,14 @@ async function doSetup(){
   var daily=document.getElementById('setup_daily').value.trim()||'每日班表',hrs=document.getElementById('setup_hrs').value.trim()||'人員工時',staff=document.getElementById('setup_staff').value.trim()||'人員名單';
   var attn=document.getElementById('setup_attn').value.trim()||'出勤確認表';
   var changelog=document.getElementById('setup_changelog').value.trim()||'異動紀錄表';
+  var checkin=document.getElementById('setup_checkin').value.trim()||'每日簽到碼';
   if(!token||!base){document.getElementById('setupErr').innerHTML='<div class="at-status err">請填入 Token 和 Base ID</div>';return;}
   var btn=document.querySelector('#scr-setup button.btn-blue');btn.disabled=true;btn.textContent='連線中…';
-  AT={token:token,base:base,dailyTable:daily,hrsTable:hrs,staffTable:staff,attnTable:attn,changeLogTable:changelog};
+  AT={token:token,base:base,dailyTable:daily,hrsTable:hrs,staffTable:staff,attnTable:attn,changeLogTable:changelog,checkinTable:checkin};
   try{
     await atFetch('GET',staff,null,'maxRecords=1');saveLocal();
     document.getElementById('setupErr').innerHTML='<div class="at-status ok">✓ 連線成功！</div>';
-    setTimeout(async function(){await loadStaffFromAirtable();showScreen('scr-login');initLoginMonthPicker();},800);
+    setTimeout(async function(){await loadStaffFromAirtable();await syncScheduleFromAT(vy,vm);showScreen('scr-login');initLoginMonthPicker();},800);
   }catch(e){document.getElementById('setupErr').innerHTML='<div class="at-status err">連線失敗：'+e.message+'</div>';btn.disabled=false;btn.textContent='連線並啟動';}
 }
 function initLoginMonthPicker(){
@@ -1658,6 +1754,7 @@ async function doLogin(){
     if(h!==ADMIN_MASTER_HASH){errEl.textContent='密碼錯誤';return;}
     currentUser={role:'admin'};vy=pickedY;vm=pickedM;
     await syncScheduleFromAT(vy,vm);
+    if(vy!==today.getFullYear()||vm!==today.getMonth())await syncAttendanceFromAT(today.getFullYear(),today.getMonth());
     showAdmin();
   }else{
     var p=state.staff.find(function(x){return x.id===role;});if(!p)return;
@@ -1673,6 +1770,7 @@ function goLogin(){currentUser=null;document.getElementById('loginRole').value='
 function showScreen(id){document.querySelectorAll('.screen').forEach(function(s){s.classList.remove('active');});document.getElementById(id).classList.add('active');}
 function showAdmin(){
   showScreen('scr-admin');renderAdmin();renderCheckinCodeDisplay();loadAutoSyncUI();
+  loadTodayCodeFromAT(true).then(function(){renderCheckinCodeDisplay();});
   var calIdEl=document.getElementById('gcal_id');if(calIdEl&&!calIdEl.value&&gcalState.calId)calIdEl.value=gcalState.calId;
   var clientIdEl=document.getElementById('gcal_client_id');if(clientIdEl&&!clientIdEl.value){var savedClient=localStorage.getItem('gcal_client_id');if(savedClient)clientIdEl.value=savedClient;}
   var clientSecretEl=document.getElementById('gcal_client_secret');if(clientSecretEl&&!clientSecretEl.value){var savedSecret=localStorage.getItem('gcal_client_secret');if(savedSecret)clientSecretEl.value=savedSecret;}
@@ -2411,17 +2509,17 @@ function staffSelfSign(slot){
   if(!state.attendance[k][modalPid])state.attendance[k][modalPid]={};
   if(!state.attendance[k][modalPid][modalD])state.attendance[k][modalPid][modalD]={};
   var at=state.attendance[k][modalPid][modalD];
-  if(slot==='am'){at.selfAm=true;at.amConfirmed=true;at.actualAms=at.actualAms||document.getElementById('m_ams').value;}
-  if(slot==='pm'){at.selfPm=true;at.pmConfirmed=true;at.actualPms=at.actualPms||document.getElementById('m_pms').value;}
+  if(slot==='am'){at.selfAm=true;at.amConfirmed=true;at.amAbsent=false;at.actualAms=at.actualAms||document.getElementById('m_ams').value;}
+  if(slot==='pm'){at.selfPm=true;at.pmConfirmed=true;at.pmAbsent=false;at.actualPms=at.actualPms||document.getElementById('m_pms').value;}
   saveLocal();
   var btnAm=document.getElementById('self_sign_am'),btnPm=document.getElementById('self_sign_pm');
   if(btnAm&&slot==='am'){btnAm.textContent='✓ 已自簽到';btnAm.disabled=true;btnAm.className='btn-green';btnAm.style.opacity='1';}
   if(btnPm&&slot==='pm'){btnPm.textContent='✓ 已自簽到';btnPm.disabled=true;btnPm.className='btn-green';btnPm.style.opacity='1';}
   var p=state.staff.find(function(s){return s.id===modalPid;});
   if(p){
-    var nowT=pad(today.getHours())+':'+(today.getMinutes()<30?'00':'30');
-    var rec={id:Date.now().toString(),pid:modalPid,name:p.name,date:todayKey(),slot:slot,time:nowT,code:'self'};
-    state.checkinRecords.push(rec);
+    var now=new Date();
+    var nowT=pad(now.getHours())+':'+(now.getMinutes()<30?'00':'30');
+    state.checkinRecords.push({id:Date.now().toString(),pid:modalPid,name:p.name,date:todayKey(),slot:slot,time:nowT,code:'self'});
     saveLocal();
   }
   pushAttendanceToAT(modalPid,modalD,modalY,modalM);
@@ -2431,7 +2529,12 @@ function staffSelfSign(slot){
 // Admin render
 // ============================================================
 function renderAdmin(){document.getElementById('adminMonLbl').textContent=vy+'年 '+MONTHS[vm];checkMonthlyReminder();renderAdminStats();renderAdminOv();renderAdminPeople();renderWeekTemplate();renderPrefGrid();renderConfirm();renderCheckinCodeDisplay();renderCheckinTab();loadAutoSyncUI();renderMonthlyChangeSummary();}
-function switchTab(id,el){document.querySelectorAll('.tsec').forEach(function(s){s.classList.remove('active');});document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('active');});document.getElementById('tab-'+id).classList.add('active');el.classList.add('active');}
+function switchTab(id,el){
+  document.querySelectorAll('.tsec').forEach(function(s){s.classList.remove('active');});
+  document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('active');});
+  document.getElementById('tab-'+id).classList.add('active');el.classList.add('active');
+  if(id==='confirm')reloadAttendanceFromAT(false); // 切到出勤分頁時，自動抓 Airtable 最新狀態（別台裝置的確認/簽到）
+}
 
 function renderAdminStats(){
   var met=0,part=0,none2=0,pendingConfirm=0;
@@ -2492,13 +2595,13 @@ function renderAdminPeople(){
     var schedHrs=scheduledHrs(p.id,vy,vm);
     var confHrs=monthHrs(p.id,vy,vm);
     var diff=formatHoursDiff(confHrs,target);
-    var pct=Math.min(100,schedHrs/target*100),sub=isSubmitted(p.id,vy,vm);
+    var pct=target>0?Math.min(100,schedHrs/target*100):100,sub=isSubmitted(p.id,vy,vm);
     var fc=schedHrs>=target?'#1D9E75':schedHrs>0?'#BA7517':'#999';
     var badge=sub?'<span class="badge badge-green">已送出</span>':schedHrs>=target?'<span class="badge badge-teal">已排達標</span>':schedHrs>0?'<span class="badge badge-amber">填報中</span>':'<span class="badge badge-gray">未填報</span>';
     var c=getPersonColor(i);
     var shortfallHtml='<span style="color:'+diff.color+';font-weight:600;">'+diff.text+'</span>';
     var hireNote=p.hireDate?' <span style="color:#0C447C;">（入職 '+p.hireDate+'）</span>':'';
-    html+='<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #f0f0ee;flex-wrap:wrap;"><div style="width:32px;height:32px;border-radius:50%;background:'+c[0]+';color:'+c[1]+';display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0;">'+p.name[0]+'</div><div style="flex:1;min-width:140px;"><div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;"><span style="font-size:14px;font-weight:700;">'+p.name+'</span>'+badge+'</div><div style="display:flex;align-items:center;gap:8px;"><div class="progress-bar" style="flex:1;"><div class="progress-fill" style="width:'+pct.toFixed(0)+'%;background:'+fc+';"></div></div><span style="font-size:12px;color:var(--muted);white-space:nowrap;">已排 '+schedHrs.toFixed(1)+'/'+target+'h</span></div><div style="font-size:11px;color:#999;margin-top:2px;">已確認出勤：'+confHrs.toFixed(1)+'h　'+shortfallHtml+hireNote+(p.projectCode?'':' · <span style="color:#BA7517;">尚未填寫簽到表資料</span>')+'</div></div><div style="display:flex;gap:6px;flex-wrap:wrap;"><button class="btn-teal" style="font-size:12px;padding:4px 10px;" onclick="openProfileModal(\''+p.id+'\')">📋 簽到表資料</button><button class="btn-blue" style="font-size:12px;padding:4px 10px;" onclick="resetStaffPwd(\''+p.id+'\')">重設密碼</button><button class="btn-red" style="font-size:12px;padding:4px 10px;" onclick="removeStaff(\''+p.id+'\')">移除</button></div></div>';
+    html+='<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #f0f0ee;flex-wrap:wrap;"><div style="width:32px;height:32px;border-radius:50%;background:'+c[0]+';color:'+c[1]+';display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0;">'+(p.name?p.name[0]:'?')+'</div><div style="flex:1;min-width:140px;"><div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;"><span style="font-size:14px;font-weight:700;">'+p.name+'</span>'+badge+'</div><div style="display:flex;align-items:center;gap:8px;"><div class="progress-bar" style="flex:1;"><div class="progress-fill" style="width:'+pct.toFixed(0)+'%;background:'+fc+';"></div></div><span style="font-size:12px;color:var(--muted);white-space:nowrap;">已排 '+schedHrs.toFixed(1)+'/'+target+'h</span></div><div style="font-size:11px;color:#999;margin-top:2px;">已確認出勤：'+confHrs.toFixed(1)+'h　'+shortfallHtml+hireNote+(p.projectCode?'':' · <span style="color:#BA7517;">尚未填寫簽到表資料</span>')+'</div></div><div style="display:flex;gap:6px;flex-wrap:wrap;"><button class="btn-teal" style="font-size:12px;padding:4px 10px;" onclick="openProfileModal(\''+p.id+'\')">📋 簽到表資料</button><button class="btn-blue" style="font-size:12px;padding:4px 10px;" onclick="resetStaffPwd(\''+p.id+'\')">重設密碼</button><button class="btn-red" style="font-size:12px;padding:4px 10px;" onclick="removeStaff(\''+p.id+'\')">移除</button></div></div>';
   });
   el.innerHTML=html||'<p style="font-size:13px;color:#bbb;">尚無人員</p>';
 }
@@ -2685,6 +2788,7 @@ function getAttendanceRange(mode){
   var endStr=rangeEnd.y+'-'+pad(rangeEnd.m+1)+'-'+pad(rangeEnd.d);
   return {start:startStr,end:endStr,startObj:rangeStart,endObj:rangeEnd};
 }
+// 注意：addOneDay 實際為「前一天」、subOneDay 實際為「後一天」，用於 IS_AFTER/IS_BEFORE 的包含邊界（名稱沿用舊版）
 function addOneDay(dateStr){var d=new Date(dateStr);d.setDate(d.getDate()-1);return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());}
 function subOneDay(dateStr){var d=new Date(dateStr);d.setDate(d.getDate()+1);return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());}
 
@@ -2709,7 +2813,7 @@ async function loadAttendancePeriodStaffList(mode){
 function buildRowsFromATRecords(records){
   var rows=records.map(function(f){
     var dparts=(f['日期']||'').split('-'),y=+dparts[0],m=+dparts[1]-1,d=+dparts[2];
-    return {y:y,m:m,d:d,ams:f['實際上午簽到']||'',ame:f['實際上午簽退']||'',pms:f['實際下午簽到']||'',pme:f['實際下午簽退']||'',isMakeup:!!f['是否補班'],amOn:!!f['上午確認'],pmOn:!!f['下午確認']};
+    return {y:y,m:m,d:d,ams:f['實際上午簽到']||'',ame:f['實際上午簽退']||'',pms:f['實際下午簽到']||'',pme:f['實際下午簽退']||'',isMakeup:atBool(f['是否補班']),amOn:atBool(f['上午確認']),pmOn:atBool(f['下午確認'])};
   });
   rows.sort(function(a,b){return (a.y*10000+a.m*100+a.d)-(b.y*10000+b.m*100+b.d);});
   return rows.filter(function(r){return (r.amOn&&r.ams&&r.ame)||(r.pmOn&&r.pms&&r.pme);});
@@ -2815,14 +2919,14 @@ async function refreshWordPreview(){
     sel.dataset.mode=mode;
     personSel=sel.value;
   }
-  var html='';
+  var html2='';
   if(personSel==='all'){
-    for(var i=0;i<names.length;i++)html+=await buildAttendanceHTML(names[i],mode);
+    for(var i=0;i<names.length;i++)html2+=await buildAttendanceHTML(names[i],mode);
   }else{
-    html=await buildAttendanceHTML(personSel,mode);
+    html2=await buildAttendanceHTML(personSel,mode);
   }
-  _lastWordHtmlCache=html;
-  document.getElementById('wordPreviewBody').innerHTML=html||'<p style="color:#aaa;text-align:center;padding:2rem;">尚無已確認的出勤資料</p>';
+  _lastWordHtmlCache=html2;
+  document.getElementById('wordPreviewBody').innerHTML=html2||'<p style="color:#aaa;text-align:center;padding:2rem;">尚無已確認的出勤資料</p>';
 }
 function downloadWord(){
   var html=_lastWordHtmlCache;
@@ -2926,7 +3030,7 @@ async function exchangeCodeForToken(code,clientId){
   }
 }
 
-// 確保 accessToken 有效，過期則用 refreshToken 換新（PKCE flow 下 refresh 不需要 client secret）
+// 確保 accessToken 有效，過期則用 refreshToken 換新
 async function ensureGCalToken(){
   if(gcalState.accessToken&&Date.now()<gcalState.expiresAt)return;
   if(!gcalState.refreshToken)return;
@@ -3079,9 +3183,8 @@ async function syncSingleDayToGCalSafe(pid,d,y,m){
 }
 
 // 頁面載入時處理 OAuth 回跳：
-// - 如果這是彈出視窗（有 window.opener），代表這是授權彈窗被導回來，直接把授權碼回傳給主視窗、自己關閉，
-//   絕不在彈窗裡渲染完整系統畫面（避免使用者看到「又跳回排班系統頁面」的錯覺）
-// - 如果不是彈出視窗（例如没有用 popup、直接整頁導回），才在原頁面直接處理 exchange
+// - 如果這是彈出視窗（有 window.opener），代表這是授權彈窗被導回來，直接把授權碼回傳給主視窗、自己關閉
+// - 如果不是彈出視窗（例如直接整頁導回），才在原頁面直接處理 exchange
 var SKIP_MAIN_INIT=false;
 (function handleRedirectCode(){
   var url=new URL(window.location.href);
@@ -3107,7 +3210,7 @@ setInterval(function(){
   if(now.getFullYear()!==today.getFullYear()||now.getMonth()!==today.getMonth()||now.getDate()!==today.getDate()){
     today=now;
     if(currentUser&&currentUser.role==='admin'){
-      renderCheckinCodeDisplay();
+      loadTodayCodeFromAT(true).then(function(){renderCheckinCodeDisplay();});
       renderCheckinTab();
       checkMonthlyReminder();
     }
