@@ -910,6 +910,7 @@ function pad(n){return n<10?'0'+n:''+n;}
 function mkey(y,m){return y+'-'+pad(m+1);}
 function t2n(t){if(!t)return 0;var p=t.split(':');return +p[0]+ +p[1]/60;}
 function calcH(s,e){if(!s||!e)return 0;var h=t2n(e)-t2n(s);return h>0?h:0;}
+function nowTime5(){var n=new Date();return pad(n.getHours())+':'+pad(Math.floor(n.getMinutes()/5)*5);}
 function genTimes(){var t=[];for(var h=7;h<=20;h++){t.push(pad(h)+':00');if(h<20)t.push(pad(h)+':30');}return t;}
 var TIMES=genTimes();
 
@@ -919,14 +920,22 @@ function getPref(d,y,m){return state.pref[mkey(y,m)+'-'+d]||{am:false,amN:1,pm:f
 function setPref(d,data,y,m){state.pref[mkey(y,m)+'-'+d]=data;}
 function getPersonColor(idx){return PERSON_COLORS[idx%PERSON_COLORS.length];}
 
+// 單一時段的實際計入時數：以實際簽到／簽退時間為準（遲到、早退會扣時數），
+// 但不超出排班範圍（提早到或延後走不會自動多算；要計入加班請直接修改排班時間）
+function slotHrs(schedS,schedE,actS,actE){
+  var s=actS||schedS,e=actE||schedE;
+  if(schedS&&t2n(s)<t2n(schedS))s=schedS;
+  if(schedE&&t2n(e)>t2n(schedE))e=schedE;
+  return calcH(s,e);
+}
 function monthHrs(pid,y,m){
-  // 已確認的時數一律以「排班時間」計算，不受自行簽到或實際簽到退時間影響
+  // 已確認時數：依實際簽到／簽退時間計算（見 slotHrs）
   var dim=new Date(y,m+1,0).getDate(),total=0,pd=getPdata(pid,y,m),attn=getAttn(pid,y,m);
   for(var d=1;d<=dim;d++){
     var day=pd[d];if(!day)continue;
     var at=attn[d]||{};
-    if(day.am&&day.ams&&day.ame&&at.amConfirmed)total+=calcH(day.ams,day.ame);
-    if(day.pm&&day.pms&&day.pme&&at.pmConfirmed)total+=calcH(day.pms,day.pme);
+    if(day.am&&day.ams&&day.ame&&at.amConfirmed)total+=slotHrs(day.ams,day.ame,at.actualAms,at.actualAme);
+    if(day.pm&&day.pms&&day.pme&&at.pmConfirmed)total+=slotHrs(day.pms,day.pme,at.actualPms,at.actualPme);
   }
   return total;
 }
@@ -1129,9 +1138,12 @@ function showSelfCheckin(){
   sel.innerHTML='<option value="">-- 選擇姓名 --</option>';
   state.staff.forEach(function(p){var o=document.createElement('option');o.value=p.id;o.textContent=p.name;sel.appendChild(o);});
   var timeSel=document.getElementById('selfCheckinTime');
-  timeSel.innerHTML='';TIMES.forEach(function(t){var o=document.createElement('option');o.value=t;o.textContent=t;timeSel.appendChild(o);});
-  var now=new Date(),nowH=now.getHours(),nowMin=now.getMinutes(),rounded=pad(nowH)+':'+(nowMin<30?'00':'30');
-  if(TIMES.indexOf(rounded)>=0)timeSel.value=rounded;
+  // 簽到時間＝按下簽到當下的時間（取到 5 分鐘），不可自選，遲到才會反映在時數上；需更正請由管理者在確認出勤時修改
+  var nowT=nowTime5();
+  timeSel.innerHTML='<option value="'+nowT+'">'+nowT+'（現在）</option>';
+  timeSel.value=nowT;timeSel.disabled=true;
+  // 時段依現在時間自動帶入：13:00 前為上午，之後為下午
+  document.getElementById('selfCheckinSlot').value=new Date().getHours()<13?'am':'pm';
   document.getElementById('selfCheckinCode').value='';
   document.getElementById('selfCheckinMsg').innerHTML='';
   document.getElementById('selfCheckinOverlay').classList.add('show');
@@ -2171,10 +2183,11 @@ function openConfirmModal(pid,d,y,m){
   if(day.am&&calcH(day.ams,day.ame)>0){
     html+='<div class="confirm-section am-sec"><div style="font-size:13px;font-weight:700;color:var(--am-text);margin-bottom:8px;">上午班（排班：'+day.ams+'–'+day.ame+'）</div>';
     html+='<div class="confirm-row"><span class="confirm-slot-label am">實際</span>';
-    html+='<select id="cf_ams" style="flex:1;font-size:13px;padding:6px 4px;">'+TIMES.map(function(t){return '<option'+(t===(at.actualAms||day.ams)?' selected':'')+'>'+t+'</option>';}).join('')+'</select>';
+    html+='<select id="cf_ams" onchange="updateCfHrs()" style="flex:1;font-size:13px;padding:6px 4px;">'+cfTimeOptions(at.actualAms||day.ams)+'</select>';
     html+='<span style="color:#aaa;padding:0 4px;">—</span>';
-    html+='<select id="cf_ame" style="flex:1;font-size:13px;padding:6px 4px;">'+TIMES.map(function(t){return '<option'+(t===(at.actualAme||day.ame)?' selected':'')+'>'+t+'</option>';}).join('')+'</select>';
+    html+='<select id="cf_ame" onchange="updateCfHrs()" style="flex:1;font-size:13px;padding:6px 4px;">'+cfTimeOptions(at.actualAme||day.ame)+'</select>';
     html+='</div>';
+    html+='<div id="cf_am_h" style="font-size:12px;margin-top:6px;"></div>';
     html+='<div style="display:flex;gap:8px;margin-top:8px;">';
     html+='<label style="display:flex;align-items:center;gap:4px;font-size:13px;cursor:pointer;"><input type="radio" name="am_status" value="confirmed" '+(at.amConfirmed?'checked':'')+'>✓ 確認</label>';
     html+='<label style="display:flex;align-items:center;gap:4px;font-size:13px;cursor:pointer;"><input type="radio" name="am_status" value="absent" '+(at.amAbsent?'checked':'')+'>✗ 缺席</label>';
@@ -2184,10 +2197,11 @@ function openConfirmModal(pid,d,y,m){
   if(day.pm&&calcH(day.pms,day.pme)>0){
     html+='<div class="confirm-section pm-sec"><div style="font-size:13px;font-weight:700;color:var(--pm-text);margin-bottom:8px;">下午班（排班：'+day.pms+'–'+day.pme+'）</div>';
     html+='<div class="confirm-row"><span class="confirm-slot-label pm">實際</span>';
-    html+='<select id="cf_pms" style="flex:1;font-size:13px;padding:6px 4px;">'+TIMES.map(function(t){return '<option'+(t===(at.actualPms||day.pms)?' selected':'')+'>'+t+'</option>';}).join('')+'</select>';
+    html+='<select id="cf_pms" onchange="updateCfHrs()" style="flex:1;font-size:13px;padding:6px 4px;">'+cfTimeOptions(at.actualPms||day.pms)+'</select>';
     html+='<span style="color:#aaa;padding:0 4px;">—</span>';
-    html+='<select id="cf_pme" style="flex:1;font-size:13px;padding:6px 4px;">'+TIMES.map(function(t){return '<option'+(t===(at.actualPme||day.pme)?' selected':'')+'>'+t+'</option>';}).join('')+'</select>';
+    html+='<select id="cf_pme" onchange="updateCfHrs()" style="flex:1;font-size:13px;padding:6px 4px;">'+cfTimeOptions(at.actualPme||day.pme)+'</select>';
     html+='</div>';
+    html+='<div id="cf_pm_h" style="font-size:12px;margin-top:6px;"></div>';
     html+='<div style="display:flex;gap:8px;margin-top:8px;">';
     html+='<label style="display:flex;align-items:center;gap:4px;font-size:13px;cursor:pointer;"><input type="radio" name="pm_status" value="confirmed" '+(at.pmConfirmed?'checked':'')+'>✓ 確認</label>';
     html+='<label style="display:flex;align-items:center;gap:4px;font-size:13px;cursor:pointer;"><input type="radio" name="pm_status" value="absent" '+(at.pmAbsent?'checked':'')+'>✗ 缺席</label>';
@@ -2196,6 +2210,29 @@ function openConfirmModal(pid,d,y,m){
   }
   document.getElementById('confirmModalBody').innerHTML=html;
   document.getElementById('confirmOverlay').classList.add('show');
+  updateCfHrs();
+}
+// 確認視窗的時間選單：每 5 分鐘一格（遲到常是 9:12 這種時間），若既有值不在格點上也保留
+function cfTimeOptions(selected){
+  var list=[];
+  for(var h=7;h<=20;h++)for(var mi=0;mi<60;mi+=5){if(h===20&&mi>0)break;list.push(pad(h)+':'+pad(mi));}
+  if(selected&&list.indexOf(selected)<0){list.push(selected);list.sort();}
+  return list.map(function(t){return '<option'+(t===selected?' selected':'')+'>'+t+'</option>';}).join('');
+}
+// 即時顯示「計入時數」，讓管理者改時間時就看得到扣了多少
+function updateCfHrs(){
+  var t=confirmTarget;if(!t||!t.pid)return;
+  var day=((state.schedule[mkey(t.y,t.m)]||{})[t.pid]||{})[t.d]||{};
+  [['am','ams','ame'],['pm','pms','pme']].forEach(function(x){
+    var box=document.getElementById('cf_'+x[0]+'_h');if(!box)return;
+    var sEl=document.getElementById('cf_'+x[1]),eEl=document.getElementById('cf_'+x[2]);
+    var sched=calcH(day[x[1]],day[x[2]]);
+    var real=slotHrs(day[x[1]],day[x[2]],sEl.value,eEl.value);
+    var diff=real-sched;
+    box.innerHTML='計入時數：<b>'+real.toFixed(2).replace(/\.?0+$/,'')+'h</b>'+
+      (Math.abs(diff)<0.001?'<span style="color:var(--muted);">（與排班相同）</span>':
+       '<span style="color:#A32D2D;">（較排班少 '+Math.abs(diff).toFixed(2).replace(/\.?0+$/,'')+'h）</span>');
+  });
 }
 function saveConfirm(){
   var t=confirmTarget,k=mkey(t.y,t.m);
@@ -2509,8 +2546,9 @@ function staffSelfSign(slot){
   if(!state.attendance[k][modalPid])state.attendance[k][modalPid]={};
   if(!state.attendance[k][modalPid][modalD])state.attendance[k][modalPid][modalD]={};
   var at=state.attendance[k][modalPid][modalD];
-  if(slot==='am'){at.selfAm=true;at.amConfirmed=true;at.amAbsent=false;at.actualAms=at.actualAms||document.getElementById('m_ams').value;}
-  if(slot==='pm'){at.selfPm=true;at.pmConfirmed=true;at.pmAbsent=false;at.actualPms=at.actualPms||document.getElementById('m_pms').value;}
+  var signT=nowTime5(); // 以實際按下簽到的時間記錄，遲到會反映在時數上
+  if(slot==='am'){at.selfAm=true;at.amConfirmed=true;at.amAbsent=false;at.actualAms=signT;}
+  if(slot==='pm'){at.selfPm=true;at.pmConfirmed=true;at.pmAbsent=false;at.actualPms=signT;}
   saveLocal();
   var btnAm=document.getElementById('self_sign_am'),btnPm=document.getElementById('self_sign_pm');
   if(btnAm&&slot==='am'){btnAm.textContent='✓ 已自簽到';btnAm.disabled=true;btnAm.className='btn-green';btnAm.style.opacity='1';}
@@ -2518,7 +2556,7 @@ function staffSelfSign(slot){
   var p=state.staff.find(function(s){return s.id===modalPid;});
   if(p){
     var now=new Date();
-    var nowT=pad(now.getHours())+':'+(now.getMinutes()<30?'00':'30');
+    var nowT=signT;
     state.checkinRecords.push({id:Date.now().toString(),pid:modalPid,name:p.name,date:todayKey(),slot:slot,time:nowT,code:'self'});
     saveLocal();
   }
@@ -2816,7 +2854,7 @@ function buildRowsFromATRecords(records){
     return {y:y,m:m,d:d,ams:f['實際上午簽到']||'',ame:f['實際上午簽退']||'',pms:f['實際下午簽到']||'',pme:f['實際下午簽退']||'',isMakeup:atBool(f['是否補班']),amOn:atBool(f['上午確認']),pmOn:atBool(f['下午確認'])};
   });
   rows.sort(function(a,b){return (a.y*10000+a.m*100+a.d)-(b.y*10000+b.m*100+b.d);});
-  return rows.filter(function(r){return (r.amOn&&r.ams&&r.ame)||(r.pmOn&&r.pms&&r.pme);});
+  return rows.filter(function(r){return r.amOn||r.pmOn;});
 }
 
 function checkboxLine(options,selected){
@@ -2835,7 +2873,14 @@ async function buildAttendanceHTML(personName,mode){
   rows.forEach(function(r){
     var dow=new Date(r.y,r.m,r.d).getDay(),isWE=dow===0||dow===6;
     var dateLabel=(r.m+1)+'/'+r.d+' '+['日','一','二','三','四','五','六'][dow];
-    var amH=(r.amOn&&r.ams&&r.ame)?calcH(r.ams,r.ame):0,pmH=(r.pmOn&&r.pms&&r.pme)?calcH(r.pms,r.pme):0,dh=amH+pmH;totalHrs+=dh;
+    // 與系統內「已確認時數」同一套算法：實際時間為準、不超出排班範圍；缺少簽退時間時以排班時間補上
+    var sd=person.id?(((state.schedule[mkey(r.y,r.m)]||{})[person.id]||{})[r.d]||{}):{};
+    var sAms=sd.am?sd.ams:'',sAme=sd.am?sd.ame:'',sPms=sd.pm?sd.pms:'',sPme=sd.pm?sd.pme:'';
+    if(r.amOn){r.ams=r.ams||sAms;r.ame=r.ame||sAme;}
+    if(r.pmOn){r.pms=r.pms||sPms;r.pme=r.pme||sPme;}
+    var amH=r.amOn?slotHrs(sAms,sAme,r.ams,r.ame):0,pmH=r.pmOn?slotHrs(sPms,sPme,r.pms,r.pme):0,dh=amH+pmH;
+    if(dh<=0)return;
+    totalHrs+=dh;
     var mkNote=r.isMakeup?'（補）':'';
     // 合併上午/下午為單一簽到-簽退：簽到取最早有出席的時段開始時間，簽退取最晚有出席的時段結束時間
     var signIn=r.amOn&&r.ams?r.ams:(r.pmOn&&r.pms?r.pms:'');
@@ -2912,6 +2957,10 @@ async function refreshWordPreview(){
   }
   document.getElementById('wordPreviewSubtitle').textContent=vy+'年'+(vm+1)+'月　考勤版（21~20）／ 僅顯示已確認出勤（來源：Airtable）';
   document.getElementById('wordPreviewBody').innerHTML='<div class="loading-screen" style="min-height:100px;"><div class="spinner"></div><div style="font-size:12px;color:var(--muted);">讀取中…</div></div>';
+  // 考勤期跨兩個月（21日～次月20日），先把兩個月的班表都載入，簽到表時數才能對照排班計算
+  var nY=vm===11?vy+1:vy,nM=vm===11?0:vm+1;
+  await syncScheduleFromAT(nY,nM);
+  await syncScheduleFromAT(vy,vm);
   var names=await loadAttendancePeriodStaffList(mode);
   if(sel.options.length<=1||sel.dataset.mode!==mode){
     sel.innerHTML='<option value="all">全部人員（本期有資料者，分頁）</option>';
